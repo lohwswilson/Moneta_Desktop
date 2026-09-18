@@ -19,16 +19,24 @@ It operates completely **100% offline-first** using an embedded WebAssembly SQLi
 |  ├── Checkbook Register (1-Click Clr, Running Balance, Split Badges)    |
 |  ├── Bank Statement Import Wizard (CSV & QIF Drag-and-Drop)             |
 |  ├── Split Transaction Modal (Live Remainder Allocation Math)           |
+|  ├── Envelope Budget Hub (Zero-Based, Can-I-Spend Calculator)           |
+|  ├── Recurring Bills & Subscription Detector (14/30-Day Horizon)        |
+|  ├── Cash Flow Forecaster & Sankey Diagram (30-365 Day Projection)      |
+|  ├── Financial Goals Tracker (Milestones & Sinking Funds)               |
+|  ├── Payee Intelligence Directory (Cadence & Spend Analytics)           |
 |  └── Connection & Migration Modal (Odoo 18 / Local SQLite / Sandbox)    |
 |                                                                         |
 |  [ Pluggable Data Repository (IMonetaRepository) ]                      |
 |  ├── Driver 1: Local SQLite Adapter (sql.js WASM + IndexedDB Store)     |
 |  ├── Driver 2: Live Odoo 18 Adapter (/api/v1/mobile/* via Bearer PAT)   |
-|  └── Driver 3: Demo Sandbox Adapter (In-Memory Mock Financial State)   |
+|  └── Driver 3: Demo Sandbox Adapter (In-Memory Mock Financial State)    |
 |                                                                         |
 |  [ Specialized Financial Engines ]                                      |
 |  ├── Singapore Merchant Auto-Categorization Engine (33 default rules)   |
 |  ├── Bank Statement Parser (DBS, OCBC, UOB, StanChart, Quicken QIF)     |
+|  ├── Payee Cadence & Spend Aggregation Engine (180-day clustering)      |
+|  ├── Cash Flow Projection & Sankey Graph Builder (30-365 day horizon)   |
+|  ├── Goal Progress Engine (shared, mirrors Odoo relativedelta maths)    |
 |  └── Point-in-Time Running Balance Partition Engine                     |
 +-------------------------------------------------------------------------+
 ```
@@ -74,6 +82,32 @@ It operates completely **100% offline-first** using an embedded WebAssembly SQLi
 - **Binary Backup Export**: 1-click `.sqlite` file export for external backups or analysis in SQLite tools.
 - **1-Click Odoo Migration**: Seamlessly connects to a live Odoo 18 `moneta_finance` server, downloads all accounts and historical transactions, and populates local SQLite tables automatically.
 
+### 7. 🎯 Zero-Based Envelope Budgets
+- **Category Envelopes**: Monthly income allocation across Needs, Wants and Savings with a live burn-pace indicator.
+- **Safe to Spend**: Remaining allowance computed after committed allocation.
+- **"Can I Spend?" Calculator**: Evaluates a proposed purchase against the relevant envelope, warns on overdraft, and suggests donor envelopes to reallocate from.
+
+### 8. 🔁 Recurring Bills & Subscription Detector
+- **Countdown Calendar**: 14-day / 30-day horizons with `overdue`, `today`, `due_soon` and `upcoming` status badges.
+- **1-Click Mark as Paid**: Posts the ledger expense and advances the due date in one action.
+- **Subscription Detection**: Clusters 180 days of ledger history by payee and interval to surface recurring charges that were never explicitly scheduled.
+
+### 9. 📈 Cash Flow Forecaster & Sankey Diagram
+- **30–365 Day Projection**: Projected balance trajectory from scheduled income and recurring bills.
+- **Daily Projected Ledger**: Opening balance, income, expense, net change and closing balance per day, with overdraft flags.
+- **Interactive Sankey**: Income Sources → Liquid Cash Hub → Expenses & Savings envelopes.
+- **Overdraft Risk**: Lowest projected balance, its date, and days-in-the-red count.
+
+### 10. 🏆 Financial Goals Tracker
+- **Milestone Goals**: Emergency fund, down payment, holiday and similar targets with progress bars and optional dedicated funding accounts.
+- **Derived Contribution Targets**: Months remaining and the monthly contribution each goal needs, computed by one shared helper so every data source agrees.
+- **Deposit / Withdraw Modal**: Live preview of the resulting balance.
+
+### 11. 🏪 Payee Intelligence & Directory
+- **Autocomplete with Memory**: Selecting a payee recalls its category and prefills the typical amount.
+- **Cadence Detection**: `weekly`, `biweekly`, `monthly`, `quarterly`, `yearly` or `irregular`.
+- **Spend Analytics**: Lifetime spend, transaction count and average ticket size per merchant.
+
 ---
 
 ## 📊 Feature Comparison Matrix
@@ -88,6 +122,10 @@ It operates completely **100% offline-first** using an embedded WebAssembly SQLi
 | **Bank Statement CSV/QIF Import** | **✔ Built-in Wizard** | ✔ Native | ✔ Native | ✔ Native | ✔ Server Wizard |
 | **Singapore Bank Recognition** | **✔ DBS/OCBC/UOB/SC** | ✖ US Only | ✖ US Focused | ✖ US Focused | ✔ Native |
 | **Auto-Categorization Rules** | **✔ 33 SG Rules** | ✔ Rules | ✔ Rules | ✔ Rules | ✔ Server Rules |
+| **Zero-Based Envelope Budgeting** | **✔ Native** | ✖ No | ✔ Native | ✔ Native | ✔ Native |
+| **Recurring Bill Countdown** | **✔ Native** | ✔ Native | ✔ Native | ✔ Native | ✔ Native |
+| **Cash Flow Sankey & Forecast** | **✔ 30–365 Days** | Partial | ✖ No | ✔ Native | ✔ Native |
+| **Financial Goals & Sinking Funds** | **✔ Native** | ✔ Native | ✔ Native | ✔ Native | ✔ Native |
 | **Direct Odoo 18 Server Sync** | **✔ Native (Bearer PAT)**| ✖ No | ✖ No | ✖ No | Host Backend |
 | **Zero Subscription Cost** | **✔ Free & Open-Source** | ✖ $70+/yr | ✖ $109/yr | ✖ $100/yr | ✔ Free Self-Hosted |
 
@@ -98,7 +136,9 @@ It operates completely **100% offline-first** using an embedded WebAssembly SQLi
 1. **[Getting Started & Installation](01_GETTING_STARTED.md)**: Setup, running desktop vs browser mode, connection configuration, and Odoo migration.
 2. **[Banking & Checkbook Register](02_BANKING_AND_CHECKBOOK_REGISTER.md)**: Register mechanics, running balance tiebreakers, reconciliation states, and split transactions.
 3. **[Bank Statement Wizard & Rules Engine](03_BANK_STATEMENT_WIZARD_AND_RULES.md)**: Statement parsing, Singapore bank presets, duplicate detection, and categorization rules.
-4. **[Local SQLite & Offline Storage](04_LOCAL_SQLITE_AND_OFFLINE_STORAGE.md)**: WebAssembly SQLite, IndexedDB persistence, database schemas, and `.sqlite` export.
+4. **[Local SQLite & Offline Storage](04_LOCAL_SQLITE_AND_OFFLINE_STORAGE.md)**: WebAssembly SQLite, IndexedDB persistence, the full DDL schema, and `.sqlite` export.
 5. **[Odoo 18 Sync & API Integration](05_ODOO_SYNC_AND_API_INTEGRATION.md)**: Pluggable repository, `/api/v1/mobile/*` endpoints, Bearer PAT auth, and CORS handling.
 6. **[Wealth Command Center & Analytics](06_COMMAND_CENTER_AND_FIRE_ANALYTICS.md)**: Net worth calculations, emergency runway, burn rates, and 4% FIRE tracking.
-7. **[Product Roadmap & Parity Plan](07_ROADMAP_AND_FEATURE_PARITY.md)**: Detailed phase-by-phase parity roadmap with Odoo `moneta_finance`.
+7. **[Product Roadmap & Parity Plan](07_ROADMAP_AND_FEATURE_PARITY.md)**: Phase-by-phase parity audit against Odoo `moneta_finance`.
+8. **[Planning, Budgeting & Forecasting Hubs](08_PLANNING_AND_FORECASTING_HUBS.md)**: Envelope budgets, recurring bills, cash flow forecasting and financial goals.
+9. **[Payee Intelligence & Directory](09_PAYEE_INTELLIGENCE_AND_DIRECTORY.md)**: Merchant memory, cadence detection and spend analytics.

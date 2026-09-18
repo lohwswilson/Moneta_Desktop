@@ -105,6 +105,112 @@ CREATE TABLE IF NOT EXISTS categorization_rules (
 );
 ```
 
+### Table: `budgets`
+Zero-based envelope budget allocations. Spending is aggregated from `transactions` at read time rather than stored, so an envelope cannot drift from the ledger it summarises. See [`08_PLANNING_AND_FORECASTING_HUBS.md`](08_PLANNING_AND_FORECASTING_HUBS.md).
+
+```sql
+CREATE TABLE IF NOT EXISTS budgets (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  category_name TEXT NOT NULL,
+  allocated_amount REAL NOT NULL DEFAULT 0.0,
+  period TEXT DEFAULT 'monthly',
+  category_group TEXT DEFAULT 'need',
+  rollover INTEGER DEFAULT 0,
+  color_code TEXT DEFAULT '#3b82f6'
+);
+```
+
+### Table: `app_settings`
+Key/value store for canonical settings synced from the Odoo server (base currency, company name, and similar scalars):
+
+```sql
+CREATE TABLE IF NOT EXISTS app_settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+### Table: `currency_rates`
+FX rates normalized to the base currency, used for offline multi-currency net worth conversion:
+
+```sql
+CREATE TABLE IF NOT EXISTS currency_rates (
+  currency_code TEXT PRIMARY KEY,
+  rate_to_base REAL NOT NULL,
+  updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+### Table: `recurring_bills`
+Scheduled bills and detected subscriptions. `active` is a soft-delete flag; `next_due_date` is advanced when a bill is marked paid:
+
+```sql
+CREATE TABLE IF NOT EXISTS recurring_bills (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  payee_name TEXT NOT NULL,
+  category_name TEXT,
+  account_id TEXT,
+  account_name TEXT,
+  amount REAL NOT NULL,
+  frequency TEXT DEFAULT 'monthly',
+  next_due_date TEXT NOT NULL,
+  auto_pay INTEGER DEFAULT 0,
+  active INTEGER DEFAULT 1,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+### Table: `payees`
+Merchant memory. Lifetime figures (`total_spend`, `transaction_count`, `avg_amount`) are aggregated from `transactions` at read time, not stored here. `name` is unique — the adapter upserts `ON CONFLICT(name)` so edits merge rather than duplicate. See [`09_PAYEE_INTELLIGENCE_AND_DIRECTORY.md`](09_PAYEE_INTELLIGENCE_AND_DIRECTORY.md).
+
+```sql
+CREATE TABLE IF NOT EXISTS payees (
+  id TEXT PRIMARY KEY,
+  name TEXT UNIQUE NOT NULL,
+  default_category_name TEXT,
+  suggested_category_name TEXT,
+  detected_cadence TEXT DEFAULT 'none',
+  website TEXT,
+  notes TEXT,
+  updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+### Table: `goals`
+Financial goals and sinking funds. Only the goal's **own** fields are stored — `status`, `progress_percent`, `remaining_amount`, `months_remaining` and `monthly_contribution_required` are derived on read by [`src/lib/data/goalMath.ts`](file:///opt/moneta_desktop/src/lib/data/goalMath.ts) so the SQLite, Mock and Odoo surfaces cannot diverge. See [`08_PLANNING_AND_FORECASTING_HUBS.md`](08_PLANNING_AND_FORECASTING_HUBS.md).
+
+```sql
+CREATE TABLE IF NOT EXISTS goals (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  target_amount REAL NOT NULL DEFAULT 0,
+  current_amount REAL NOT NULL DEFAULT 0,
+  start_date TEXT NOT NULL,
+  target_date TEXT NOT NULL,
+  account_id TEXT,
+  account_name TEXT,
+  icon TEXT DEFAULT '🎯',
+  color INTEGER DEFAULT 4,
+  notes TEXT,
+  status TEXT DEFAULT 'in_progress',
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+> **Note on `goals.status`:** the column exists so a paused goal survives a round-trip, but nothing in the UI sets it. Upstream `moneta.goal` cannot write it either — the field is computed without an inverse. It is read, not written.
+
+### Migration Protocol
+
+When extending the schema:
+
+1. Add table creation DDL to the `runMigrations()` method in [`src/lib/data/sqliteAdapter.ts`](file:///opt/moneta_desktop/src/lib/data/sqliteAdapter.ts).
+2. Every table must use `CREATE TABLE IF NOT EXISTS`.
+3. Before seeding default rows, check the table's row count first.
+4. Call `await this.persist()` after any write transaction to flush the binary buffer into IndexedDB.
+
 ---
 
 ## 3. IndexedDB Persistence Implementation

@@ -52,10 +52,25 @@ class FinanceStore {
   transactions = $state<MonetaTransaction[]>([]);
   filterState = $state<'all' | 'unreconciled' | 'cleared' | 'reconciled'>('all');
 
+  // Planning-domain state
+  budgets = $state<EnvelopeBudget[]>([]);
+  bills = $state<RecurringBill[]>([]);
+  detectedSubscriptions = $state<DetectedSubscription[]>([]);
+  cashflowForecast = $state<CashflowForecast | null>(null);
+  cashflowHorizon = $state<30 | 90 | 180 | 365>(90);
+  payees = $state<PayeeIntelligence[]>([]);
+  goals = $state<FinancialGoal[]>([]);
+
+  // View routing — one discriminant, one branch per view in App.svelte
+  activeView = $state<'command_center' | 'register' | 'budgets' | 'bills'
+                     | 'cashflow' | 'payees' | 'goals'>('command_center');
+
   // Modal visibility
   isQuickAddOpen = $state<boolean>(false);
   isImportModalOpen = $state<boolean>(false);
   isSettingsOpen = $state<boolean>(false);
+  isGoalModalOpen = $state<boolean>(false);
+  isFundGoalOpen = $state<boolean>(false);
 }
 ```
 
@@ -89,6 +104,39 @@ All data operations are defined by a strict contract in [`src/lib/data/repositor
 │  - Binary Backup     │ │  - Rust reqwest      │ │  - Zero Dependencies │
 └──────────────────────┘ └──────────────────────┘ └──────────────────────┘
 ```
+
+### Capability-Optional Methods
+
+Beyond the core ledger contract, the interface declares **optional** capabilities with `?`:
+
+```typescript
+getGoals?(): Promise<FinancialGoal[]>;
+createGoal?(payload: Partial<FinancialGoal>): Promise<FinancialGoal>;
+fundGoal?(id, amount, actionType: 'deposit' | 'withdraw'): Promise<FinancialGoal>;
+```
+
+The `?` is load-bearing. It lets an adapter legitimately not support a capability without breaking the type contract, and it forces callers to guard:
+
+```typescript
+if (this.repository.getGoals) {
+  this.goals = await this.repository.getGoals();
+} else {
+  this.goals = [];   // degrade to empty, never throw
+}
+```
+
+The trade-off is that a **missing** implementation degrades silently to an empty list rather than failing loudly. For that reason every new capability must be implemented in **all three** adapters — a method added to two of them will look like "no data" rather than "not implemented" in the third.
+
+### Shared Derivation (Anti-Drift Rule)
+
+Derived figures that Odoo also computes are implemented **once** in a shared module and called by every adapter, rather than reimplemented per adapter. See [`src/lib/data/goalMath.ts`](file:///opt/moneta_desktop/src/lib/data/goalMath.ts), which mirrors `goal.py::_compute_goal_progress` and is used by both the SQLite and Mock adapters.
+
+```typescript
+// Both adapters do this — neither defines its own maths
+return { ...persisted, ...computeGoalMetrics(persisted) };
+```
+
+The alternative — each adapter deriving its own numbers — produces a record that reads differently depending on which data source is active. The Odoo roadmap documents this failure mode in its scheduled-occurrence contract track as the largest single architectural gap in the upstream module; Moneta Desktop does not reintroduce it.
 
 ---
 

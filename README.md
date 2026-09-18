@@ -19,6 +19,11 @@ Built with **Tauri v2**, **Svelte 5 (Runes-Native)**, **TypeScript**, **Tailwind
 - ✂️ **Split Transactions:** Multi-category split allocations with real-time balance remainder checks, interactive auto-fill, `[SPLIT (N)]` register badges, and expandable nested breakdown rows.
 - 📥 **Bank Statement Import Wizard:** Drag-and-drop CSV and Quicken QIF statement parser with Singapore bank recognition (DBS, OCBC, UOB, StanChart), automatic duplicate detection, and batch import.
 - 🪄 **Singapore Rules Engine:** Automated categorization with 33 out-of-the-box merchant rules (FairPrice, Grab, Singtel, Bacha Coffee, SP Services, Netflix, etc.).
+- 🎯 **Zero-Based Envelope Budgeting:** Category envelopes across Needs, Wants and Savings with burn-pace indicators, Safe-to-Spend, and a "Can I Spend?" affordability calculator.
+- 🔁 **Recurring Bills & Subscription Detector:** 14/30-day countdown with `overdue` / `today` / `due_soon` badges, 1-click Mark-as-Paid, and interval-clustering detection of charges you never explicitly scheduled.
+- 📈 **Cash Flow Forecaster & Sankey:** 30–365 day projected balance trajectory, a daily projected ledger with overdraft flags, and an interactive Income → Cash → Expenses Sankey.
+- 🏆 **Financial Goals Tracker:** Milestone goals and sinking funds with progress bars and the monthly contribution each one needs, computed by a single shared engine so every data source agrees.
+- 🏪 **Payee Intelligence:** Autocomplete that recalls a merchant's category and typical amount, plus cadence detection and lifetime spend analytics.
 - 🔄 **Pluggable Data Engine:** Seamlessly connects to live Odoo 18 instances via REST API with Personal Access Token (PAT), or runs completely standalone on local SQLite.
 - 🚀 **1-Click Odoo Migration:** One-click data migration tool to export accounts, categories, and historical registers from Odoo directly into local SQLite.
 
@@ -69,14 +74,48 @@ npm run desktop:build
 
 ## 🗺️ Product Roadmap
 
-See [`ROADMAP.md`](ROADMAP.md) for our detailed feature parity roadmap covering:
-- Phase 2: Advanced Banking, Split Transactions & Statement Reconciliation Wizard
-- Phase 3: Zero-Based Envelope Budgeting & 12-Month Cash Flow Sankey Forecaster
-- Phase 4: Stock & ETF Portfolio, Real-time Yahoo Quotes & Tax-Lot Accounting (FIFO/HIFO)
-- Phase 5: Real Estate, Mortgage Amortization & Debt Prepayment Simulator
-- Phase 6: Regional Financial Packs (Singapore CPF Hub & Malaysia EPF/KWSP)
-- Phase 7: 1,000-Path Monte Carlo Stochastic Wealth Simulator & Local AI Advisor
-- Phase 8: Cloud Synchronization (Supabase PostgreSQL + Stripe Subscription)
+See [`ROADMAP.md`](ROADMAP.md) for the detailed feature parity roadmap.
+
+| Phase | Scope | Status |
+| :--- | :--- | :---: |
+| **1** | Foundation & Core Ledger | ✅ Complete |
+| **2** | Advanced Banking, Split Transactions & Statement Reconciliation | ✅ Complete |
+| **3** | Envelope Budgets, Recurring Bills, Cash Flow Sankey & Financial Goals | ✅ Complete |
+| **4** | Stock & ETF Portfolio, Live Quotes & Tax-Lot Accounting (FIFO/HIFO) | Planned |
+| **5** | Real Estate, Mortgage Amortization & Debt Prepayment Simulator | Planned |
+| **6** | Regional Financial Packs (Singapore CPF Hub & Malaysia EPF/KWSP) | Planned |
+| **7** | Monte Carlo Wealth Simulator & Local AI Advisor | Planned |
+| **8** | Cloud Synchronization (Supabase + Stripe Subscription) | Planned |
+
+---
+
+## 📖 Documentation
+
+Full documentation lives in [`docs/`](docs/index.md):
+
+| # | Document | Covers |
+| :--- | :--- | :--- |
+| 01 | [Getting Started](docs/01_GETTING_STARTED.md) | Setup, desktop vs browser mode, Odoo migration |
+| 02 | [Banking & Checkbook Register](docs/02_BANKING_AND_CHECKBOOK_REGISTER.md) | Register mechanics, tiebreakers, reconciliation, splits |
+| 03 | [Statement Wizard & Rules Engine](docs/03_BANK_STATEMENT_WIZARD_AND_RULES.md) | CSV/QIF parsing, SG bank presets, duplicate detection |
+| 04 | [Local SQLite & Offline Storage](docs/04_LOCAL_SQLITE_AND_OFFLINE_STORAGE.md) | WASM SQLite, IndexedDB persistence, full schema DDL |
+| 05 | [Odoo 18 Sync & API Integration](docs/05_ODOO_SYNC_AND_API_INTEGRATION.md) | Pluggable repository, `/api/v1/mobile/*`, Bearer PAT |
+| 06 | [Command Center & FIRE Analytics](docs/06_COMMAND_CENTER_AND_FIRE_ANALYTICS.md) | Net worth, runway, burn rate, 4% FIRE |
+| 07 | [Roadmap & Feature Parity](docs/07_ROADMAP_AND_FEATURE_PARITY.md) | Phase-by-phase parity audit vs Odoo |
+| 08 | [Planning & Forecasting Hubs](docs/08_PLANNING_AND_FORECASTING_HUBS.md) | Budgets, bills, cash flow, goals |
+| 09 | [Payee Intelligence & Directory](docs/09_PAYEE_INTELLIGENCE_AND_DIRECTORY.md) | Merchant memory, cadence, spend analytics |
+
+---
+
+## ✅ Verification
+
+```bash
+npm run check    # svelte-check + tsc — must be 0 errors, 0 warnings
+npm run build    # production bundle
+
+# Goal progress maths (relativedelta month borrowing, overfunding, edge cases)
+node --experimental-strip-types scripts/verify_goal_math.ts
+```
 
 ---
 
