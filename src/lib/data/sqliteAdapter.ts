@@ -210,6 +210,22 @@ export class SqliteAdapter implements IMonetaRepository {
     };
   }
 
+  /**
+   * Currency conversion helper for offline SQLite multi-currency parity
+   * Default Odoo parity exchange rates: 1 SGD = 3.18 MYR, 1 SGD = 0.763358 USD
+   */
+  private convertToBaseCurrency(amount: number, currencyCode: string = 'SGD'): number {
+    if (!currencyCode || currencyCode.toUpperCase() === 'SGD') return amount;
+    const curr = currencyCode.toUpperCase();
+    const rates: Record<string, number> = {
+      SGD: 1.0,
+      MYR: 3.18,
+      USD: 0.7633587786259541,
+    };
+    const rate = rates[curr];
+    return rate && rate > 0 ? amount / rate : amount;
+  }
+
   async getDashboardSummary(): Promise<DashboardMetrics> {
     await this.init();
     if (!this.db) throw new Error('Database not initialized');
@@ -218,19 +234,19 @@ export class SqliteAdapter implements IMonetaRepository {
 
     const liquidCash = accounts
       .filter((a) => ['checking', 'chequing', 'savings', 'cash', 'cpf_oa', 'cpf_sa', 'cpf_ma', 'cpf_ra', 'srs', 'epf_akaun_persaraan', 'epf_akaun_sejahtera', 'epf_akaun_fleksibel'].includes(a.account_type))
-      .reduce((sum, a) => sum + a.current_balance, 0);
+      .reduce((sum, a) => sum + this.convertToBaseCurrency(a.current_balance, a.currency_code), 0);
 
     const investments = accounts
       .filter((a) => ['brokerage', 'retirement', 'crypto'].includes(a.account_type))
-      .reduce((sum, a) => sum + a.current_balance, 0);
+      .reduce((sum, a) => sum + this.convertToBaseCurrency(a.current_balance, a.currency_code), 0);
 
     const tangibleAssets = accounts
       .filter((a) => ['asset', 'property', 'other'].includes(a.account_type))
-      .reduce((sum, a) => sum + a.current_balance, 0);
+      .reduce((sum, a) => sum + this.convertToBaseCurrency(a.current_balance, a.currency_code), 0);
 
     const liabilities = accounts
       .filter((a) => ['credit', 'credit_card', 'loc', 'loan', 'mortgage'].includes(a.account_type))
-      .reduce((sum, a) => sum + Math.abs(a.current_balance), 0);
+      .reduce((sum, a) => sum + Math.abs(this.convertToBaseCurrency(a.current_balance, a.currency_code)), 0);
 
     const netWorth = liquidCash + investments + tangibleAssets - liabilities;
 
