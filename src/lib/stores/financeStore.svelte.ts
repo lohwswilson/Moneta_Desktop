@@ -69,6 +69,7 @@ class FinanceStore {
   settings = $state<OdooSettingsPayload | null>(null);
   filterState = $state<'all' | 'unreconciled' | 'cleared' | 'reconciled'>('all');
   isLoading = $state<boolean>(false);
+  isSidebarCollapsed = $state<boolean>(false);
 
   isQuickAddOpen = $state<boolean>(false);
   editingTransaction = $state<MonetaTransaction | null>(null);
@@ -893,6 +894,10 @@ class FinanceStore {
       tx.reconciliation_state = previousState;
       console.error('Failed to update reconciliation state:', err);
     }
+  }
+
+  toggleSidebar() {
+    this.isSidebarCollapsed = !this.isSidebarCollapsed;
   }
 
   openAddTransactionModal(accountId?: string | number | null) {

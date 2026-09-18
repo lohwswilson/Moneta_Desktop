@@ -24,7 +24,9 @@
     Shield,
     Database,
     Sparkles,
-    CheckCircle2
+    CheckCircle2,
+    PanelLeftClose,
+    PanelLeftOpen
   } from '@lucide/svelte';
 
   let activeMenu = $state<string | null>(null);
@@ -59,7 +61,20 @@
 
 <nav class="h-12 bg-zinc-950 border-b border-zinc-800/80 px-4 flex items-center justify-between select-none z-40 relative text-xs">
   <!-- Brand & Logo -->
-  <div class="flex items-center gap-6">
+  <div class="flex items-center gap-3">
+    <!-- Sidebar Toggle Button -->
+    <button
+      onclick={() => financeStore.toggleSidebar()}
+      title={financeStore.isSidebarCollapsed ? 'Expand Left Sidebar' : 'Collapse Left Sidebar'}
+      class="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-900 border border-transparent hover:border-zinc-800 transition-colors cursor-pointer"
+    >
+      {#if financeStore.isSidebarCollapsed}
+        <PanelLeftOpen class="w-4 h-4" />
+      {:else}
+        <PanelLeftClose class="w-4 h-4" />
+      {/if}
+    </button>
+
     <button
       onclick={() => handleNavigate(() => financeStore.navigateToOverview())}
       class="flex items-center gap-2.5 hover:opacity-90 transition-opacity focus:outline-none"
