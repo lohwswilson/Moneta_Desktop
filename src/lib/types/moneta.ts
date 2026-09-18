@@ -161,4 +161,50 @@ export interface DetectedSubscription {
   category_name?: string;
 }
 
+export interface CashflowDailyPoint {
+  date: string;
+  day_of_week: string;
+  opening_balance: number;
+  total_income: number;
+  total_expense: number;
+  net_change: number;
+  closing_balance: number;
+  is_overdraft: boolean;
+  event_summary: string;
+}
+
+export interface SankeyNode {
+  id: string;
+  name: string;
+  tier: 'inflow' | 'hub' | 'outflow' | 'saving';
+  value: number;
+  color?: string;
+}
+
+export interface SankeyLink {
+  source: string;
+  target: string;
+  value: number;
+}
+
+export interface CashflowForecast {
+  summary: {
+    starting_balance: number;
+    lowest_projected_balance: number;
+    lowest_balance_date: string;
+    ending_projected_balance: number;
+    total_projected_income: number;
+    total_projected_expenses: number;
+    net_projected_cashflow: number;
+    overdraft_days_count: number;
+    has_overdraft_risk: boolean;
+  };
+  daily_points: CashflowDailyPoint[];
+  sankey: {
+    nodes: SankeyNode[];
+    links: SankeyLink[];
+  };
+}
+
+
 

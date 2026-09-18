@@ -8,6 +8,7 @@ import type {
   OdooSettingsPayload,
   RecurringBill,
   DetectedSubscription,
+  CashflowForecast,
 } from '../types/moneta';
 import initSqlJs, { type Database, type SqlJsStatic } from 'sql.js';
 import { DEFAULT_RULES } from './rulesEngine';
@@ -1355,6 +1356,216 @@ export class SqliteAdapter implements IMonetaRepository {
     }
 
     return detected;
+  }
+
+  /**
+   * Quicken-style projected cash flow simulation and Sankey graph generator
+   */
+  async getCashflowForecast(days: number = 90, accountId?: string | number): Promise<CashflowForecast> {
+    if (!this.db) await this.init();
+    if (!this.db) throw new Error('Database not initialized');
+
+    const horizon = days || 90;
+
+    // 1. Calculate Starting Balance
+    let startBal = 0;
+    if (accountId) {
+      const res = this.db.exec(`SELECT current_balance FROM accounts WHERE id = '${String(accountId)}';`);
+      startBal = (res[0]?.values[0]?.[0] as number) || 0;
+    } else {
+      const res = this.db.exec(`
+        SELECT SUM(current_balance) FROM accounts
+        WHERE account_type IN ('checking', 'chequing', 'savings', 'cash');
+      `);
+      startBal = (res[0]?.values[0]?.[0] as number) || 0;
+      if (startBal === 0) {
+        const fallbackRes = this.db.exec(`SELECT SUM(current_balance) FROM accounts;`);
+        startBal = (fallbackRes[0]?.values[0]?.[0] as number) || 0;
+      }
+    }
+
+    // 2. Fetch recurring bills
+    const bills = await this.getRecurringBills(0);
+
+    // 3. Scan historical income patterns from transactions table
+    let monthlySalary = 6500.0;
+    let monthlyOther = 1200.0;
+
+    try {
+      const incRes = this.db.exec(`
+        SELECT amount, payee_name, date FROM transactions
+        WHERE amount > 500
+        ORDER BY date DESC LIMIT 20;
+      `);
+      if (incRes?.[0]?.values && incRes[0].values.length > 0) {
+        const amounts = incRes[0].values.map((v) => Number(v[0]));
+        const maxInc = Math.max(...amounts);
+        if (maxInc >= 2000) {
+          monthlySalary = maxInc;
+        }
+      }
+    } catch {
+      // fallback to default
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Map scheduled dates to bills
+    const scheduledByDate = new Map<string, Array<{ name: string; amount: number }>>();
+    for (const b of bills) {
+      let d = new Date(b.next_due_date);
+      const cutoff = new Date(today.getTime() + horizon * 86400000);
+      while (d <= cutoff) {
+        const dStr = d.toISOString().split('T')[0];
+        if (d >= today) {
+          if (!scheduledByDate.has(dStr)) scheduledByDate.set(dStr, []);
+          scheduledByDate.get(dStr)!.push({ name: b.name, amount: b.amount });
+        }
+        if (b.frequency === 'weekly') d.setDate(d.getDate() + 7);
+        else if (b.frequency === 'biweekly') d.setDate(d.getDate() + 14);
+        else if (b.frequency === 'quarterly') d.setMonth(d.getMonth() + 3);
+        else if (b.frequency === 'semiannual') d.setMonth(d.getMonth() + 6);
+        else if (b.frequency === 'yearly') d.setFullYear(d.getFullYear() + 1);
+        else d.setMonth(d.getMonth() + 1);
+      }
+    }
+
+    const dailyPoints = [];
+    let running = startBal;
+    let lowestBal = startBal;
+    let lowestDate = today.toISOString().split('T')[0];
+    let totalInc = 0;
+    let totalExp = 0;
+    let overdraftCount = 0;
+
+    for (let i = 0; i <= horizon; i++) {
+      const d = new Date(today.getTime() + i * 86400000);
+      const dateStr = d.toISOString().split('T')[0];
+      const dayOfMonth = d.getDate();
+      const dayOfWeek = d.toLocaleDateString('en-SG', { weekday: 'long' });
+
+      let dayInc = 0;
+      let dayExp = 0;
+      const events: string[] = [];
+
+      // Monthly Salary deposit on 25th
+      if (dayOfMonth === 25) {
+        dayInc += monthlySalary;
+        events.push(`Salary (+$${monthlySalary.toLocaleString()})`);
+      }
+      // Alternate / Secondary Income on 1st
+      if (dayOfMonth === 1 && monthlyOther > 0) {
+        dayInc += monthlyOther;
+        events.push(`Other Inflow (+$${monthlyOther.toLocaleString()})`);
+      }
+
+      // Check scheduled bills
+      const dueBills = scheduledByDate.get(dateStr);
+      if (dueBills) {
+        for (const b of dueBills) {
+          dayExp += b.amount;
+          events.push(`${b.name} (-$${b.amount.toFixed(2)})`);
+        }
+      }
+
+      // Daily baseline living expenses
+      if (i > 0) {
+        const baselineDaily = 50.0;
+        dayExp += baselineDaily;
+      }
+
+      const netChange = dayInc - dayExp;
+      const openBal = running;
+      const closeBal = running + netChange;
+      running = closeBal;
+
+      totalInc += dayInc;
+      totalExp += dayExp;
+
+      if (closeBal < lowestBal) {
+        lowestBal = closeBal;
+        lowestDate = dateStr;
+      }
+
+      if (closeBal < 0) {
+        overdraftCount++;
+      }
+
+      dailyPoints.push({
+        date: dateStr,
+        day_of_week: dayOfWeek,
+        opening_balance: Math.round(openBal * 100) / 100,
+        total_income: Math.round(dayInc * 100) / 100,
+        total_expense: Math.round(dayExp * 100) / 100,
+        net_change: Math.round(netChange * 100) / 100,
+        closing_balance: Math.round(closeBal * 100) / 100,
+        is_overdraft: closeBal < 0,
+        event_summary: events.join(', '),
+      });
+    }
+
+    // 4. Build Sankey Graph from Budgets & Incomes
+    const months = horizon / 30.0;
+    const salaryTotal = Math.round(monthlySalary * months);
+    const otherTotal = Math.round(monthlyOther * months);
+    const totalInflow = salaryTotal + otherTotal;
+
+    const budgets = await this.getBudgets();
+    const nodes: any[] = [
+      { id: 'in-salary', name: 'Employment Salary', tier: 'inflow', value: salaryTotal, color: '#10b981' },
+      { id: 'in-other', name: 'Secondary Inflows', tier: 'inflow', value: otherTotal, color: '#34d399' },
+      { id: 'hub-cash', name: 'Liquid Cash Accounts', tier: 'hub', value: totalInflow, color: '#6366f1' },
+    ];
+
+    const links: any[] = [
+      { source: 'in-salary', target: 'hub-cash', value: salaryTotal },
+      { source: 'in-other', target: 'hub-cash', value: otherTotal },
+    ];
+
+    let allocatedExp = 0;
+    if (budgets.length > 0) {
+      for (const b of budgets) {
+        const val = Math.round((b.allocated_amount || 0) * months);
+        if (val > 0) {
+          const tier = b.category_group === 'saving' ? 'saving' : 'outflow';
+          const nodeColor = b.color_code || (tier === 'saving' ? '#10b981' : '#f59e0b');
+          nodes.push({ id: `out-${b.id}`, name: b.name, tier, value: val, color: nodeColor });
+          links.push({ source: 'hub-cash', target: `out-${b.id}`, value: val });
+          allocatedExp += val;
+        }
+      }
+    } else {
+      const defExp = Math.round(totalInflow * 0.7);
+      nodes.push({ id: 'out-general', name: 'Living Expenses', tier: 'outflow', value: defExp, color: '#f59e0b' });
+      links.push({ source: 'hub-cash', target: 'out-general', value: defExp });
+      allocatedExp += defExp;
+    }
+
+    const surplus = Math.max(0, totalInflow - allocatedExp);
+    if (surplus > 0) {
+      nodes.push({ id: 'sav-surplus', name: 'Net Savings Reserve', tier: 'saving', value: surplus, color: '#059669' });
+      links.push({ source: 'hub-cash', target: 'sav-surplus', value: surplus });
+    }
+
+    return {
+      summary: {
+        starting_balance: Math.round(startBal * 100) / 100,
+        lowest_projected_balance: Math.round(lowestBal * 100) / 100,
+        lowest_balance_date: lowestDate,
+        ending_projected_balance: Math.round(running * 100) / 100,
+        total_projected_income: Math.round(totalInc * 100) / 100,
+        total_projected_expenses: Math.round(totalExp * 100) / 100,
+        net_projected_cashflow: Math.round((totalInc - totalExp) * 100) / 100,
+        overdraft_days_count: overdraftCount,
+        has_overdraft_risk: overdraftCount > 0,
+      },
+      daily_points: dailyPoints,
+      sankey: {
+        nodes,
+        links,
+      },
+    };
   }
 
   /**

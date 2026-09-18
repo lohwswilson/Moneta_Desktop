@@ -8,6 +8,7 @@ import type {
   OdooSettingsPayload,
   RecurringBill,
   DetectedSubscription,
+  CashflowForecast,
 } from '../types/moneta';
 
 let mockAccounts: MonetaAccount[] = [
@@ -492,6 +493,174 @@ export class MockAdapter implements IMonetaRepository {
 
   async detectSubscriptions(): Promise<DetectedSubscription[]> {
     return [...mockDetectedSubscriptions];
+  }
+
+  async getCashflowForecast(days: number = 90, accountId?: string | number): Promise<CashflowForecast> {
+    const horizon = days || 90;
+    const startBal = accountId
+      ? (mockAccounts.find((a) => String(a.id) === String(accountId))?.current_balance || 14850.50)
+      : mockAccounts
+          .filter((a) => ['checking', 'savings', 'cash'].includes(a.account_type))
+          .reduce((sum, a) => sum + a.current_balance, 0);
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const dailyPoints = [];
+    let running = startBal;
+    let lowestBal = startBal;
+    let lowestDate = today.toISOString().split('T')[0];
+    let totalInc = 0;
+    let totalExp = 0;
+    let overdraftCount = 0;
+
+    for (let i = 0; i <= horizon; i++) {
+      const d = new Date(today.getTime() + i * 86400000);
+      const dateStr = d.toISOString().split('T')[0];
+      const dayOfMonth = d.getDate();
+      const dayOfWeek = d.toLocaleDateString('en-SG', { weekday: 'long' });
+
+      let dayInc = 0;
+      let dayExp = 0;
+      const events: string[] = [];
+
+      // Monthly Salary on 25th
+      if (dayOfMonth === 25) {
+        dayInc += 8500.0;
+        events.push('Salary (+$8,500)');
+      }
+      // Monthly Rental Income on 1st
+      if (dayOfMonth === 1) {
+        dayInc += 3800.0;
+        events.push('Rental Income (+$3,800)');
+      }
+      // Quarterly Dividend on 15th (Jan, Apr, Jul, Oct)
+      if (dayOfMonth === 15 && [0, 3, 6, 9].includes(d.getMonth())) {
+        dayInc += 450.0;
+        events.push('Quarterly Dividends (+$450)');
+      }
+
+      // Check recurring bills due on this date
+      for (const b of mockBills) {
+        if (b.next_due_date === dateStr) {
+          dayExp += b.amount;
+          events.push(`${b.name} (-$${b.amount.toFixed(2)})`);
+        }
+      }
+
+      // Baseline living expenses distributed over month
+      if (i > 0) {
+        const dailyLiving = 75.0;
+        dayExp += dailyLiving;
+      }
+
+      const netChange = dayInc - dayExp;
+      const openBal = running;
+      const closeBal = running + netChange;
+      running = closeBal;
+
+      totalInc += dayInc;
+      totalExp += dayExp;
+
+      if (closeBal < lowestBal) {
+        lowestBal = closeBal;
+        lowestDate = dateStr;
+      }
+
+      if (closeBal < 0) {
+        overdraftCount++;
+      }
+
+      dailyPoints.push({
+        date: dateStr,
+        day_of_week: dayOfWeek,
+        opening_balance: Math.round(openBal * 100) / 100,
+        total_income: Math.round(dayInc * 100) / 100,
+        total_expense: Math.round(dayExp * 100) / 100,
+        net_change: Math.round(netChange * 100) / 100,
+        closing_balance: Math.round(closeBal * 100) / 100,
+        is_overdraft: closeBal < 0,
+        event_summary: events.join(', '),
+      });
+    }
+
+    // Build Sankey Nodes & Links normalized to horizon
+    const months = horizon / 30.0;
+    const salaryTotal = Math.round(8500 * months);
+    const rentalTotal = Math.round(3800 * months);
+    const divTotal = Math.round(450 * (months / 3));
+    const totalInflow = salaryTotal + rentalTotal + divTotal;
+
+    const groceries = Math.round(650 * months);
+    const dining = Math.round(450 * months);
+    const utilities = Math.round(250 * months);
+    const transport = Math.round(200 * months);
+    const shopping = Math.round(300 * months);
+    const housing = Math.round(1800 * months);
+    const insurance = Math.round(400 * months);
+
+    const cpfSavings = Math.round(1700 * months);
+    const ibkrInvest = Math.round(2500 * months);
+    const allocatedOutflows = groceries + dining + utilities + transport + shopping + housing + insurance + cpfSavings + ibkrInvest;
+    const surplusSavings = Math.max(0, totalInflow - allocatedOutflows);
+
+    const nodes = [
+      { id: 'in-salary', name: 'Employment Salary', tier: 'inflow' as const, value: salaryTotal, color: '#10b981' },
+      { id: 'in-rental', name: 'Rental Income', tier: 'inflow' as const, value: rentalTotal, color: '#34d399' },
+      { id: 'in-divs', name: 'Dividends & Yield', tier: 'inflow' as const, value: divTotal, color: '#6ee7b7' },
+      { id: 'hub-cash', name: 'Liquid Cash Accounts', tier: 'hub' as const, value: totalInflow, color: '#6366f1' },
+      { id: 'out-housing', name: 'Housing & Mortgage', tier: 'outflow' as const, value: housing, color: '#3b82f6' },
+      { id: 'out-groceries', name: 'Groceries & Household', tier: 'outflow' as const, value: groceries, color: '#f59e0b' },
+      { id: 'out-dining', name: 'Hawker & Dining Out', tier: 'outflow' as const, value: dining, color: '#fbbf24' },
+      { id: 'out-utilities', name: 'Utilities & Fibre', tier: 'outflow' as const, value: utilities, color: '#06b6d4' },
+      { id: 'out-transport', name: 'Transport & Grab', tier: 'outflow' as const, value: transport, color: '#ec4899' },
+      { id: 'out-shopping', name: 'Shopping & Lifestyle', tier: 'outflow' as const, value: shopping, color: '#8b5cf6' },
+      { id: 'out-insurance', name: 'Insurance & Health', tier: 'outflow' as const, value: insurance, color: '#ef4444' },
+      { id: 'sav-cpf', name: 'CPF OA & SA Savings', tier: 'saving' as const, value: cpfSavings, color: '#059669' },
+      { id: 'sav-invest', name: 'IBKR Portfolio Dollar-Cost', tier: 'saving' as const, value: ibkrInvest, color: '#047857' },
+    ];
+
+    if (surplusSavings > 0) {
+      nodes.push({ id: 'sav-surplus', name: 'Cash Reserve / Net Surplus', tier: 'saving' as const, value: surplusSavings, color: '#10b981' });
+    }
+
+    const links = [
+      { source: 'in-salary', target: 'hub-cash', value: salaryTotal },
+      { source: 'in-rental', target: 'hub-cash', value: rentalTotal },
+      { source: 'in-divs', target: 'hub-cash', value: divTotal },
+      { source: 'hub-cash', target: 'out-housing', value: housing },
+      { source: 'hub-cash', target: 'out-groceries', value: groceries },
+      { source: 'hub-cash', target: 'out-dining', value: dining },
+      { source: 'hub-cash', target: 'out-utilities', value: utilities },
+      { source: 'hub-cash', target: 'out-transport', value: transport },
+      { source: 'hub-cash', target: 'out-shopping', value: shopping },
+      { source: 'hub-cash', target: 'out-insurance', value: insurance },
+      { source: 'hub-cash', target: 'sav-cpf', value: cpfSavings },
+      { source: 'hub-cash', target: 'sav-invest', value: ibkrInvest },
+    ];
+
+    if (surplusSavings > 0) {
+      links.push({ source: 'hub-cash', target: 'sav-surplus', value: surplusSavings });
+    }
+
+    return {
+      summary: {
+        starting_balance: Math.round(startBal * 100) / 100,
+        lowest_projected_balance: Math.round(lowestBal * 100) / 100,
+        lowest_balance_date: lowestDate,
+        ending_projected_balance: Math.round(running * 100) / 100,
+        total_projected_income: Math.round(totalInc * 100) / 100,
+        total_projected_expenses: Math.round(totalExp * 100) / 100,
+        net_projected_cashflow: Math.round((totalInc - totalExp) * 100) / 100,
+        overdraft_days_count: overdraftCount,
+        has_overdraft_risk: overdraftCount > 0,
+      },
+      daily_points: dailyPoints,
+      sankey: {
+        nodes,
+        links,
+      },
+    };
   }
 }
 

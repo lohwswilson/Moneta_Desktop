@@ -7,6 +7,7 @@ import type {
   OdooSettingsPayload,
   RecurringBill,
   DetectedSubscription,
+  CashflowForecast,
 } from '../types/moneta';
 
 export interface IMonetaRepository {
@@ -35,4 +36,5 @@ export interface IMonetaRepository {
   deleteRecurringBill?(id: string | number): Promise<boolean>;
   markBillPaid?(id: string | number, accountId?: string | number, date?: string): Promise<{ success: boolean; transaction?: MonetaTransaction }>;
   detectSubscriptions?(): Promise<DetectedSubscription[]>;
+  getCashflowForecast?(days?: number, accountId?: string | number): Promise<CashflowForecast>;
 }

@@ -78,9 +78,11 @@ This roadmap defines the multi-phase engineering plan to achieve full feature pa
   - 1-Click "Mark as Paid" action creating checkbook ledger expense and advancing next due date.
   - Automated interval clustering detection of recurring charges from past 180 days (Netflix, Spotify, utilities, gym) with 1-click tracking.
   - Pluggable across Live Odoo 18 Server (`/api/v1/mobile/bills/*`), Standalone SQLite WASM (`recurring_bills` table), and Mock Sandbox.
-- [ ] **Cash Flow Forecaster & Sankey Diagram:**
-  - 12-Month cash flow trajectory based on scheduled income and recurring bills.
-  - Interactive Sankey diagram showing Income $\rightarrow$ Accounts $\rightarrow$ Spending $\rightarrow$ Savings.
+- [x] **Cash Flow Forecaster & Sankey Diagram:**
+  - 30/90/180/365-Day Quicken-style projected cash flow simulation and balance trajectory area chart.
+  - Interactive personal finance Sankey diagram mapping Income Sources $\rightarrow$ Liquid Cash Hub $\rightarrow$ Expenses & Savings Envelopes.
+  - Daily projected cash calendar ledger with running balances and overdraft risk warning.
+  - Pluggable across Live Odoo 18 Server (`/api/v1/mobile/cashflow/projection`), Standalone SQLite WASM, and Mock Sandbox.
 - [ ] **Financial Goals Tracker:**
   - Milestone goals (Emergency Fund, Down Payment, Vacation, Wedding) with progress bars.
 

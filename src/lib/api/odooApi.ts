@@ -8,6 +8,7 @@ import type {
   OdooSettingsPayload,
   RecurringBill,
   DetectedSubscription,
+  CashflowForecast,
 } from '../types/moneta';
 
 export const OdooApi = {
@@ -194,5 +195,19 @@ export const OdooApi = {
       params: {},
     });
     return response.data?.result?.subscriptions || [];
+  },
+
+  /**
+   * Fetch cash flow projection simulation and Sankey graph data
+   */
+  async getCashflowProjection(days: number = 90, accountId?: string | number): Promise<CashflowForecast> {
+    const response = await getApiClient().post('/api/v1/mobile/cashflow/projection', {
+      jsonrpc: '2.0',
+      params: {
+        days,
+        account_id: accountId,
+      },
+    });
+    return response.data?.result?.forecast;
   },
 };

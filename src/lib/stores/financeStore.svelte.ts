@@ -8,6 +8,7 @@ import type {
   OdooSettingsPayload,
   RecurringBill,
   DetectedSubscription,
+  CashflowForecast,
 } from '../types/moneta';
 import type { IMonetaRepository } from '../data/repository';
 import { OdooAdapter } from '../data/odooAdapter';
@@ -31,11 +32,13 @@ class FinanceStore {
   metrics = $state<DashboardMetrics | null>(null);
   accounts = $state<MonetaAccount[]>([]);
   selectedAccountId = $state<string | number | null>(null);
-  activeView = $state<'command_center' | 'register' | 'budgets' | 'bills'>('command_center');
+  activeView = $state<'command_center' | 'register' | 'budgets' | 'bills' | 'cashflow'>('command_center');
   transactions = $state<MonetaTransaction[]>([]);
   budgets = $state<EnvelopeBudget[]>([]);
   bills = $state<RecurringBill[]>([]);
   detectedSubscriptions = $state<DetectedSubscription[]>([]);
+  cashflowForecast = $state<CashflowForecast | null>(null);
+  cashflowHorizon = $state<30 | 90 | 180 | 365>(90);
   settings = $state<OdooSettingsPayload | null>(null);
   filterState = $state<'all' | 'unreconciled' | 'cleared' | 'reconciled'>('all');
   isLoading = $state<boolean>(false);
@@ -150,6 +153,7 @@ class FinanceStore {
 
       await this.loadBudgets();
       await this.loadBills();
+      await this.loadCashflow();
 
       if (!this.selectedAccountId && accounts.length > 0) {
         this.selectedAccountId = accounts[0].id;
@@ -349,6 +353,24 @@ class FinanceStore {
       return [];
     } finally {
       this.isLoading = false;
+    }
+  }
+
+  async navigateToCashflow() {
+    this.selectedAccountId = null;
+    this.activeView = 'cashflow';
+    await this.loadCashflow(this.cashflowHorizon);
+  }
+
+  async loadCashflow(days?: number, accountId?: string | number) {
+    const horizon = days || this.cashflowHorizon;
+    this.cashflowHorizon = horizon as any;
+    try {
+      if (this.repository.getCashflowForecast) {
+        this.cashflowForecast = await this.repository.getCashflowForecast(horizon, accountId);
+      }
+    } catch (err) {
+      console.error('Failed to load cashflow forecast:', err);
     }
   }
 
