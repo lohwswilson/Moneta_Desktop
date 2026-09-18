@@ -106,7 +106,7 @@
     <!-- Quick Action Bar -->
     <div class="grid grid-cols-2 gap-1.5 px-0.5">
       <button
-        onclick={() => (financeStore.isQuickAddOpen = true)}
+        onclick={() => financeStore.openAddTransactionModal()}
         class="flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800/80 text-[11px] font-medium text-zinc-300 hover:text-white transition-colors shadow-xs"
       >
         <Plus class="w-3.5 h-3.5 text-emerald-400" />

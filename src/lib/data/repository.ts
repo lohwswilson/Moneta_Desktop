@@ -32,6 +32,11 @@ export interface IMonetaRepository {
     state: ReconcileState
   ): Promise<{ success: boolean; cleared_balance?: number }>;
   createTransaction(payload: Partial<MonetaTransaction>): Promise<MonetaTransaction>;
+  updateTransaction?(
+    id: string | number,
+    payload: Partial<MonetaTransaction>
+  ): Promise<MonetaTransaction>;
+  deleteTransaction?(id: string | number): Promise<boolean>;
   batchCreateTransactions?(
     accountId: string | number,
     transactions: Partial<MonetaTransaction>[]

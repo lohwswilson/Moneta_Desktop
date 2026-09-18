@@ -13,7 +13,7 @@
     AlertCircle,
   } from '@lucide/svelte';
 
-  import type { PayeeIntelligence } from '../types/moneta';
+  import type { PayeeIntelligence, ReconcileState } from '../types/moneta';
 
   let date = $state(new Date().toISOString().split('T')[0]);
   let payeeName = $state('');
@@ -21,6 +21,7 @@
   let amountStr = $state('');
   let isExpense = $state(true);
   let memo = $state('');
+  let reconciliationState = $state<ReconcileState>('unreconciled');
   let isPayeeDropdownOpen = $state(false);
 
   // Split transaction states
@@ -43,6 +44,52 @@
   let isSplitValid = $derived(
     !isSplit || (splits.length >= 2 && Math.abs(splitRemainder) < 0.01 && totalNumericAmount > 0)
   );
+
+  // Synchronize form when modal opens or editing transaction changes
+  $effect(() => {
+    if (financeStore.isQuickAddOpen) {
+      const tx = financeStore.editingTransaction;
+      if (tx) {
+        date = tx.date;
+        payeeName = tx.payee_name;
+        categoryName = tx.category_name === 'Split' ? '' : (tx.category_name || '');
+        const amt = Number(tx.amount || 0);
+        isExpense = amt < 0;
+        amountStr = Math.abs(amt).toFixed(2);
+        memo = tx.memo || '';
+        reconciliationState = tx.reconciliation_state || 'unreconciled';
+        userEditedCategory = true;
+        if (tx.splits && tx.splits.length > 0) {
+          isSplit = true;
+          splits = tx.splits.map((s) => ({
+            category_name: s.category_name,
+            amountStr: Math.abs(s.amount).toFixed(2),
+            memo: s.memo || '',
+          }));
+        } else {
+          isSplit = false;
+          splits = [
+            { category_name: '', amountStr: '', memo: '' },
+            { category_name: '', amountStr: '', memo: '' },
+          ];
+        }
+      } else {
+        date = new Date().toISOString().split('T')[0];
+        payeeName = '';
+        categoryName = '';
+        amountStr = '';
+        isExpense = true;
+        memo = '';
+        reconciliationState = 'unreconciled';
+        userEditedCategory = false;
+        isSplit = false;
+        splits = [
+          { category_name: '', amountStr: '', memo: '' },
+          { category_name: '', amountStr: '', memo: '' },
+        ];
+      }
+    }
+  });
 
   // Autocomplete matching payees
   let matchingPayees = $derived.by(() => {
@@ -128,28 +175,36 @@
         });
     }
 
-    await financeStore.addTransaction({
-      date,
-      payee_name: payeeName || 'Expense',
-      category_name: isSplit ? 'Split' : (categoryName || 'General'),
-      amount: finalAmount,
-      transaction_type: isExpense ? 'expense' : 'income',
-      reconciliation_state: 'unreconciled',
-      memo,
-      splits: splitsPayload,
-    });
+    if (financeStore.editingTransaction) {
+      await financeStore.updateTransaction(financeStore.editingTransaction.id, {
+        date,
+        payee_name: payeeName || 'Expense',
+        category_name: isSplit ? 'Split' : (categoryName || 'General'),
+        amount: finalAmount,
+        transaction_type: isExpense ? 'expense' : 'income',
+        reconciliation_state: reconciliationState,
+        memo,
+        splits: splitsPayload,
+      });
+    } else {
+      await financeStore.addTransaction({
+        date,
+        payee_name: payeeName || 'Expense',
+        category_name: isSplit ? 'Split' : (categoryName || 'General'),
+        amount: finalAmount,
+        transaction_type: isExpense ? 'expense' : 'income',
+        reconciliation_state: reconciliationState,
+        memo,
+        splits: splitsPayload,
+      });
+    }
+  };
 
-    // Reset form
-    amountStr = '';
-    payeeName = '';
-    categoryName = '';
-    memo = '';
-    isSplit = false;
-    userEditedCategory = false;
-    splits = [
-      { category_name: '', amountStr: '', memo: '' },
-      { category_name: '', amountStr: '', memo: '' },
-    ];
+  const handleDelete = async () => {
+    if (!financeStore.editingTransaction) return;
+    if (confirm('Are you sure you want to delete this transaction? This will adjust your account balance.')) {
+      await financeStore.deleteTransaction(financeStore.editingTransaction.id);
+    }
   };
 </script>
 
@@ -158,9 +213,11 @@
     <div class="bg-zinc-900 border border-zinc-800 rounded-xl w-full max-w-lg overflow-hidden shadow-2xl max-h-[90vh] flex flex-col">
       <!-- Modal Header -->
       <div class="p-4 border-b border-zinc-800 flex items-center justify-between bg-zinc-900/90">
-        <h3 class="font-bold text-sm text-zinc-100">Record New Transaction</h3>
+        <h3 class="font-bold text-sm text-zinc-100">
+          {financeStore.editingTransaction ? 'Edit Transaction' : 'Record New Transaction'}
+        </h3>
         <button
-          onclick={() => (financeStore.isQuickAddOpen = false)}
+          onclick={() => financeStore.closeTransactionModal()}
           class="p-1 text-zinc-400 hover:text-zinc-200 rounded-lg hover:bg-zinc-800 transition-colors"
         >
           <X class="w-4 h-4" />
@@ -410,22 +467,67 @@
           </div>
         {/if}
 
-        <!-- Submit Buttons -->
-        <div class="pt-3 border-t border-zinc-800 flex items-center justify-end gap-2">
-          <button
-            type="button"
-            onclick={() => (financeStore.isQuickAddOpen = false)}
-            class="px-4 py-2 rounded-lg text-xs font-semibold text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={isSplit && !isSplitValid}
-            class="px-5 py-2 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:hover:bg-emerald-600 text-white shadow-sm transition-colors"
-          >
-            Record Entry
-          </button>
+        <!-- Reconciliation Status Selector -->
+        <div>
+          <label class="block text-[11px] uppercase font-semibold text-zinc-400 mb-1" for="reconcile-status">
+            Reconciliation Status
+          </label>
+          <div id="reconcile-status" class="grid grid-cols-3 gap-2 p-1 bg-zinc-950 rounded-lg border border-zinc-800">
+            <button
+              type="button"
+              onclick={() => (reconciliationState = 'unreconciled')}
+              class="py-1.5 rounded-md text-xs font-semibold transition-all {reconciliationState === 'unreconciled' ? 'bg-zinc-800 text-zinc-200 shadow-sm border border-zinc-700' : 'text-zinc-500 hover:text-zinc-300'}"
+            >
+              Unreconciled
+            </button>
+            <button
+              type="button"
+              onclick={() => (reconciliationState = 'cleared')}
+              class="py-1.5 rounded-md text-xs font-semibold transition-all {reconciliationState === 'cleared' ? 'bg-emerald-950 text-emerald-300 shadow-sm border border-emerald-800/60' : 'text-zinc-500 hover:text-zinc-300'}"
+            >
+              Cleared (C)
+            </button>
+            <button
+              type="button"
+              onclick={() => (reconciliationState = 'reconciled')}
+              class="py-1.5 rounded-md text-xs font-semibold transition-all {reconciliationState === 'reconciled' ? 'bg-sky-950 text-sky-300 shadow-sm border border-sky-800/60' : 'text-zinc-500 hover:text-zinc-300'}"
+            >
+              Reconciled (R)
+            </button>
+          </div>
+        </div>
+
+        <!-- Submit / Delete Buttons -->
+        <div class="pt-3 border-t border-zinc-800 flex items-center justify-between gap-2">
+          {#if financeStore.editingTransaction}
+            <button
+              type="button"
+              onclick={handleDelete}
+              class="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-rose-400 hover:text-rose-300 hover:bg-rose-950/40 border border-rose-900/40 transition-colors cursor-pointer"
+            >
+              <Trash2 class="w-3.5 h-3.5" />
+              <span>Delete</span>
+            </button>
+          {:else}
+            <div></div>
+          {/if}
+
+          <div class="flex items-center gap-2">
+            <button
+              type="button"
+              onclick={() => financeStore.closeTransactionModal()}
+              class="px-4 py-2 rounded-lg text-xs font-semibold text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isSplit && !isSplitValid}
+              class="px-5 py-2 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:hover:bg-emerald-600 text-white shadow-sm transition-colors cursor-pointer"
+            >
+              {financeStore.editingTransaction ? 'Save Changes' : 'Record Entry'}
+            </button>
+          </div>
         </div>
       </form>
     </div>

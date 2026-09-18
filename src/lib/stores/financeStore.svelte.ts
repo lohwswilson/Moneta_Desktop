@@ -71,6 +71,7 @@ class FinanceStore {
   isLoading = $state<boolean>(false);
 
   isQuickAddOpen = $state<boolean>(false);
+  editingTransaction = $state<MonetaTransaction | null>(null);
   isSettingsOpen = $state<boolean>(false);
   isImportModalOpen = $state<boolean>(false);
   isBudgetModalOpen = $state<boolean>(false);
@@ -844,6 +845,14 @@ class FinanceStore {
     }
   }
 
+  async loadAccounts() {
+    try {
+      this.accounts = await this.repository.getAccounts();
+    } catch (err) {
+      console.error('Failed to load accounts:', err);
+    }
+  }
+
   async loadRegister(accountId: string | number) {
     this.isLoading = true;
     try {
@@ -886,6 +895,24 @@ class FinanceStore {
     }
   }
 
+  openAddTransactionModal(accountId?: string | number | null) {
+    if (accountId) {
+      this.selectedAccountId = accountId;
+    }
+    this.editingTransaction = null;
+    this.isQuickAddOpen = true;
+  }
+
+  openEditTransactionModal(tx: MonetaTransaction) {
+    this.editingTransaction = tx;
+    this.isQuickAddOpen = true;
+  }
+
+  closeTransactionModal() {
+    this.isQuickAddOpen = false;
+    this.editingTransaction = null;
+  }
+
   async addTransaction(payload: Partial<MonetaTransaction>) {
     if (!this.selectedAccountId) return;
     try {
@@ -894,14 +921,75 @@ class FinanceStore {
         account_id: this.selectedAccountId,
       });
       this.transactions = [newTx, ...this.transactions];
-      this.isQuickAddOpen = false;
-      // Refresh dashboard metrics & budget progress
+      this.closeTransactionModal();
+      // Refresh accounts, dashboard metrics & budget progress
+      await this.loadAccounts();
       const updatedMetrics = await this.repository.getDashboardSummary();
       this.metrics = updatedMetrics;
       await this.loadBudgets();
       await this.loadPayees();
     } catch (err) {
       console.error('Failed to create transaction:', err);
+    }
+  }
+
+  async updateTransaction(id: string | number, payload: Partial<MonetaTransaction>) {
+    try {
+      let updatedTx: MonetaTransaction | undefined;
+      if (this.repository.updateTransaction) {
+        updatedTx = await this.repository.updateTransaction(id, payload);
+      } else {
+        const idx = this.transactions.findIndex((t) => String(t.id) === String(id));
+        if (idx !== -1) {
+          this.transactions[idx] = { ...this.transactions[idx], ...payload };
+          updatedTx = this.transactions[idx];
+        }
+      }
+
+      if (updatedTx) {
+        const idx = this.transactions.findIndex((t) => String(t.id) === String(id));
+        if (idx !== -1) {
+          this.transactions[idx] = updatedTx;
+        }
+      }
+
+      this.closeTransactionModal();
+
+      // Refresh accounts & dashboard metrics & register
+      await this.loadAccounts();
+      const updatedMetrics = await this.repository.getDashboardSummary();
+      this.metrics = updatedMetrics;
+      if (this.selectedAccountId) {
+        await this.loadRegister(this.selectedAccountId);
+      }
+      await this.loadBudgets();
+      await this.loadPayees();
+    } catch (err) {
+      console.error('Failed to update transaction:', err);
+      throw err;
+    }
+  }
+
+  async deleteTransaction(id: string | number) {
+    try {
+      if (this.repository.deleteTransaction) {
+        await this.repository.deleteTransaction(id);
+      }
+      this.transactions = this.transactions.filter((t) => String(t.id) !== String(id));
+      this.closeTransactionModal();
+
+      // Refresh accounts & dashboard metrics & register
+      await this.loadAccounts();
+      const updatedMetrics = await this.repository.getDashboardSummary();
+      this.metrics = updatedMetrics;
+      if (this.selectedAccountId) {
+        await this.loadRegister(this.selectedAccountId);
+      }
+      await this.loadBudgets();
+      await this.loadPayees();
+    } catch (err) {
+      console.error('Failed to delete transaction:', err);
+      throw err;
     }
   }
 

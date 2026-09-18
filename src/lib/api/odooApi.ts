@@ -115,6 +115,34 @@ export const OdooApi = {
   },
 
   /**
+   * Update an existing transaction (date, payee, category, amount, memo, splits, reconciliation_state)
+   */
+  async updateTransaction(
+    id: string | number,
+    payload: Partial<MonetaTransaction>
+  ): Promise<MonetaTransaction> {
+    const response = await getApiClient().post('/api/v1/mobile/transactions/update', {
+      jsonrpc: '2.0',
+      params: {
+        id,
+        ...payload,
+      },
+    });
+    return response.data?.result?.transaction;
+  },
+
+  /**
+   * Delete an existing transaction
+   */
+  async deleteTransaction(id: string | number): Promise<boolean> {
+    const response = await getApiClient().post('/api/v1/mobile/transactions/delete', {
+      jsonrpc: '2.0',
+      params: { id },
+    });
+    return response.data?.result?.success || false;
+  },
+
+  /**
    * Fetch active envelope budgets
    */
   async getBudgets(): Promise<EnvelopeBudget[]> {

@@ -131,7 +131,7 @@
               </div>
             </button>
             <button
-              onclick={() => handleNavigate(() => (financeStore.isQuickAddOpen = true))}
+              onclick={() => handleNavigate(() => financeStore.openAddTransactionModal())}
               class="w-full px-3 py-2 text-left flex items-center gap-2.5 text-zinc-200 hover:bg-zinc-800/80 transition-colors"
             >
               <Plus class="w-4 h-4 text-emerald-400" />
@@ -456,8 +456,8 @@
   <div class="flex items-center gap-2.5">
     <!-- Quick Add Transaction Button -->
     <button
-      onclick={() => (financeStore.isQuickAddOpen = true)}
-      class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-[11px] shadow-sm transition-colors"
+      onclick={() => financeStore.openAddTransactionModal()}
+      class="flex items-center gap-1 px-2.5 py-1 rounded-md bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-[11px] shadow-sm transition-colors cursor-pointer"
     >
       <Plus class="w-3.5 h-3.5" />
       <span>Transaction</span>

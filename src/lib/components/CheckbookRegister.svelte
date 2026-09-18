@@ -146,8 +146,8 @@
       </button>
 
       <button
-        onclick={() => (financeStore.isQuickAddOpen = true)}
-        class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs shadow-sm transition-colors"
+        onclick={() => financeStore.openAddTransactionModal(financeStore.selectedAccountId)}
+        class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs shadow-sm transition-colors cursor-pointer"
       >
         <Plus class="w-3.5 h-3.5" />
         <span>Add Transaction</span>
@@ -188,7 +188,10 @@
           </tr>
         {:else}
           {#each filteredTransactions as tx (tx.id)}
-            <tr class="hover:bg-zinc-900/70 transition-colors group">
+            <tr
+              onclick={() => financeStore.openEditTransactionModal(tx)}
+              class="hover:bg-zinc-900/70 transition-colors group cursor-pointer"
+            >
               <!-- Date -->
               <td class="py-2.5 px-4 text-zinc-400 whitespace-nowrap">
                 {tx.date}
@@ -204,7 +207,10 @@
                 {#if tx.splits && tx.splits.length > 0}
                   <button
                     type="button"
-                    onclick={() => toggleSplitExpand(tx.id)}
+                    onclick={(e) => {
+                      e.stopPropagation();
+                      toggleSplitExpand(tx.id);
+                    }}
                     class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-purple-950/90 hover:bg-purple-900 text-purple-300 border border-purple-800/70 text-[11px] font-semibold transition-colors cursor-pointer"
                   >
                     <Split class="w-3 h-3" />
@@ -242,9 +248,13 @@
               <!-- 1-Click Interactive Clr Toggle -->
               <td class="py-2.5 px-3 text-center">
                 <button
-                  onclick={() => financeStore.toggleClr(tx.id)}
+                  type="button"
+                  onclick={(e) => {
+                    e.stopPropagation();
+                    financeStore.toggleClr(tx.id);
+                  }}
                   title="Click to cycle status: Unreconciled -> Cleared -> Reconciled"
-                  class="px-2 py-0.5 rounded text-[10px] font-bold tracking-wider transition-all uppercase {
+                  class="px-2 py-0.5 rounded text-[10px] font-bold tracking-wider transition-all uppercase cursor-pointer {
                     tx.reconciliation_state === 'cleared'
                       ? 'bg-emerald-950 text-emerald-400 border border-emerald-700/60 shadow-sm'
                       : tx.reconciliation_state === 'reconciled'

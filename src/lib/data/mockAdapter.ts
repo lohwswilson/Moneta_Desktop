@@ -348,6 +348,65 @@ export class MockAdapter implements IMonetaRepository {
     return newTx;
   }
 
+  async updateTransaction(
+    id: string | number,
+    payload: Partial<MonetaTransaction>
+  ): Promise<MonetaTransaction> {
+    const idx = mockTransactions.findIndex((t) => String(t.id) === String(id));
+    if (idx === -1) {
+      throw new Error(`Transaction ${id} not found`);
+    }
+
+    const oldTx = mockTransactions[idx];
+    const oldAccountId = oldTx.account_id;
+    const oldAmount = Number(oldTx.amount);
+
+    const targetAccountId = payload.account_id !== undefined ? payload.account_id : oldAccountId;
+    const targetAmount = payload.amount !== undefined ? Number(payload.amount) : oldAmount;
+
+    // Adjust account balances
+    if (String(targetAccountId) === String(oldAccountId)) {
+      const delta = targetAmount - oldAmount;
+      const acc = mockAccounts.find((a) => String(a.id) === String(targetAccountId));
+      if (acc) {
+        acc.current_balance += delta;
+      }
+    } else {
+      const oldAcc = mockAccounts.find((a) => String(a.id) === String(oldAccountId));
+      if (oldAcc) oldAcc.current_balance -= oldAmount;
+      const newAcc = mockAccounts.find((a) => String(a.id) === String(targetAccountId));
+      if (newAcc) newAcc.current_balance += targetAmount;
+    }
+
+    const updatedTx: MonetaTransaction = {
+      ...oldTx,
+      ...payload,
+      account_id: targetAccountId,
+      amount: targetAmount,
+      transaction_type: targetAmount >= 0 ? 'income' : 'expense',
+      category_name: payload.category_name !== undefined
+        ? payload.category_name
+        : (payload.splits && payload.splits.length > 0 ? 'Split' : oldTx.category_name),
+    };
+
+    mockTransactions[idx] = updatedTx;
+    return updatedTx;
+  }
+
+  async deleteTransaction(id: string | number): Promise<boolean> {
+    const idx = mockTransactions.findIndex((t) => String(t.id) === String(id));
+    if (idx === -1) return false;
+
+    const tx = mockTransactions[idx];
+    const acc = mockAccounts.find((a) => String(a.id) === String(tx.account_id));
+    if (acc) {
+      acc.current_balance -= Number(tx.amount);
+    }
+
+    mockTransactions.splice(idx, 1);
+    return true;
+  }
+
   async batchCreateTransactions(
     accountId: string | number,
     transactions: Partial<MonetaTransaction>[]

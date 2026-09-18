@@ -813,6 +813,198 @@ export class SqliteAdapter implements IMonetaRepository {
     };
   }
 
+  async updateTransaction(
+    id: string | number,
+    payload: Partial<MonetaTransaction>
+  ): Promise<MonetaTransaction> {
+    await this.init();
+    if (!this.db) throw new Error('Database not initialized');
+    const db = this.db;
+
+    const txIdStr = String(id);
+    const existingRes = db.exec(
+      `SELECT id, account_id, date, payee_name, category_name, amount, transaction_type, reconciliation_state, running_balance, memo FROM transactions WHERE id = '${txIdStr}';`
+    );
+    if (!existingRes || existingRes.length === 0 || existingRes[0].values.length === 0) {
+      throw new Error(`Transaction ${id} not found`);
+    }
+
+    const row = existingRes[0].values[0];
+    const oldAccountId = row[1] as string;
+    const oldDate = row[2] as string;
+    const oldPayee = row[3] as string;
+    const oldCategory = row[4] as string;
+    const oldAmount = Number(row[5]);
+    const oldState = (row[7] as string) || 'unreconciled';
+    const oldMemo = (row[9] as string) || '';
+
+    const targetAccountId = payload.account_id !== undefined ? String(payload.account_id) : oldAccountId;
+    const targetDate = payload.date !== undefined ? payload.date : oldDate;
+    const targetPayee = payload.payee_name !== undefined ? payload.payee_name : oldPayee;
+    const targetAmount = payload.amount !== undefined ? Number(payload.amount) : oldAmount;
+    const targetCategory = payload.category_name !== undefined
+      ? payload.category_name
+      : (payload.splits && payload.splits.length > 0 ? 'Split' : oldCategory);
+    const targetTxType = targetAmount >= 0 ? 'income' : 'expense';
+    const targetState = (payload.reconciliation_state !== undefined ? payload.reconciliation_state : oldState) as ReconcileState;
+    const targetMemo = payload.memo !== undefined ? payload.memo : oldMemo;
+
+    // Adjust account current balance
+    if (targetAccountId === oldAccountId) {
+      const delta = targetAmount - oldAmount;
+      if (delta !== 0) {
+        db.run(`UPDATE accounts SET current_balance = current_balance + :delta WHERE id = :accId;`, {
+          ':delta': delta,
+          ':accId': targetAccountId,
+        });
+      }
+    } else {
+      db.run(`UPDATE accounts SET current_balance = current_balance - :oldAmt WHERE id = :oldAcc;`, {
+        ':oldAmt': oldAmount,
+        ':oldAcc': oldAccountId,
+      });
+      db.run(`UPDATE accounts SET current_balance = current_balance + :newAmt WHERE id = :newAcc;`, {
+        ':newAmt': targetAmount,
+        ':newAcc': targetAccountId,
+      });
+    }
+
+    // Update transaction record
+    db.run(`
+      UPDATE transactions
+      SET account_id = :accId,
+          date = :date,
+          payee_name = :payee,
+          category_name = :cat,
+          amount = :amt,
+          transaction_type = :type,
+          reconciliation_state = :state,
+          memo = :memo
+      WHERE id = :id;
+    `, {
+      ':id': txIdStr,
+      ':accId': targetAccountId,
+      ':date': targetDate,
+      ':payee': targetPayee,
+      ':cat': targetCategory,
+      ':amt': targetAmount,
+      ':type': targetTxType,
+      ':state': targetState,
+      ':memo': targetMemo,
+    });
+
+    // Handle splits
+    if (payload.splits !== undefined) {
+      db.run(`DELETE FROM transaction_splits WHERE transaction_id = :txId;`, {
+        ':txId': txIdStr,
+      });
+      if (payload.splits && payload.splits.length > 0) {
+        for (const sp of payload.splits) {
+          const splitId = sp.id || `sp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+          db.run(`
+            INSERT INTO transaction_splits (id, transaction_id, category_name, amount, memo)
+            VALUES (:id, :txId, :cat, :amt, :memo);
+          `, {
+            ':id': splitId,
+            ':txId': txIdStr,
+            ':cat': sp.category_name,
+            ':amt': sp.amount,
+            ':memo': sp.memo || '',
+          });
+        }
+      }
+    }
+
+    // Recalculate cleared_balance
+    const recalcCleared = (accId: string) => {
+      const balRes = db.exec(
+        `SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE account_id = '${accId}' AND reconciliation_state IN ('cleared', 'reconciled');`
+      );
+      const clrBal = (balRes[0]?.values[0]?.[0] as number) || 0;
+      db.run(`UPDATE accounts SET cleared_balance = :bal WHERE id = :accId;`, {
+        ':bal': clrBal,
+        ':accId': accId,
+      });
+    };
+
+    recalcCleared(targetAccountId);
+    if (oldAccountId !== targetAccountId) {
+      recalcCleared(oldAccountId);
+    }
+
+    await this.persist();
+
+    // Fetch splits
+    const splitsRes = this.db.exec(
+      `SELECT id, category_name, amount, memo FROM transaction_splits WHERE transaction_id = '${txIdStr}';`
+    );
+    const finalSplits = splitsRes[0]?.values.map((v) => ({
+      id: v[0] as string,
+      category_name: v[1] as string,
+      amount: v[2] as number,
+      memo: v[3] as string,
+    })) || [];
+
+    // Get current balance of target account
+    const curBalRes = this.db.exec(`SELECT current_balance FROM accounts WHERE id = '${targetAccountId}';`);
+    const runningBal = (curBalRes[0]?.values[0]?.[0] as number) || 0;
+
+    return {
+      id: txIdStr,
+      account_id: targetAccountId,
+      date: targetDate,
+      payee_name: targetPayee,
+      category_name: targetCategory,
+      amount: targetAmount,
+      transaction_type: targetTxType,
+      reconciliation_state: targetState,
+      running_balance: runningBal,
+      memo: targetMemo,
+      splits: finalSplits.length > 0 ? finalSplits : undefined,
+    };
+  }
+
+  async deleteTransaction(id: string | number): Promise<boolean> {
+    await this.init();
+    if (!this.db) throw new Error('Database not initialized');
+    const db = this.db;
+
+    const txIdStr = String(id);
+    const existingRes = db.exec(
+      `SELECT account_id, amount FROM transactions WHERE id = '${txIdStr}';`
+    );
+    if (!existingRes || existingRes.length === 0 || existingRes[0].values.length === 0) {
+      return false;
+    }
+
+    const row = existingRes[0].values[0];
+    const accountId = row[0] as string;
+    const amount = Number(row[1]);
+
+    // Revert account current_balance
+    db.run(`UPDATE accounts SET current_balance = current_balance - :amt WHERE id = :accId;`, {
+      ':amt': amount,
+      ':accId': accountId,
+    });
+
+    // Delete splits and transaction
+    db.run(`DELETE FROM transaction_splits WHERE transaction_id = :txId;`, { ':txId': txIdStr });
+    db.run(`DELETE FROM transactions WHERE id = :txId;`, { ':txId': txIdStr });
+
+    // Recalculate cleared_balance
+    const balRes = db.exec(
+      `SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE account_id = '${accountId}' AND reconciliation_state IN ('cleared', 'reconciled');`
+    );
+    const clrBal = (balRes[0]?.values[0]?.[0] as number) || 0;
+    db.run(`UPDATE accounts SET cleared_balance = :bal WHERE id = :accId;`, {
+      ':bal': clrBal,
+      ':accId': accountId,
+    });
+
+    await this.persist();
+    return true;
+  }
+
   async batchCreateTransactions(
     accountId: string | number,
     transactions: Partial<MonetaTransaction>[]
