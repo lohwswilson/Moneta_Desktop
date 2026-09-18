@@ -5,6 +5,8 @@ import type {
   ReconcileState,
   EnvelopeBudget,
   OdooSettingsPayload,
+  RecurringBill,
+  DetectedSubscription,
 } from '../types/moneta';
 
 export interface IMonetaRepository {
@@ -27,4 +29,10 @@ export interface IMonetaRepository {
   deleteBudget?(id: string | number): Promise<boolean>;
   getSettings?(): Promise<OdooSettingsPayload | null>;
   syncSettingsFromOdoo?(settings: OdooSettingsPayload): Promise<void>;
+  getRecurringBills?(days?: number): Promise<RecurringBill[]>;
+  createRecurringBill?(payload: Partial<RecurringBill>): Promise<RecurringBill>;
+  updateRecurringBill?(id: string | number, payload: Partial<RecurringBill>): Promise<RecurringBill>;
+  deleteRecurringBill?(id: string | number): Promise<boolean>;
+  markBillPaid?(id: string | number, accountId?: string | number, date?: string): Promise<{ success: boolean; transaction?: MonetaTransaction }>;
+  detectSubscriptions?(): Promise<DetectedSubscription[]>;
 }

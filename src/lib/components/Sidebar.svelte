@@ -13,7 +13,8 @@
     AlertCircle,
     LayoutDashboard,
     Gem,
-    PiggyBank
+    PiggyBank,
+    CalendarClock
   } from '@lucide/svelte';
 
   const formatCurrency = (amount: number, currency: string = 'SGD') => {
@@ -119,6 +120,21 @@
           {@const remainingTotal = financeStore.budgets.reduce((s, b) => s + (b.remaining_amount || 0), 0)}
           <span class="font-mono text-[11px] {remainingTotal >= 0 ? 'text-emerald-400' : 'text-rose-400'}">
             {formatCurrency(remainingTotal)}
+          </span>
+        {/if}
+      </button>
+
+      <button
+        onclick={() => financeStore.navigateToBills()}
+        class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition-colors {financeStore.activeView === 'bills' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200'}"
+      >
+        <span class="flex items-center gap-2">
+          <CalendarClock class="w-4 h-4 text-amber-400" />
+          Recurring & Bills
+        </span>
+        {#if financeStore.bills.length > 0}
+          <span class="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-950/60 text-amber-400 border border-amber-800/60">
+            {financeStore.bills.length}
           </span>
         {/if}
       </button>

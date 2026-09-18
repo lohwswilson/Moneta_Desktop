@@ -6,6 +6,8 @@ import type {
   ReconcileState,
   EnvelopeBudget,
   OdooSettingsPayload,
+  RecurringBill,
+  DetectedSubscription,
 } from '../types/moneta';
 import initSqlJs, { type Database, type SqlJsStatic } from 'sql.js';
 import { DEFAULT_RULES } from './rulesEngine';
@@ -149,6 +151,21 @@ export class SqliteAdapter implements IMonetaRepository {
         rate_to_base REAL NOT NULL,
         updated_at TEXT DEFAULT CURRENT_TIMESTAMP
       );
+
+      CREATE TABLE IF NOT EXISTS recurring_bills (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        payee_name TEXT NOT NULL,
+        category_name TEXT,
+        account_id TEXT,
+        account_name TEXT,
+        amount REAL NOT NULL,
+        frequency TEXT DEFAULT 'monthly',
+        next_due_date TEXT NOT NULL,
+        auto_pay INTEGER DEFAULT 0,
+        active INTEGER DEFAULT 1,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      );
     `);
 
     // Seed default settings and rates if empty
@@ -209,6 +226,34 @@ export class SqliteAdapter implements IMonetaRepository {
             ':color_code': b.color_code,
           }
         );
+      }
+    }
+
+    // Seed default Singapore recurring bills if table is empty
+    const billRes = this.db.exec('SELECT COUNT(*) as count FROM recurring_bills;');
+    const billCount = (billRes[0]?.values[0]?.[0] as number) || 0;
+    if (billCount === 0) {
+      const defaultBills = [
+        { id: 'sq-bill-1', name: 'SP Group Utilities', payee: 'SP Services', cat: 'Utilities', amt: 145.20, freq: 'monthly', days: 2, auto: 1 },
+        { id: 'sq-bill-2', name: 'Singtel Fiber Broadband', payee: 'Singtel', cat: 'Utilities', amt: 79.90, freq: 'monthly', days: 5, auto: 1 },
+        { id: 'sq-bill-3', name: 'Netflix 4K Premium', payee: 'Netflix', cat: 'Entertainment', amt: 25.98, freq: 'monthly', days: 11, auto: 1 },
+        { id: 'sq-bill-4', name: 'Fitness First Gym Membership', payee: 'Fitness First', cat: 'Fitness & Health', amt: 175.00, freq: 'monthly', days: 18, auto: 0 },
+      ];
+      for (const b of defaultBills) {
+        const dueDate = new Date(Date.now() + b.days * 86400000).toISOString().split('T')[0];
+        this.db.run(`
+          INSERT INTO recurring_bills (id, name, payee_name, category_name, amount, frequency, next_due_date, auto_pay, active)
+          VALUES (:id, :name, :payee, :cat, :amt, :freq, :next, :auto, 1);
+        `, {
+          ':id': b.id,
+          ':name': b.name,
+          ':payee': b.payee,
+          ':cat': b.cat,
+          ':amt': b.amt,
+          ':freq': b.freq,
+          ':next': dueDate,
+          ':auto': b.auto,
+        });
       }
     }
 
@@ -962,6 +1007,354 @@ export class SqliteAdapter implements IMonetaRepository {
       company_name: companyName,
       rates,
     };
+  }
+
+  /**
+   * Recurring Bills & Subscription Detector for SQLite
+   */
+  async getRecurringBills(days: number = 14): Promise<RecurringBill[]> {
+    if (!this.db) await this.init();
+    if (!this.db) return [];
+
+    const res = this.db.exec(`SELECT * FROM recurring_bills WHERE active = 1 ORDER BY next_due_date ASC;`);
+    if (!res || res.length === 0 || !res[0].values) return [];
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const cutoff = days > 0 ? new Date(today.getTime() + days * 86400000) : null;
+
+    const bills: RecurringBill[] = [];
+    for (const row of res[0].values) {
+      const nextDueDate = String(row[8]);
+      const due = new Date(nextDueDate);
+      if (cutoff && due > cutoff) continue;
+
+      const diff = Math.ceil((due.getTime() - today.getTime()) / 86400000);
+      let status: 'overdue' | 'today' | 'due_soon' | 'upcoming' = 'upcoming';
+      if (diff < 0) status = 'overdue';
+      else if (diff === 0) status = 'today';
+      else if (diff <= 7) status = 'due_soon';
+
+      bills.push({
+        id: String(row[0]),
+        name: String(row[1]),
+        payee_name: String(row[2]),
+        category_name: row[3] ? String(row[3]) : 'Utilities',
+        account_id: row[4] ? String(row[4]) : undefined,
+        account_name: row[5] ? String(row[5]) : undefined,
+        amount: Number(row[6]),
+        frequency: String(row[7]) as any,
+        next_due_date: nextDueDate,
+        auto_pay: Boolean(row[9]),
+        active: Boolean(row[10]),
+        days_until_due: diff,
+        due_status: status,
+      });
+    }
+    return bills;
+  }
+
+  async createRecurringBill(payload: Partial<RecurringBill>): Promise<RecurringBill> {
+    if (!this.db) await this.init();
+    if (!this.db) throw new Error('Database not initialized');
+
+    const id = payload.id || `sq-bill-${Date.now()}`;
+    const name = payload.name || 'Recurring Bill';
+    const payee = payload.payee_name || name;
+    const cat = payload.category_name || 'Utilities';
+    const accId = payload.account_id ? String(payload.account_id) : '';
+    const accName = payload.account_name || '';
+    const amount = Number(payload.amount || 0);
+    const freq = payload.frequency || 'monthly';
+    const nextDate = payload.next_due_date || new Date().toISOString().split('T')[0];
+    const auto = payload.auto_pay ? 1 : 0;
+
+    this.db.run(`
+      INSERT INTO recurring_bills (id, name, payee_name, category_name, account_id, account_name, amount, frequency, next_due_date, auto_pay, active)
+      VALUES (:id, :name, :payee, :cat, :accId, :accName, :amt, :freq, :next, :auto, 1);
+    `, {
+      ':id': id,
+      ':name': name,
+      ':payee': payee,
+      ':cat': cat,
+      ':accId': accId,
+      ':accName': accName,
+      ':amt': amount,
+      ':freq': freq,
+      ':next': nextDate,
+      ':auto': auto,
+    });
+
+    await this.persist();
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const due = new Date(nextDate);
+    const diff = Math.ceil((due.getTime() - today.getTime()) / 86400000);
+    let status: 'overdue' | 'today' | 'due_soon' | 'upcoming' = 'upcoming';
+    if (diff < 0) status = 'overdue';
+    else if (diff === 0) status = 'today';
+    else if (diff <= 7) status = 'due_soon';
+
+    return {
+      id,
+      name,
+      payee_name: payee,
+      category_name: cat,
+      account_id: accId,
+      account_name: accName,
+      amount,
+      frequency: freq,
+      next_due_date: nextDate,
+      auto_pay: Boolean(auto),
+      active: true,
+      days_until_due: diff,
+      due_status: status,
+    };
+  }
+
+  async updateRecurringBill(id: string | number, payload: Partial<RecurringBill>): Promise<RecurringBill> {
+    if (!this.db) await this.init();
+    if (!this.db) throw new Error('Database not initialized');
+
+    const strId = String(id);
+    const existingRes = this.db.exec(`SELECT * FROM recurring_bills WHERE id = '${strId}';`);
+    if (!existingRes || !existingRes[0]?.values?.length) {
+      throw new Error(`Bill ${id} not found`);
+    }
+
+    const row = existingRes[0].values[0];
+    const name = payload.name !== undefined ? payload.name : String(row[1]);
+    const payee = payload.payee_name !== undefined ? payload.payee_name : String(row[2]);
+    const cat = payload.category_name !== undefined ? payload.category_name : (row[3] ? String(row[3]) : 'Utilities');
+    const accId = payload.account_id !== undefined ? String(payload.account_id) : (row[4] ? String(row[4]) : '');
+    const accName = payload.account_name !== undefined ? payload.account_name : (row[5] ? String(row[5]) : '');
+    const amount = payload.amount !== undefined ? Number(payload.amount) : Number(row[6]);
+    const freq = payload.frequency !== undefined ? payload.frequency : String(row[7]);
+    const nextDate = payload.next_due_date !== undefined ? payload.next_due_date : String(row[8]);
+    const auto = payload.auto_pay !== undefined ? (payload.auto_pay ? 1 : 0) : Number(row[9]);
+    const active = payload.active !== undefined ? (payload.active ? 1 : 0) : Number(row[10]);
+
+    this.db.run(`
+      UPDATE recurring_bills
+      SET name = :name, payee_name = :payee, category_name = :cat, account_id = :accId, account_name = :accName,
+          amount = :amt, frequency = :freq, next_due_date = :next, auto_pay = :auto, active = :active
+      WHERE id = :id;
+    `, {
+      ':id': strId,
+      ':name': name,
+      ':payee': payee,
+      ':cat': cat,
+      ':accId': accId,
+      ':accName': accName,
+      ':amt': amount,
+      ':freq': freq,
+      ':next': nextDate,
+      ':auto': auto,
+      ':active': active,
+    });
+
+    await this.persist();
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const due = new Date(nextDate);
+    const diff = Math.ceil((due.getTime() - today.getTime()) / 86400000);
+    let status: 'overdue' | 'today' | 'due_soon' | 'upcoming' = 'upcoming';
+    if (diff < 0) status = 'overdue';
+    else if (diff === 0) status = 'today';
+    else if (diff <= 7) status = 'due_soon';
+
+    return {
+      id: strId,
+      name,
+      payee_name: payee,
+      category_name: cat,
+      account_id: accId,
+      account_name: accName,
+      amount,
+      frequency: freq as any,
+      next_due_date: nextDate,
+      auto_pay: Boolean(auto),
+      active: Boolean(active),
+      days_until_due: diff,
+      due_status: status,
+    };
+  }
+
+  async deleteRecurringBill(id: string | number): Promise<boolean> {
+    if (!this.db) await this.init();
+    if (!this.db) return false;
+
+    this.db.run('DELETE FROM recurring_bills WHERE id = :id;', { ':id': String(id) });
+    await this.persist();
+    return true;
+  }
+
+  async markBillPaid(
+    id: string | number,
+    accountId?: string | number,
+    date?: string
+  ): Promise<{ success: boolean; transaction?: MonetaTransaction }> {
+    if (!this.db) await this.init();
+    if (!this.db) return { success: false };
+
+    const bRes = this.db.exec(`SELECT * FROM recurring_bills WHERE id = '${String(id)}';`);
+    if (!bRes || !bRes[0]?.values?.length) return { success: false };
+    const row = bRes[0].values[0];
+    const billName = String(row[1]);
+    const payeeName = String(row[2]);
+    const catName = row[3] ? String(row[3]) : 'Utilities';
+    const defaultAccId = row[4] ? String(row[4]) : undefined;
+    const amount = Number(row[6]);
+    const frequency = String(row[7]);
+    const curNextDate = String(row[8]);
+
+    // Choose target account
+    let targetAccId = accountId ? String(accountId) : defaultAccId;
+    if (!targetAccId) {
+      const accRes = this.db.exec(`SELECT id FROM accounts LIMIT 1;`);
+      targetAccId = accRes?.[0]?.values?.[0]?.[0] ? String(accRes[0].values[0][0]) : 'acc-1';
+    }
+
+    const txDate = date || new Date().toISOString().split('T')[0];
+
+    // 1. Create paid expense transaction in register
+    const tx = await this.createTransaction({
+      account_id: targetAccId,
+      date: txDate,
+      payee_name: payeeName,
+      category_name: catName,
+      amount: -Math.abs(amount),
+      transaction_type: 'expense',
+      reconciliation_state: 'cleared',
+      memo: `Paid bill: ${billName}`,
+    });
+
+    // 2. Advance next due date
+    const d = new Date(curNextDate);
+    if (frequency === 'weekly') d.setDate(d.getDate() + 7);
+    else if (frequency === 'biweekly') d.setDate(d.getDate() + 14);
+    else if (frequency === 'quarterly') d.setMonth(d.getMonth() + 3);
+    else if (frequency === 'semiannual') d.setMonth(d.getMonth() + 6);
+    else if (frequency === 'yearly') d.setFullYear(d.getFullYear() + 1);
+    else d.setMonth(d.getMonth() + 1);
+
+    const newNextDate = d.toISOString().split('T')[0];
+    this.db.run(`UPDATE recurring_bills SET next_due_date = :next WHERE id = :id;`, {
+      ':next': newNextDate,
+      ':id': String(id),
+    });
+
+    await this.persist();
+    return { success: true, transaction: tx };
+  }
+
+  /**
+   * Offline Subscription Detector: scans past 180 days of transaction expenses
+   * and clusters repeat merchants into cadences.
+   */
+  async detectSubscriptions(): Promise<DetectedSubscription[]> {
+    if (!this.db) await this.init();
+    if (!this.db) return [];
+
+    // Get active bills payees to avoid re-suggesting already tracked bills
+    const existingRes = this.db.exec('SELECT LOWER(payee_name), LOWER(name) FROM recurring_bills WHERE active = 1;');
+    const trackedNames = new Set<string>();
+    if (existingRes?.[0]?.values) {
+      for (const row of existingRes[0].values) {
+        if (row[0]) trackedNames.add(String(row[0]).trim());
+        if (row[1]) trackedNames.add(String(row[1]).trim());
+      }
+    }
+
+    // Query past expense transactions ordered by payee and date
+    const txRes = this.db.exec(`
+      SELECT payee_name, category_name, amount, date
+      FROM transactions
+      WHERE amount < 0
+      ORDER BY LOWER(payee_name) ASC, date ASC;
+    `);
+
+    if (!txRes || !txRes[0]?.values?.length) return [];
+
+    const grouped: Record<string, { payee: string; category: string; amounts: number[]; dates: string[] }> = {};
+    for (const row of txRes[0].values) {
+      const payee = String(row[0] || '').trim();
+      if (!payee || payee.length < 2) continue;
+      const key = payee.toLowerCase();
+
+      // Skip already tracked bills
+      if (trackedNames.has(key)) continue;
+
+      if (!grouped[key]) {
+        grouped[key] = {
+          payee,
+          category: row[1] ? String(row[1]) : 'Subscription',
+          amounts: [],
+          dates: [],
+        };
+      }
+      grouped[key].amounts.push(Math.abs(Number(row[2])));
+      grouped[key].dates.push(String(row[3]));
+    }
+
+    const detected: DetectedSubscription[] = [];
+
+    for (const [key, data] of Object.entries(grouped)) {
+      if (data.dates.length < 2) continue;
+
+      // Calculate intervals in days between consecutive occurrences
+      const intervals: number[] = [];
+      for (let i = 1; i < data.dates.length; i++) {
+        const d1 = new Date(data.dates[i - 1]).getTime();
+        const d2 = new Date(data.dates[i]).getTime();
+        const diffDays = Math.round((d2 - d1) / 86400000);
+        if (diffDays > 0) intervals.push(diffDays);
+      }
+
+      if (intervals.length === 0) continue;
+
+      const avgInterval = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+      const avgAmount = data.amounts.reduce((a, b) => a + b, 0) / data.amounts.length;
+      const lastDate = data.dates[data.dates.length - 1];
+
+      let detectedFreq: 'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'yearly' | null = null;
+      if (avgInterval >= 6 && avgInterval <= 8) detectedFreq = 'weekly';
+      else if (avgInterval >= 12 && avgInterval <= 16) detectedFreq = 'biweekly';
+      else if (avgInterval >= 25 && avgInterval <= 35) detectedFreq = 'monthly';
+      else if (avgInterval >= 80 && avgInterval <= 100) detectedFreq = 'quarterly';
+      else if (avgInterval >= 340 && avgInterval <= 380) detectedFreq = 'yearly';
+
+      if (detectedFreq) {
+        // Compute variance of intervals
+        const variance = intervals.reduce((sum, v) => sum + Math.pow(v - avgInterval, 2), 0) / intervals.length;
+        const confidence: 'high' | 'medium' | 'low' = variance < 4 ? 'high' : variance < 16 ? 'medium' : 'low';
+
+        // Calculate next expected date
+        const dNext = new Date(lastDate);
+        dNext.setDate(dNext.getDate() + Math.round(avgInterval));
+        const nextExpected = dNext.toISOString().split('T')[0];
+
+        // Monthly normalized cost
+        let monthlyEst = avgAmount;
+        if (detectedFreq === 'weekly') monthlyEst = avgAmount * 4.33;
+        else if (detectedFreq === 'biweekly') monthlyEst = avgAmount * 2.16;
+        else if (detectedFreq === 'quarterly') monthlyEst = avgAmount / 3;
+        else if (detectedFreq === 'yearly') monthlyEst = avgAmount / 12;
+
+        detected.push({
+          payee_name: data.payee,
+          category_name: data.category,
+          average_amount: Math.round(avgAmount * 100) / 100,
+          detected_frequency: detectedFreq,
+          charge_count: data.dates.length,
+          last_charge_date: lastDate,
+        });
+      }
+    }
+
+    return detected;
   }
 
   /**

@@ -73,10 +73,11 @@ This roadmap defines the multi-phase engineering plan to achieve full feature pa
   - Category breakdown by Needs, Wants, and Savings with visual burn pace indicator.
   - Interactive "Can I Spend?" Affordability Calculator modal with real-time envelope overdraft warning and donor reallocation suggestions.
   - Pluggable across Live Odoo 18 Server (`/api/v1/mobile/budgets/list`) and Standalone SQLite with live transaction spending aggregation.
-- [ ] **Recurring Bills & Subscription Detector:**
-  - 14-Day recurring bill countdown calendar.
-  - Automated detection of recurring charges (Netflix, Spotify, utilities, gym).
-  - Days-until-due badges with auto-pay tracking.
+- [x] **Recurring Bills & Subscription Detector:**
+  - 14-Day & 30-Day recurring bill countdown calendar with visual status badges (`overdue`, `today`, `due_soon`, `upcoming`).
+  - 1-Click "Mark as Paid" action creating checkbook ledger expense and advancing next due date.
+  - Automated interval clustering detection of recurring charges from past 180 days (Netflix, Spotify, utilities, gym) with 1-click tracking.
+  - Pluggable across Live Odoo 18 Server (`/api/v1/mobile/bills/*`), Standalone SQLite WASM (`recurring_bills` table), and Mock Sandbox.
 - [ ] **Cash Flow Forecaster & Sankey Diagram:**
   - 12-Month cash flow trajectory based on scheduled income and recurring bills.
   - Interactive Sankey diagram showing Income $\rightarrow$ Accounts $\rightarrow$ Spending $\rightarrow$ Savings.

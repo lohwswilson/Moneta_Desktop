@@ -6,6 +6,8 @@ import type {
   ConnectionConfig,
   EnvelopeBudget,
   OdooSettingsPayload,
+  RecurringBill,
+  DetectedSubscription,
 } from '../types/moneta';
 import type { IMonetaRepository } from '../data/repository';
 import { OdooAdapter } from '../data/odooAdapter';
@@ -29,9 +31,11 @@ class FinanceStore {
   metrics = $state<DashboardMetrics | null>(null);
   accounts = $state<MonetaAccount[]>([]);
   selectedAccountId = $state<string | number | null>(null);
-  activeView = $state<'command_center' | 'register' | 'budgets'>('command_center');
+  activeView = $state<'command_center' | 'register' | 'budgets' | 'bills'>('command_center');
   transactions = $state<MonetaTransaction[]>([]);
   budgets = $state<EnvelopeBudget[]>([]);
+  bills = $state<RecurringBill[]>([]);
+  detectedSubscriptions = $state<DetectedSubscription[]>([]);
   settings = $state<OdooSettingsPayload | null>(null);
   filterState = $state<'all' | 'unreconciled' | 'cleared' | 'reconciled'>('all');
   isLoading = $state<boolean>(false);
@@ -42,6 +46,8 @@ class FinanceStore {
   isBudgetModalOpen = $state<boolean>(false);
   editingBudget = $state<EnvelopeBudget | null>(null);
   isCanISpendOpen = $state<boolean>(false);
+  isBillModalOpen = $state<boolean>(false);
+  editingBill = $state<RecurringBill | null>(null);
 
   public sqliteAdapter: SqliteAdapter = new SqliteAdapter();
   private repository: IMonetaRepository = new MockAdapter();
@@ -143,6 +149,7 @@ class FinanceStore {
       this.accounts = accounts;
 
       await this.loadBudgets();
+      await this.loadBills();
 
       if (!this.selectedAccountId && accounts.length > 0) {
         this.selectedAccountId = accounts[0].id;
@@ -244,6 +251,102 @@ class FinanceStore {
       await this.loadBudgets();
     } catch (err) {
       console.error('Failed to delete budget:', err);
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  async navigateToBills() {
+    this.selectedAccountId = null;
+    this.activeView = 'bills';
+    await this.loadBills();
+  }
+
+  async loadBills(days: number = 30) {
+    try {
+      if (this.repository.getRecurringBills) {
+        this.bills = await this.repository.getRecurringBills(days);
+      } else {
+        this.bills = [];
+      }
+    } catch (err) {
+      console.error('Failed to load recurring bills:', err);
+    }
+  }
+
+  async saveBill(payload: Partial<RecurringBill>) {
+    this.isLoading = true;
+    try {
+      if (payload.id && this.repository.updateRecurringBill) {
+        await this.repository.updateRecurringBill(payload.id, payload);
+      } else if (this.repository.createRecurringBill) {
+        await this.repository.createRecurringBill(payload);
+      }
+      await this.loadBills();
+      this.isBillModalOpen = false;
+      this.editingBill = null;
+    } catch (err) {
+      console.error('Failed to save recurring bill:', err);
+      throw err;
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  async deleteBill(id: string | number) {
+    this.isLoading = true;
+    try {
+      if (this.repository.deleteRecurringBill) {
+        await this.repository.deleteRecurringBill(id);
+      }
+      await this.loadBills();
+    } catch (err) {
+      console.error('Failed to delete recurring bill:', err);
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  async markBillPaid(id: string | number, accountId?: string | number, date?: string): Promise<boolean> {
+    this.isLoading = true;
+    try {
+      if (this.repository.markBillPaid) {
+        const res = await this.repository.markBillPaid(id, accountId, date);
+        if (res.success) {
+          await this.loadBills();
+          const [updatedMetrics, accounts] = await Promise.all([
+            this.repository.getDashboardSummary(),
+            this.repository.getAccounts(),
+          ]);
+          this.metrics = updatedMetrics;
+          this.accounts = accounts;
+          if (this.selectedAccountId) {
+            await this.loadRegister(this.selectedAccountId);
+          }
+          return true;
+        }
+      }
+      return false;
+    } catch (err) {
+      console.error('Failed to mark bill as paid:', err);
+      return false;
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  async detectSubscriptions(): Promise<DetectedSubscription[]> {
+    this.isLoading = true;
+    try {
+      if (this.repository.detectSubscriptions) {
+        const detected = await this.repository.detectSubscriptions();
+        this.detectedSubscriptions = detected;
+        return detected;
+      }
+      return [];
+    } catch (err) {
+      console.error('Failed to detect subscriptions:', err);
+      return [];
     } finally {
       this.isLoading = false;
     }

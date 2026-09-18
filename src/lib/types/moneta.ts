@@ -133,3 +133,32 @@ export interface OdooSettingsPayload {
   }>;
 }
 
+export type BillFrequency = 'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'semiannual' | 'yearly';
+
+export interface RecurringBill {
+  id: string | number;
+  name: string;
+  payee_name: string;
+  category_name: string;
+  account_id?: string | number;
+  account_name?: string;
+  amount: number;
+  frequency: BillFrequency;
+  next_due_date: string;
+  days_until_due: number;
+  due_status: 'overdue' | 'today' | 'due_soon' | 'upcoming';
+  auto_pay: boolean;
+  active?: boolean;
+}
+
+export interface DetectedSubscription {
+  payee_name: string;
+  average_amount: number;
+  detected_frequency: BillFrequency;
+  charge_count: number;
+  last_charge_date: string;
+  account_id?: string | number;
+  category_name?: string;
+}
+
+

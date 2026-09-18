@@ -6,6 +6,8 @@ import type {
   ReconcileState,
   EnvelopeBudget,
   OdooSettingsPayload,
+  RecurringBill,
+  DetectedSubscription,
 } from '../types/moneta';
 
 export const OdooApi = {
@@ -18,36 +20,22 @@ export const OdooApi = {
         jsonrpc: '2.0',
         params: {},
       });
-
-      if (response.data?.result?.status === 'ok') {
+      const data = response.data?.result;
+      if (data && data.status === 'ok') {
         return {
           success: true,
-          message: 'Connected successfully',
-          user: response.data.result.user_name,
+          message: `Connected to Odoo 18 (${data.module || 'moneta_finance'})`,
+          user: data.user_name,
         };
       }
-
-      const err = response.data?.error;
-      const msg =
-        err?.data?.message ||
-        err?.message ||
-        response.data?.result?.message ||
-        'Connection failed';
-
-      return {
-        success: false,
-        message: msg,
-      };
+      return { success: false, message: response.data?.error?.message || 'Unauthorized or invalid response' };
     } catch (err: any) {
-      return {
-        success: false,
-        message: err.response?.data?.message || err.message || 'Unable to reach Odoo server',
-      };
+      return { success: false, message: err?.message || 'Network connection error' };
     }
   },
 
   /**
-   * Fetch executive dashboard summary metrics
+   * Fetch executive wealth & FIRE dashboard metrics (<40ms)
    */
   async getDashboardSummary(): Promise<DashboardMetrics> {
     const response = await getApiClient().post('/api/v1/mobile/dashboard/summary', {
@@ -58,7 +46,7 @@ export const OdooApi = {
   },
 
   /**
-   * List all active accounts
+   * Fetch all active financial accounts
    */
   async getAccounts(): Promise<MonetaAccount[]> {
     const response = await getApiClient().post('/api/v1/mobile/accounts/list', {
@@ -69,13 +57,13 @@ export const OdooApi = {
   },
 
   /**
-   * Fetch checkbook register transactions for an account
+   * Fetch checkbook register transactions for a specific account
    */
   async getAccountTransactions(
     accountId: string | number,
-    limit: number = 200
+    limit: number = 100
   ): Promise<MonetaTransaction[]> {
-    const response = await getApiClient().post('/api/v1/mobile/transactions/register', {
+    const response = await getApiClient().post('/api/v1/mobile/transactions/list', {
       jsonrpc: '2.0',
       params: {
         account_id: accountId,
@@ -86,7 +74,7 @@ export const OdooApi = {
   },
 
   /**
-   * 1-Tap toggle or update transaction reconciliation state
+   * 1-Click update of reconciliation state (unreconciled | cleared | reconciled)
    */
   async updateReconciliationState(
     transactionId: string | number,
@@ -133,5 +121,78 @@ export const OdooApi = {
       params: {},
     });
     return response.data?.result?.settings || null;
+  },
+
+  /**
+   * Fetch recurring bills due in the next N days (or all if days=0)
+   */
+  async getRecurringBills(days: number = 14): Promise<RecurringBill[]> {
+    const response = await getApiClient().post('/api/v1/mobile/bills/upcoming', {
+      jsonrpc: '2.0',
+      params: { days },
+    });
+    return response.data?.result?.bills || [];
+  },
+
+  /**
+   * Create a new recurring bill in Odoo
+   */
+  async createRecurringBill(payload: Partial<RecurringBill>): Promise<RecurringBill> {
+    const response = await getApiClient().post('/api/v1/mobile/bills/create', {
+      jsonrpc: '2.0',
+      params: payload,
+    });
+    return response.data?.result?.bill;
+  },
+
+  /**
+   * Update an existing recurring bill
+   */
+  async updateRecurringBill(id: string | number, payload: Partial<RecurringBill>): Promise<boolean> {
+    const response = await getApiClient().post('/api/v1/mobile/bills/update', {
+      jsonrpc: '2.0',
+      params: {
+        bill_id: id,
+        ...payload,
+      },
+    });
+    return response.data?.result?.success || false;
+  },
+
+  /**
+   * Delete a recurring bill
+   */
+  async deleteRecurringBill(id: string | number): Promise<boolean> {
+    const response = await getApiClient().post('/api/v1/mobile/bills/delete', {
+      jsonrpc: '2.0',
+      params: { bill_id: id },
+    });
+    return response.data?.result?.success || false;
+  },
+
+  /**
+   * Mark bill as paid: creates ledger transaction and advances due date
+   */
+  async markBillPaid(id: string | number, accountId?: string | number, date?: string): Promise<{ success: boolean; next_due_date?: string }> {
+    const response = await getApiClient().post('/api/v1/mobile/bills/mark_paid', {
+      jsonrpc: '2.0',
+      params: {
+        bill_id: id,
+        account_id: accountId,
+        date,
+      },
+    });
+    return response.data?.result || { success: false };
+  },
+
+  /**
+   * Automatically detect recurring subscriptions from transaction history
+   */
+  async detectSubscriptions(): Promise<DetectedSubscription[]> {
+    const response = await getApiClient().post('/api/v1/mobile/subscriptions/detect', {
+      jsonrpc: '2.0',
+      params: {},
+    });
+    return response.data?.result?.subscriptions || [];
   },
 };

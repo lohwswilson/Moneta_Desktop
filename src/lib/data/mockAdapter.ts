@@ -6,6 +6,8 @@ import type {
   ReconcileState,
   EnvelopeBudget,
   OdooSettingsPayload,
+  RecurringBill,
+  DetectedSubscription,
 } from '../types/moneta';
 
 let mockAccounts: MonetaAccount[] = [
@@ -374,7 +376,223 @@ export class MockAdapter implements IMonetaRepository {
   async syncSettingsFromOdoo(_settings: OdooSettingsPayload): Promise<void> {
     // Mock adapter no-op
   }
+
+  async getRecurringBills(days: number = 14): Promise<RecurringBill[]> {
+    if (!days || days <= 0) return [...mockBills];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const cutoff = new Date(today.getTime() + days * 86400000);
+    return mockBills.filter((b) => {
+      const due = new Date(b.next_due_date);
+      return due <= cutoff;
+    });
+  }
+
+  async createRecurringBill(payload: Partial<RecurringBill>): Promise<RecurringBill> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const due = payload.next_due_date ? new Date(payload.next_due_date) : today;
+    const diff = Math.ceil((due.getTime() - today.getTime()) / 86400000);
+    let status: 'overdue' | 'today' | 'due_soon' | 'upcoming' = 'upcoming';
+    if (diff < 0) status = 'overdue';
+    else if (diff === 0) status = 'today';
+    else if (diff <= 7) status = 'due_soon';
+
+    const bill: RecurringBill = {
+      id: payload.id || `bill-${Date.now()}`,
+      name: payload.name || 'Recurring Bill',
+      payee_name: payload.payee_name || payload.name || 'Payee',
+      category_name: payload.category_name || 'Utilities',
+      account_id: payload.account_id || 'acc-1',
+      account_name: payload.account_name || 'Checking Account',
+      amount: Number(payload.amount || 0),
+      frequency: payload.frequency || 'monthly',
+      next_due_date: payload.next_due_date || today.toISOString().split('T')[0],
+      days_until_due: diff,
+      due_status: status,
+      auto_pay: Boolean(payload.auto_pay),
+      active: true,
+    };
+    mockBills.push(bill);
+    return bill;
+  }
+
+  async updateRecurringBill(id: string | number, payload: Partial<RecurringBill>): Promise<RecurringBill> {
+    const idx = mockBills.findIndex((b) => String(b.id) === String(id));
+    if (idx === -1) throw new Error(`Bill ${id} not found`);
+
+    const existing = mockBills[idx];
+    const nextDate = payload.next_due_date || existing.next_due_date;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const due = new Date(nextDate);
+    const diff = Math.ceil((due.getTime() - today.getTime()) / 86400000);
+    let status: 'overdue' | 'today' | 'due_soon' | 'upcoming' = 'upcoming';
+    if (diff < 0) status = 'overdue';
+    else if (diff === 0) status = 'today';
+    else if (diff <= 7) status = 'due_soon';
+
+    const updated: RecurringBill = {
+      ...existing,
+      ...payload,
+      next_due_date: nextDate,
+      days_until_due: diff,
+      due_status: status,
+    };
+    mockBills[idx] = updated;
+    return updated;
+  }
+
+  async deleteRecurringBill(id: string | number): Promise<boolean> {
+    const idx = mockBills.findIndex((b) => String(b.id) === String(id));
+    if (idx !== -1) {
+      mockBills.splice(idx, 1);
+      return true;
+    }
+    return false;
+  }
+
+  async markBillPaid(id: string | number, accountId?: string | number, date?: string): Promise<{ success: boolean; transaction?: MonetaTransaction }> {
+    const bill = mockBills.find((b) => String(b.id) === String(id));
+    if (!bill) return { success: false };
+
+    // 1. Post transaction into register
+    const txDate = date || new Date().toISOString().split('T')[0];
+    const accId = accountId || bill.account_id || 'acc-1';
+    const tx: MonetaTransaction = {
+      id: `tx-${Date.now()}`,
+      account_id: accId,
+      date: txDate,
+      payee_name: bill.payee_name,
+      category_name: bill.category_name,
+      amount: -Math.abs(bill.amount),
+      transaction_type: 'expense',
+      reconciliation_state: 'cleared',
+      memo: `Paid bill: ${bill.name}`,
+    };
+    mockTransactions.unshift(tx);
+
+    // 2. Advance next due date
+    const d = new Date(bill.next_due_date);
+    if (bill.frequency === 'weekly') d.setDate(d.getDate() + 7);
+    else if (bill.frequency === 'biweekly') d.setDate(d.getDate() + 14);
+    else if (bill.frequency === 'monthly') d.setMonth(d.getMonth() + 1);
+    else if (bill.frequency === 'quarterly') d.setMonth(d.getMonth() + 3);
+    else if (bill.frequency === 'semiannual') d.setMonth(d.getMonth() + 6);
+    else if (bill.frequency === 'yearly') d.setFullYear(d.getFullYear() + 1);
+
+    bill.next_due_date = d.toISOString().split('T')[0];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    bill.days_until_due = Math.ceil((d.getTime() - today.getTime()) / 86400000);
+    bill.due_status = bill.days_until_due <= 7 ? 'due_soon' : 'upcoming';
+
+    return { success: true, transaction: tx };
+  }
+
+  async detectSubscriptions(): Promise<DetectedSubscription[]> {
+    return [...mockDetectedSubscriptions];
+  }
 }
+
+let mockBills: RecurringBill[] = [
+  {
+    id: 'bill-1',
+    name: 'SP Group Utilities',
+    payee_name: 'SP Services',
+    category_name: 'Utilities',
+    account_id: 'acc-1',
+    account_name: 'DBS High Interest Checking',
+    amount: 145.20,
+    frequency: 'monthly',
+    next_due_date: new Date(Date.now() + 2 * 86400000).toISOString().split('T')[0],
+    days_until_due: 2,
+    due_status: 'due_soon',
+    auto_pay: true,
+    active: true,
+  },
+  {
+    id: 'bill-2',
+    name: 'Singtel 2Gbps Home Fibre',
+    payee_name: 'Singtel',
+    category_name: 'Utilities',
+    account_id: 'acc-1',
+    account_name: 'DBS High Interest Checking',
+    amount: 79.90,
+    frequency: 'monthly',
+    next_due_date: new Date(Date.now() + 5 * 86400000).toISOString().split('T')[0],
+    days_until_due: 5,
+    due_status: 'due_soon',
+    auto_pay: true,
+    active: true,
+  },
+  {
+    id: 'bill-3',
+    name: 'Netflix Premium 4K Family',
+    payee_name: 'Netflix',
+    category_name: 'Entertainment',
+    account_id: 'acc-5',
+    account_name: 'StanChart Simply Cash Credit Card',
+    amount: 25.98,
+    frequency: 'monthly',
+    next_due_date: new Date(Date.now() + 11 * 86400000).toISOString().split('T')[0],
+    days_until_due: 11,
+    due_status: 'due_soon',
+    auto_pay: true,
+    active: true,
+  },
+  {
+    id: 'bill-4',
+    name: 'Pure Fitness Monthly Membership',
+    payee_name: 'Pure Fitness',
+    category_name: 'Fitness & Health',
+    account_id: 'acc-5',
+    account_name: 'StanChart Simply Cash Credit Card',
+    amount: 195.00,
+    frequency: 'monthly',
+    next_due_date: new Date(Date.now() + 18 * 86400000).toISOString().split('T')[0],
+    days_until_due: 18,
+    due_status: 'upcoming',
+    auto_pay: false,
+    active: true,
+  },
+  {
+    id: 'bill-5',
+    name: 'Great Eastern Term Life Premium',
+    payee_name: 'Great Eastern',
+    category_name: 'Insurance',
+    account_id: 'acc-1',
+    account_name: 'DBS High Interest Checking',
+    amount: 320.00,
+    frequency: 'quarterly',
+    next_due_date: new Date(Date.now() - 1 * 86400000).toISOString().split('T')[0],
+    days_until_due: -1,
+    due_status: 'overdue',
+    auto_pay: false,
+    active: true,
+  },
+];
+
+let mockDetectedSubscriptions: DetectedSubscription[] = [
+  {
+    payee_name: 'Spotify Singapore',
+    average_amount: 10.98,
+    detected_frequency: 'monthly',
+    charge_count: 5,
+    last_charge_date: new Date(Date.now() - 15 * 86400000).toISOString().split('T')[0],
+    account_id: 'acc-5',
+    category_name: 'Entertainment',
+  },
+  {
+    payee_name: 'iCloud 2TB Storage',
+    average_amount: 13.98,
+    detected_frequency: 'monthly',
+    charge_count: 6,
+    last_charge_date: new Date(Date.now() - 20 * 86400000).toISOString().split('T')[0],
+    account_id: 'acc-5',
+    category_name: 'Software',
+  },
+];
 
 let mockBudgets: EnvelopeBudget[] = [
   {
