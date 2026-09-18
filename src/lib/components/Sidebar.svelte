@@ -16,7 +16,8 @@
     PiggyBank,
     CalendarClock,
     Workflow,
-    Store
+    Store,
+    Target
   } from '@lucide/svelte';
 
   const formatCurrency = (amount: number, currency: string = 'SGD') => {
@@ -168,6 +169,22 @@
         {#if financeStore.payees.length > 0}
           <span class="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-pink-950/60 text-pink-400 border border-pink-800/60">
             {financeStore.payees.length}
+          </span>
+        {/if}
+      </button>
+
+      <button
+        onclick={() => financeStore.navigateToGoals()}
+        class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition-colors {financeStore.activeView === 'goals' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200'}"
+      >
+        <span class="flex items-center gap-2">
+          <Target class="w-4 h-4 text-sky-400" />
+          Financial Goals
+        </span>
+        {#if financeStore.goals.length > 0}
+          {@const achieved = financeStore.goals.filter((g) => g.status === 'achieved').length}
+          <span class="font-mono text-[11px] text-zinc-400">
+            {achieved}/{financeStore.goals.length}
           </span>
         {/if}
       </button>

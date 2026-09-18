@@ -11,6 +11,7 @@ import type {
   DetectedSubscription,
   CashflowForecast,
   PayeeIntelligence,
+  FinancialGoal,
 } from '../types/moneta';
 
 export class OdooAdapter implements IMonetaRepository {
@@ -90,5 +91,29 @@ export class OdooAdapter implements IMonetaRepository {
 
   async updatePayee(id: string | number, payload: Partial<PayeeIntelligence>): Promise<boolean> {
     return OdooApi.updatePayee(id, payload);
+  }
+
+  async getGoals(): Promise<FinancialGoal[]> {
+    return OdooApi.getGoals();
+  }
+
+  async createGoal(payload: Partial<FinancialGoal>): Promise<FinancialGoal> {
+    return OdooApi.createGoal(payload);
+  }
+
+  async updateGoal(id: string | number, payload: Partial<FinancialGoal>): Promise<FinancialGoal> {
+    return OdooApi.updateGoal(id, payload);
+  }
+
+  async deleteGoal(id: string | number): Promise<boolean> {
+    return OdooApi.deleteGoal(id);
+  }
+
+  async fundGoal(
+    id: string | number,
+    amount: number,
+    actionType: 'deposit' | 'withdraw'
+  ): Promise<FinancialGoal> {
+    return OdooApi.fundGoal(id, amount, actionType);
   }
 }

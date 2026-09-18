@@ -10,7 +10,9 @@ import type {
   DetectedSubscription,
   CashflowForecast,
   PayeeIntelligence,
+  FinancialGoal,
 } from '../types/moneta';
+import { computeGoalMetrics, toDateOnlyString, todayDateOnly } from './goalMath';
 
 let mockAccounts: MonetaAccount[] = [
   {
@@ -676,6 +678,75 @@ export class MockAdapter implements IMonetaRepository {
     }
     return false;
   }
+
+  async getGoals(): Promise<FinancialGoal[]> {
+    // Derived figures are recomputed on read so a seeded goal cannot carry a
+    // stale progress bar as time passes.
+    return mockGoals
+      .map((goal) => ({ ...goal, ...computeGoalMetrics(goal) }))
+      .sort((a, b) => a.target_date.localeCompare(b.target_date) || a.name.localeCompare(b.name));
+  }
+
+  async createGoal(payload: Partial<FinancialGoal>): Promise<FinancialGoal> {
+    const today = toDateOnlyString(todayDateOnly());
+    const goal: FinancialGoal = {
+      id: payload.id || `mock-goal-${Date.now()}`,
+      name: payload.name || 'New Goal',
+      target_amount: Number(payload.target_amount || 0),
+      current_amount: Number(payload.current_amount || 0),
+      start_date: payload.start_date || today,
+      target_date: payload.target_date || today,
+      account_id: payload.account_id,
+      account_name: payload.account_name,
+      icon: payload.icon || '🎯',
+      color: payload.color !== undefined ? payload.color : 4,
+      notes: payload.notes,
+      status: payload.status || 'in_progress',
+      remaining_amount: 0,
+      progress_percent: 0,
+      months_remaining: 0,
+      monthly_contribution_required: 0,
+    };
+    const created = { ...goal, ...computeGoalMetrics(goal) };
+    mockGoals.push(created);
+    return created;
+  }
+
+  async updateGoal(id: string | number, payload: Partial<FinancialGoal>): Promise<FinancialGoal> {
+    const idx = mockGoals.findIndex((g) => String(g.id) === String(id));
+    if (idx === -1) throw new Error(`Goal ${id} not found`);
+
+    const merged: FinancialGoal = { ...mockGoals[idx], ...payload };
+    const updated = { ...merged, ...computeGoalMetrics(merged) };
+    mockGoals[idx] = updated;
+    return updated;
+  }
+
+  async deleteGoal(id: string | number): Promise<boolean> {
+    const idx = mockGoals.findIndex((g) => String(g.id) === String(id));
+    if (idx === -1) return false;
+    mockGoals.splice(idx, 1);
+    return true;
+  }
+
+  async fundGoal(
+    id: string | number,
+    amount: number,
+    actionType: 'deposit' | 'withdraw'
+  ): Promise<FinancialGoal> {
+    const amt = Number(amount) || 0;
+    if (amt <= 0) throw new Error('Please specify an amount greater than 0.');
+
+    const idx = mockGoals.findIndex((g) => String(g.id) === String(id));
+    if (idx === -1) throw new Error(`Goal ${id} not found`);
+
+    const currentAmount = Number(mockGoals[idx].current_amount) || 0;
+    const nextAmount = actionType === 'withdraw' ? Math.max(currentAmount - amt, 0) : currentAmount + amt;
+    const merged: FinancialGoal = { ...mockGoals[idx], current_amount: nextAmount };
+    const updated = { ...merged, ...computeGoalMetrics(merged) };
+    mockGoals[idx] = updated;
+    return updated;
+  }
 }
 
 let mockPayees: PayeeIntelligence[] = [
@@ -994,5 +1065,81 @@ let mockBudgets: EnvelopeBudget[] = [
     rollover: false,
     color_code: '#8b5cf6',
     alert_level: 'none',
+  },
+];
+
+/**
+ * Seeded goals persist only their own fields — `getGoals()` derives the
+ * progress figures through `computeGoalMetrics`, the same helper the SQLite
+ * adapter uses. The zeroed metrics here are placeholders, never returned.
+ */
+let mockGoals: FinancialGoal[] = [
+  {
+    id: 'goal-1',
+    name: 'Emergency Fund (6 Months)',
+    target_amount: 60000.0,
+    current_amount: 45000.0,
+    start_date: '2025-01-01',
+    target_date: '2027-06-30',
+    account_id: 'acc-2',
+    account_name: 'Emergency Savings Reserve',
+    icon: '🛡️',
+    color: 4,
+    notes: 'Six months of living expenses held in the OCBC reserve account.',
+    status: 'in_progress',
+    remaining_amount: 0,
+    progress_percent: 0,
+    months_remaining: 0,
+    monthly_contribution_required: 0,
+  },
+  {
+    id: 'goal-2',
+    name: 'Japan Family Holiday',
+    target_amount: 12000.0,
+    current_amount: 3200.0,
+    start_date: '2026-03-01',
+    target_date: '2027-03-31',
+    account_id: 'acc-1',
+    account_name: 'DBS High Interest Checking',
+    icon: '✈️',
+    color: 6,
+    notes: 'Flights, accommodation and spending money for a two-week trip.',
+    status: 'in_progress',
+    remaining_amount: 0,
+    progress_percent: 0,
+    months_remaining: 0,
+    monthly_contribution_required: 0,
+  },
+  {
+    id: 'goal-3',
+    name: 'Home Down Payment',
+    target_amount: 250000.0,
+    current_amount: 88000.0,
+    start_date: '2025-06-01',
+    target_date: '2029-12-31',
+    icon: '🏡',
+    color: 2,
+    notes: 'Targeting a 25% down payment to keep the mortgage within MSR.',
+    status: 'in_progress',
+    remaining_amount: 0,
+    progress_percent: 0,
+    months_remaining: 0,
+    monthly_contribution_required: 0,
+  },
+  {
+    id: 'goal-4',
+    name: 'Laptop Replacement Fund',
+    target_amount: 4500.0,
+    current_amount: 4500.0,
+    start_date: '2025-11-01',
+    target_date: '2026-08-31',
+    icon: '💻',
+    color: 8,
+    notes: 'Fully funded — kept open as a reference for the next cycle.',
+    status: 'in_progress',
+    remaining_amount: 0,
+    progress_percent: 0,
+    months_remaining: 0,
+    monthly_contribution_required: 0,
   },
 ];

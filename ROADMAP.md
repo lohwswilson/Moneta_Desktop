@@ -65,7 +65,7 @@ This roadmap defines the multi-phase engineering plan to achieve full feature pa
 
 ---
 
-### Phase 3: Planning, Envelope Budgets & Cash Flow (In Progress)
+### Phase 3: Planning, Envelope Budgets & Cash Flow (Completed & Active)
 *Parity with Odoo `budget.py`, `recurring.py`, `cashflow_calendar.py`, `subscription_detector.py`*
 
 - [x] **Zero-Based Envelope Budgeting (YNAB Paradigm):**
@@ -84,8 +84,11 @@ This roadmap defines the multi-phase engineering plan to achieve full feature pa
   - Interactive personal finance Sankey diagram mapping Income Sources $\rightarrow$ Liquid Cash Hub $\rightarrow$ Expenses & Savings Envelopes.
   - Daily projected cash calendar ledger with running balances and overdraft risk warning.
   - Pluggable across Live Odoo 18 Server (`/api/v1/mobile/cashflow/projection`), Standalone SQLite WASM, and Mock Sandbox.
-- [ ] **Financial Goals Tracker:**
-  - Milestone goals (Emergency Fund, Down Payment, Vacation, Wedding) with progress bars.
+- [x] **Financial Goals Tracker:**
+  - Milestone goals (Emergency Fund, Down Payment, Vacation, Wedding) with progress bars and an overall funding summary.
+  - Computed progress, remaining amount, months remaining, and the monthly contribution each goal needs to land on its target date — derived through one shared helper (`goalMath.ts`) so the SQLite and Mock adapters cannot drift from the Odoo server.
+  - Dedicated-account linkage, emoji icons, notes, and a deposit/withdraw fund modal with a live resulting-balance preview.
+  - Pluggable across Live Odoo 18 Server (`/api/v1/mobile/goals/{list,create,update,delete,fund}`), Standalone SQLite WASM (`goals` table), and Mock Sandbox.
 
 ---
 

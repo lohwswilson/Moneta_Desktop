@@ -10,6 +10,7 @@ import type {
   DetectedSubscription,
   CashflowForecast,
   PayeeIntelligence,
+  FinancialGoal,
 } from '../types/moneta';
 import type { IMonetaRepository } from '../data/repository';
 import { OdooAdapter } from '../data/odooAdapter';
@@ -33,7 +34,7 @@ class FinanceStore {
   metrics = $state<DashboardMetrics | null>(null);
   accounts = $state<MonetaAccount[]>([]);
   selectedAccountId = $state<string | number | null>(null);
-  activeView = $state<'command_center' | 'register' | 'budgets' | 'bills' | 'cashflow' | 'payees'>('command_center');
+  activeView = $state<'command_center' | 'register' | 'budgets' | 'bills' | 'cashflow' | 'payees' | 'goals'>('command_center');
   transactions = $state<MonetaTransaction[]>([]);
   budgets = $state<EnvelopeBudget[]>([]);
   bills = $state<RecurringBill[]>([]);
@@ -41,6 +42,7 @@ class FinanceStore {
   cashflowForecast = $state<CashflowForecast | null>(null);
   cashflowHorizon = $state<30 | 90 | 180 | 365>(90);
   payees = $state<PayeeIntelligence[]>([]);
+  goals = $state<FinancialGoal[]>([]);
   settings = $state<OdooSettingsPayload | null>(null);
   filterState = $state<'all' | 'unreconciled' | 'cleared' | 'reconciled'>('all');
   isLoading = $state<boolean>(false);
@@ -53,6 +55,10 @@ class FinanceStore {
   isCanISpendOpen = $state<boolean>(false);
   isBillModalOpen = $state<boolean>(false);
   editingBill = $state<RecurringBill | null>(null);
+  isGoalModalOpen = $state<boolean>(false);
+  editingGoal = $state<FinancialGoal | null>(null);
+  isFundGoalOpen = $state<boolean>(false);
+  fundingGoal = $state<FinancialGoal | null>(null);
 
   public sqliteAdapter: SqliteAdapter = new SqliteAdapter();
   private repository: IMonetaRepository = new MockAdapter();
@@ -157,6 +163,7 @@ class FinanceStore {
       await this.loadBills();
       await this.loadCashflow();
       await this.loadPayees();
+      await this.loadGoals();
 
       if (!this.selectedAccountId && accounts.length > 0) {
         this.selectedAccountId = accounts[0].id;
@@ -408,6 +415,80 @@ class FinanceStore {
       return success;
     } catch (err) {
       console.error('Failed to update payee:', err);
+      return false;
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  async navigateToGoals() {
+    this.selectedAccountId = null;
+    this.activeView = 'goals';
+    await this.loadGoals();
+  }
+
+  async loadGoals() {
+    try {
+      if (this.repository.getGoals) {
+        this.goals = await this.repository.getGoals();
+      } else {
+        this.goals = [];
+      }
+    } catch (err) {
+      console.error('Failed to load goals:', err);
+    }
+  }
+
+  async saveGoal(payload: Partial<FinancialGoal>): Promise<boolean> {
+    this.isLoading = true;
+    try {
+      const editing = this.editingGoal;
+      if (editing) {
+        if (this.repository.updateGoal) {
+          await this.repository.updateGoal(editing.id, payload);
+        }
+      } else if (this.repository.createGoal) {
+        await this.repository.createGoal(payload);
+      }
+      await this.loadGoals();
+      return true;
+    } catch (err) {
+      console.error('Failed to save goal:', err);
+      return false;
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  async fundGoal(id: string | number, amount: number, actionType: 'deposit' | 'withdraw'): Promise<boolean> {
+    this.isLoading = true;
+    try {
+      if (this.repository.fundGoal) {
+        await this.repository.fundGoal(id, amount, actionType);
+      }
+      await this.loadGoals();
+      return true;
+    } catch (err) {
+      console.error('Failed to fund goal:', err);
+      return false;
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  async deleteGoal(id: string | number): Promise<boolean> {
+    this.isLoading = true;
+    try {
+      let success = false;
+      if (this.repository.deleteGoal) {
+        success = await this.repository.deleteGoal(id);
+      }
+      if (success) {
+        await this.loadGoals();
+      }
+      return success;
+    } catch (err) {
+      console.error('Failed to delete goal:', err);
       return false;
     } finally {
       this.isLoading = false;

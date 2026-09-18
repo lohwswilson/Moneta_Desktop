@@ -10,9 +10,12 @@ import type {
   DetectedSubscription,
   CashflowForecast,
   PayeeIntelligence,
+  FinancialGoal,
+  GoalStatus,
 } from '../types/moneta';
 import initSqlJs, { type Database, type SqlJsStatic } from 'sql.js';
 import { DEFAULT_RULES } from './rulesEngine';
+import { computeGoalMetrics, toDateOnlyString, todayDateOnly } from './goalMath';
 
 const DB_INDEXEDDB_NAME = 'moneta_sqlite_db';
 const STORE_NAME = 'sqlite_storage';
@@ -178,6 +181,22 @@ export class SqliteAdapter implements IMonetaRepository {
         website TEXT,
         notes TEXT,
         updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS goals (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        target_amount REAL NOT NULL DEFAULT 0,
+        current_amount REAL NOT NULL DEFAULT 0,
+        start_date TEXT NOT NULL,
+        target_date TEXT NOT NULL,
+        account_id TEXT,
+        account_name TEXT,
+        icon TEXT DEFAULT '🎯',
+        color INTEGER DEFAULT 4,
+        notes TEXT,
+        status TEXT DEFAULT 'in_progress',
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
       );
     `);
 
@@ -1782,6 +1801,164 @@ export class SqliteAdapter implements IMonetaRepository {
 
     await this.persist();
     return true;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Financial Goals & Sinking Funds
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Maps a `goals` row to a FinancialGoal, deriving progress figures through
+   * `computeGoalMetrics` so this adapter and the Odoo server agree.
+   */
+  private mapGoalRow(row: any[]): FinancialGoal {
+    const today = toDateOnlyString(todayDateOnly());
+    const persisted = {
+      id: String(row[0]),
+      name: String(row[1]),
+      target_amount: Number(row[2]) || 0,
+      current_amount: Number(row[3]) || 0,
+      start_date: row[4] ? String(row[4]) : today,
+      target_date: row[5] ? String(row[5]) : today,
+      account_id: row[6] ? String(row[6]) : undefined,
+      account_name: row[7] ? String(row[7]) : undefined,
+      icon: row[8] ? String(row[8]) : '🎯',
+      color: row[9] !== null && row[9] !== undefined ? Number(row[9]) : undefined,
+      notes: row[10] ? String(row[10]) : undefined,
+      status: ((row[11] as GoalStatus) || 'in_progress') as GoalStatus,
+    };
+    return { ...persisted, ...computeGoalMetrics(persisted) };
+  }
+
+  async getGoals(): Promise<FinancialGoal[]> {
+    if (!this.db) await this.init();
+    if (!this.db) return [];
+
+    const res = this.db.exec(`SELECT * FROM goals ORDER BY target_date ASC, name ASC;`);
+    if (!res || res.length === 0 || !res[0].values) return [];
+
+    return res[0].values.map((row) => this.mapGoalRow(row));
+  }
+
+  async createGoal(payload: Partial<FinancialGoal>): Promise<FinancialGoal> {
+    if (!this.db) await this.init();
+    if (!this.db) throw new Error('Database not initialized');
+
+    const id = payload.id ? String(payload.id) : `sq-goal-${Date.now()}`;
+    const today = toDateOnlyString(todayDateOnly());
+
+    this.db.run(
+      `INSERT INTO goals (id, name, target_amount, current_amount, start_date, target_date, account_id, account_name, icon, color, notes, status)
+       VALUES (:id, :name, :target, :current, :start, :target_date, :acc_id, :acc_name, :icon, :color, :notes, :status);`,
+      {
+        ':id': id,
+        ':name': payload.name || 'New Goal',
+        ':target': Number(payload.target_amount || 0),
+        ':current': Number(payload.current_amount || 0),
+        ':start': payload.start_date || today,
+        ':target_date': payload.target_date || today,
+        ':acc_id': payload.account_id ? String(payload.account_id) : null,
+        ':acc_name': payload.account_name || null,
+        ':icon': payload.icon || '🎯',
+        ':color': payload.color !== undefined ? payload.color : 4,
+        ':notes': payload.notes || null,
+        ':status': payload.status || 'in_progress',
+      }
+    );
+
+    await this.persist();
+    const goals = await this.getGoals();
+    return goals.find((g) => g.id === id) || (payload as FinancialGoal);
+  }
+
+  async updateGoal(id: string | number, payload: Partial<FinancialGoal>): Promise<FinancialGoal> {
+    if (!this.db) await this.init();
+    if (!this.db) throw new Error('Database not initialized');
+
+    const existing = this.db.exec(`SELECT * FROM goals WHERE id = :id;`, { ':id': String(id) });
+    if (!existing || existing.length === 0 || !existing[0].values?.length) {
+      throw new Error(`Goal ${id} not found`);
+    }
+    const current = this.mapGoalRow(existing[0].values[0]);
+
+    this.db.run(
+      `UPDATE goals SET
+         name = :name, target_amount = :target, current_amount = :current,
+         start_date = :start, target_date = :target_date,
+         account_id = :acc_id, account_name = :acc_name,
+         icon = :icon, color = :color, notes = :notes, status = :status
+       WHERE id = :id;`,
+      {
+        ':id': String(id),
+        ':name': payload.name !== undefined ? payload.name : current.name,
+        ':target': payload.target_amount !== undefined ? Number(payload.target_amount) : current.target_amount,
+        ':current': payload.current_amount !== undefined ? Number(payload.current_amount) : current.current_amount,
+        ':start': payload.start_date !== undefined ? payload.start_date : current.start_date,
+        ':target_date': payload.target_date !== undefined ? payload.target_date : current.target_date,
+        ':acc_id':
+          payload.account_id !== undefined
+            ? payload.account_id
+              ? String(payload.account_id)
+              : null
+            : current.account_id
+              ? String(current.account_id)
+              : null,
+        ':acc_name':
+          payload.account_name !== undefined ? payload.account_name : current.account_name || null,
+        ':icon': payload.icon !== undefined ? payload.icon : current.icon,
+        ':color': payload.color !== undefined ? payload.color : current.color ?? 4,
+        ':notes': payload.notes !== undefined ? payload.notes : current.notes || null,
+        ':status': payload.status !== undefined ? payload.status : current.status,
+      }
+    );
+
+    await this.persist();
+    const goals = await this.getGoals();
+    return goals.find((g) => g.id === String(id)) || current;
+  }
+
+  async deleteGoal(id: string | number): Promise<boolean> {
+    if (!this.db) await this.init();
+    if (!this.db) return false;
+
+    this.db.run(`DELETE FROM goals WHERE id = :id;`, { ':id': String(id) });
+    await this.persist();
+    return true;
+  }
+
+  /**
+   * Deposits into or withdraws from a goal's saved balance. Withdrawal clamps
+   * at zero; a non-positive amount is rejected, matching
+   * `goal.py::MonetaGoalFundWizard.action_apply`.
+   */
+  async fundGoal(
+    id: string | number,
+    amount: number,
+    actionType: 'deposit' | 'withdraw'
+  ): Promise<FinancialGoal> {
+    if (!this.db) await this.init();
+    if (!this.db) throw new Error('Database not initialized');
+
+    const amt = Number(amount) || 0;
+    if (amt <= 0) throw new Error('Please specify an amount greater than 0.');
+
+    const existing = this.db.exec(`SELECT current_amount FROM goals WHERE id = :id;`, {
+      ':id': String(id),
+    });
+    if (!existing || existing.length === 0 || !existing[0].values?.length) {
+      throw new Error(`Goal ${id} not found`);
+    }
+    const currentAmount = Number(existing[0].values[0][0]) || 0;
+    const nextAmount = actionType === 'withdraw' ? Math.max(currentAmount - amt, 0) : currentAmount + amt;
+
+    this.db.run(`UPDATE goals SET current_amount = :amt WHERE id = :id;`, {
+      ':id': String(id),
+      ':amt': nextAmount,
+    });
+    await this.persist();
+
+    const goals = await this.getGoals();
+    return goals.find((g) => g.id === String(id)) || ({} as FinancialGoal);
   }
 
   /**

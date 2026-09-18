@@ -9,6 +9,7 @@ import type {
   DetectedSubscription,
   CashflowForecast,
   PayeeIntelligence,
+  FinancialGoal,
 } from '../types/moneta';
 
 export interface IMonetaRepository {
@@ -40,4 +41,13 @@ export interface IMonetaRepository {
   getCashflowForecast?(days?: number, accountId?: string | number): Promise<CashflowForecast>;
   getPayees?(): Promise<PayeeIntelligence[]>;
   updatePayee?(id: string | number, payload: Partial<PayeeIntelligence>): Promise<boolean>;
+  getGoals?(): Promise<FinancialGoal[]>;
+  createGoal?(payload: Partial<FinancialGoal>): Promise<FinancialGoal>;
+  updateGoal?(id: string | number, payload: Partial<FinancialGoal>): Promise<FinancialGoal>;
+  deleteGoal?(id: string | number): Promise<boolean>;
+  fundGoal?(
+    id: string | number,
+    amount: number,
+    actionType: 'deposit' | 'withdraw'
+  ): Promise<FinancialGoal>;
 }

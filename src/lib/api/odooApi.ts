@@ -10,6 +10,7 @@ import type {
   DetectedSubscription,
   CashflowForecast,
   PayeeIntelligence,
+  FinancialGoal,
 } from '../types/moneta';
 
 export const OdooApi = {
@@ -65,7 +66,7 @@ export const OdooApi = {
     accountId: string | number,
     limit: number = 100
   ): Promise<MonetaTransaction[]> {
-    const response = await getApiClient().post('/api/v1/mobile/transactions/list', {
+    const response = await getApiClient().post('/api/v1/mobile/transactions/register', {
       jsonrpc: '2.0',
       params: {
         account_id: accountId,
@@ -235,5 +236,71 @@ export const OdooApi = {
       },
     });
     return response.data?.result?.success || false;
+  },
+
+  /**
+   * Fetch all financial goals and sinking funds
+   */
+  async getGoals(): Promise<FinancialGoal[]> {
+    const response = await getApiClient().post('/api/v1/mobile/goals/list', {
+      jsonrpc: '2.0',
+      params: {},
+    });
+    return response.data?.result?.goals || [];
+  },
+
+  /**
+   * Create a financial goal
+   */
+  async createGoal(payload: Partial<FinancialGoal>): Promise<FinancialGoal> {
+    const response = await getApiClient().post('/api/v1/mobile/goals/create', {
+      jsonrpc: '2.0',
+      params: payload,
+    });
+    return response.data?.result?.goal;
+  },
+
+  /**
+   * Update a financial goal (also used to pause or resume it)
+   */
+  async updateGoal(id: string | number, payload: Partial<FinancialGoal>): Promise<FinancialGoal> {
+    const response = await getApiClient().post('/api/v1/mobile/goals/update', {
+      jsonrpc: '2.0',
+      params: {
+        goal_id: id,
+        ...payload,
+      },
+    });
+    return response.data?.result?.goal;
+  },
+
+  /**
+   * Delete a financial goal
+   */
+  async deleteGoal(id: string | number): Promise<boolean> {
+    const response = await getApiClient().post('/api/v1/mobile/goals/delete', {
+      jsonrpc: '2.0',
+      params: { goal_id: id },
+    });
+    return response.data?.result?.success || false;
+  },
+
+  /**
+   * Deposit into or withdraw from a goal's saved balance
+   */
+  async fundGoal(
+    id: string | number,
+    amount: number,
+    actionType: 'deposit' | 'withdraw'
+  ): Promise<FinancialGoal> {
+    const response = await getApiClient().post('/api/v1/mobile/goals/fund', {
+      jsonrpc: '2.0',
+      params: {
+        goal_id: id,
+        amount,
+        action_type: actionType,
+      },
+    });
+    return response.data?.result?.goal;
   },
 };

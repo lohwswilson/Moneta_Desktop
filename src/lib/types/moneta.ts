@@ -220,6 +220,28 @@ export interface PayeeIntelligence {
   notes?: string;
 }
 
+export type GoalStatus = 'in_progress' | 'achieved' | 'paused';
+
+export interface FinancialGoal {
+  id: string | number;
+  name: string;
+  target_amount: number;
+  current_amount: number;
+  start_date: string;
+  target_date: string;
+  account_id?: string | number;
+  account_name?: string;
+  icon: string;
+  color?: number;
+  notes?: string;
+  /** Computed — see goalMath.ts; never persisted by an adapter. */
+  remaining_amount: number;
+  progress_percent: number;
+  months_remaining: number;
+  monthly_contribution_required: number;
+  status: GoalStatus;
+}
+
 
 
 
