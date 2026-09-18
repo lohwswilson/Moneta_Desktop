@@ -150,6 +150,18 @@ export class SqliteAdapter implements IMonetaRepository {
     const count = res[0]?.values[0]?.[0] as number;
     if (count === 0) {
       this.seedDefaultAccounts();
+    } else {
+      // Auto-purge placeholder demo seed accounts (Brokerage Equity Portfolio, etc.) if real accounts exist
+      const nonSeedRes = this.db.exec("SELECT COUNT(*) FROM accounts WHERE id NOT LIKE 'sq-acc-%';");
+      const realCount = (nonSeedRes[0]?.values[0]?.[0] as number) || 0;
+      if (realCount > 0) {
+        this.db.run(`
+          DELETE FROM transaction_splits WHERE transaction_id IN (SELECT id FROM transactions WHERE account_id LIKE 'sq-acc-%');
+          DELETE FROM transactions WHERE account_id LIKE 'sq-acc-%' OR id LIKE 'sq-tx-%';
+          DELETE FROM accounts WHERE id LIKE 'sq-acc-%';
+        `);
+        this.persist();
+      }
     }
   }
 
@@ -541,6 +553,13 @@ export class SqliteAdapter implements IMonetaRepository {
   ): Promise<{ importedAccounts: number; importedTransactions: number }> {
     await this.init();
     if (!this.db) throw new Error('Database not initialized');
+
+    // Remove demo placeholder seed accounts prior to importing clean Odoo data
+    this.db.run(`
+      DELETE FROM transaction_splits WHERE transaction_id IN (SELECT id FROM transactions WHERE account_id LIKE 'sq-acc-%');
+      DELETE FROM transactions WHERE account_id LIKE 'sq-acc-%' OR id LIKE 'sq-tx-%';
+      DELETE FROM accounts WHERE id LIKE 'sq-acc-%';
+    `);
 
     let txCount = 0;
 
