@@ -28,7 +28,7 @@
   let m = $derived(financeStore.metrics);
 </script>
 
-<div class="p-8 space-y-6 overflow-y-auto h-screen max-w-7xl mx-auto">
+<div class="p-4 sm:p-6 lg:p-8 space-y-6 overflow-y-auto h-screen max-w-7xl mx-auto">
   <!-- Header Bar -->
   <div class="flex items-center justify-between">
     <div>
@@ -63,90 +63,107 @@
 
   {#if m}
     <!-- Wealth Pillars -->
-    <div class="grid {(m.tangible_assets || 0) > 0 ? 'grid-cols-5' : 'grid-cols-4'} gap-4">
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 {(m.tangible_assets || 0) > 0 ? 'xl:grid-cols-5' : 'xl:grid-cols-4'} gap-4">
       <!-- Net Worth Card -->
-      <div class="p-5 rounded-xl bg-gradient-to-br from-zinc-900/90 to-zinc-900/40 border border-zinc-800/80 relative overflow-hidden">
-        <div class="flex items-center justify-between text-xs text-zinc-400 font-medium">
-          <span>Total Net Worth</span>
-          <span class="p-1.5 rounded-md bg-emerald-500/10 text-emerald-400">
-            <TrendingUp class="w-4 h-4" />
-          </span>
+      <div class="p-5 rounded-xl bg-gradient-to-br from-zinc-900/90 to-zinc-900/40 border border-zinc-800/80 relative overflow-hidden flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between text-xs text-zinc-400 font-medium">
+            <span>Total Net Worth</span>
+            <span class="p-1.5 rounded-md bg-emerald-500/10 text-emerald-400">
+              <TrendingUp class="w-4 h-4" />
+            </span>
+          </div>
+          <div class="text-xl sm:text-2xl font-bold font-mono text-zinc-100 mt-2.5 tracking-tight truncate" title={formatCurrency(m.net_worth)}>
+            {formatCurrency(m.net_worth)}
+          </div>
         </div>
-        <div class="text-2xl font-bold font-mono text-zinc-100 mt-3">
-          {formatCurrency(m.net_worth)}
-        </div>
-        <div class="text-[11px] text-zinc-500 mt-1.5 flex items-center gap-1">
-          <span>Assets</span>
-          <span class="text-emerald-400">+{formatCurrency(m.liquid_cash + m.investments + (m.tangible_assets || 0))}</span>
-          <span class="text-zinc-600">|</span>
-          <span>Debt</span>
-          <span class="text-rose-400">-{formatCurrency(m.total_liabilities)}</span>
+        <div class="mt-3 pt-2.5 border-t border-zinc-800/70 space-y-1.5 text-xs">
+          <div class="flex items-center justify-between">
+            <span class="text-zinc-400">Assets:</span>
+            <span class="font-mono font-semibold text-emerald-400">
+              +{formatCurrency(m.liquid_cash + m.investments + (m.tangible_assets || 0))}
+            </span>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="text-zinc-400">Debt:</span>
+            <span class="font-mono font-semibold text-rose-400">
+              -{formatCurrency(m.total_liabilities)}
+            </span>
+          </div>
         </div>
       </div>
 
       <!-- Liquid Cash Card -->
-      <div class="p-5 rounded-xl bg-zinc-900/40 border border-zinc-800/80">
-        <div class="flex items-center justify-between text-xs text-zinc-400 font-medium">
-          <span>Liquid Cash Buffer</span>
-          <span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+      <div class="p-5 rounded-xl bg-zinc-900/40 border border-zinc-800/80 flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between text-xs text-zinc-400 font-medium">
+            <span>Liquid Cash Buffer</span>
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+          </div>
+          <div class="text-xl sm:text-2xl font-bold font-mono text-emerald-400 mt-2.5 tracking-tight truncate" title={formatCurrency(m.liquid_cash)}>
+            {formatCurrency(m.liquid_cash)}
+          </div>
         </div>
-        <div class="text-2xl font-bold font-mono text-emerald-400 mt-3">
-          {formatCurrency(m.liquid_cash)}
-        </div>
-        <div class="text-[11px] text-zinc-500 mt-1.5">
+        <div class="text-[11px] text-zinc-500 mt-3 pt-2.5 border-t border-zinc-800/40">
           Checking, High-Yield Savings & CPF
         </div>
       </div>
 
       <!-- Total Investments Card -->
-      <div class="p-5 rounded-xl bg-zinc-900/40 border border-zinc-800/80">
-        <div class="flex items-center justify-between text-xs text-zinc-400 font-medium">
-          <span>Investments & Brokerage</span>
-          <span class="w-2.5 h-2.5 rounded-full bg-sky-400"></span>
+      <div class="p-5 rounded-xl bg-zinc-900/40 border border-zinc-800/80 flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between text-xs text-zinc-400 font-medium">
+            <span>Investments & Brokerage</span>
+            <span class="w-2.5 h-2.5 rounded-full bg-sky-400"></span>
+          </div>
+          <div class="text-xl sm:text-2xl font-bold font-mono text-sky-400 mt-2.5 tracking-tight truncate" title={formatCurrency(m.investments)}>
+            {formatCurrency(m.investments)}
+          </div>
         </div>
-        <div class="text-2xl font-bold font-mono text-sky-400 mt-3">
-          {formatCurrency(m.investments)}
-        </div>
-        <div class="text-[11px] text-zinc-500 mt-1.5">
+        <div class="text-[11px] text-zinc-500 mt-3 pt-2.5 border-t border-zinc-800/40">
           Equities, Index ETFs & Retirement
         </div>
       </div>
 
       <!-- Tangible Assets & Property Card -->
       {#if (m.tangible_assets || 0) > 0}
-        <div class="p-5 rounded-xl bg-zinc-900/40 border border-zinc-800/80">
-          <div class="flex items-center justify-between text-xs text-zinc-400 font-medium">
-            <span>Tangible Assets</span>
-            <span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
+        <div class="p-5 rounded-xl bg-zinc-900/40 border border-zinc-800/80 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between text-xs text-zinc-400 font-medium">
+              <span>Tangible Assets</span>
+              <span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
+            </div>
+            <div class="text-xl sm:text-2xl font-bold font-mono text-amber-400 mt-2.5 tracking-tight truncate" title={formatCurrency(m.tangible_assets || 0)}>
+              {formatCurrency(m.tangible_assets || 0)}
+            </div>
           </div>
-          <div class="text-2xl font-bold font-mono text-amber-400 mt-3">
-            {formatCurrency(m.tangible_assets || 0)}
-          </div>
-          <div class="text-[11px] text-zinc-500 mt-1.5">
+          <div class="text-[11px] text-zinc-500 mt-3 pt-2.5 border-t border-zinc-800/40">
             Real Estate, Vehicles & Valuables
           </div>
         </div>
       {/if}
 
       <!-- Liabilities Card -->
-      <div class="p-5 rounded-xl bg-zinc-900/40 border border-zinc-800/80">
-        <div class="flex items-center justify-between text-xs text-zinc-400 font-medium">
-          <span>Total Liabilities</span>
-          <span class="w-2.5 h-2.5 rounded-full bg-rose-400"></span>
+      <div class="p-5 rounded-xl bg-zinc-900/40 border border-zinc-800/80 flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between text-xs text-zinc-400 font-medium">
+            <span>Total Liabilities</span>
+            <span class="w-2.5 h-2.5 rounded-full bg-rose-400"></span>
+          </div>
+          <div class="text-xl sm:text-2xl font-bold font-mono text-rose-400 mt-2.5 tracking-tight truncate" title={formatCurrency(m.total_liabilities)}>
+            {formatCurrency(m.total_liabilities)}
+          </div>
         </div>
-        <div class="text-2xl font-bold font-mono text-rose-400 mt-3">
-          {formatCurrency(m.total_liabilities)}
-        </div>
-        <div class="text-[11px] text-zinc-500 mt-1.5">
+        <div class="text-[11px] text-zinc-500 mt-3 pt-2.5 border-t border-zinc-800/40">
           Mortgage loans & Credit cards
         </div>
       </div>
     </div>
 
     <!-- Secondary Row: FIRE Progress & Cash Flow Efficiency -->
-    <div class="grid grid-cols-3 gap-4">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
       <!-- 4% Rule FIRE Milestone Card -->
-      <div class="col-span-2 p-6 rounded-xl bg-zinc-900/40 border border-zinc-800/80 flex flex-col justify-between">
+      <div class="lg:col-span-2 p-6 rounded-xl bg-zinc-900/40 border border-zinc-800/80 flex flex-col justify-between">
         <div class="flex items-center justify-between mb-4">
           <div class="flex items-center gap-2.5">
             <div class="p-2 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20">
@@ -200,34 +217,34 @@
     </div>
 
     <!-- Monthly Cash Flow Banner -->
-    <div class="p-5 rounded-xl bg-zinc-900/30 border border-zinc-800/80 flex items-center justify-around divide-x divide-zinc-800/80">
-      <div class="flex items-center gap-3 px-4">
-        <div class="p-2 rounded-lg bg-emerald-500/10 text-emerald-400">
+    <div class="p-5 rounded-xl bg-zinc-900/30 border border-zinc-800/80 grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-0 sm:divide-x divide-zinc-800/80">
+      <div class="flex items-center gap-3 px-2 sm:px-4">
+        <div class="p-2 rounded-lg bg-emerald-500/10 text-emerald-400 shrink-0">
           <ArrowUpRight class="w-5 h-5" />
         </div>
-        <div>
+        <div class="min-w-0">
           <div class="text-[11px] text-zinc-400 uppercase font-semibold">Monthly Inflow</div>
-          <div class="text-lg font-bold font-mono text-emerald-400">{formatCurrency(m.monthly_income)}</div>
+          <div class="text-base sm:text-lg font-bold font-mono text-emerald-400 truncate">{formatCurrency(m.monthly_income)}</div>
         </div>
       </div>
 
-      <div class="flex items-center gap-3 px-4">
-        <div class="p-2 rounded-lg bg-rose-500/10 text-rose-400">
+      <div class="flex items-center gap-3 px-2 sm:px-4">
+        <div class="p-2 rounded-lg bg-rose-500/10 text-rose-400 shrink-0">
           <ArrowDownRight class="w-5 h-5" />
         </div>
-        <div>
+        <div class="min-w-0">
           <div class="text-[11px] text-zinc-400 uppercase font-semibold">Monthly Outflow</div>
-          <div class="text-lg font-bold font-mono text-rose-400">{formatCurrency(m.monthly_expenses)}</div>
+          <div class="text-base sm:text-lg font-bold font-mono text-rose-400 truncate">{formatCurrency(m.monthly_expenses)}</div>
         </div>
       </div>
 
-      <div class="flex items-center gap-3 px-4">
-        <div class="p-2 rounded-lg bg-sky-500/10 text-sky-400">
+      <div class="flex items-center gap-3 px-2 sm:px-4">
+        <div class="p-2 rounded-lg bg-sky-500/10 text-sky-400 shrink-0">
           <Percent class="w-5 h-5" />
         </div>
-        <div>
+        <div class="min-w-0">
           <div class="text-[11px] text-zinc-400 uppercase font-semibold">Savings Rate</div>
-          <div class="text-lg font-bold font-mono text-sky-400">{m.savings_rate_pct}%</div>
+          <div class="text-base sm:text-lg font-bold font-mono text-sky-400 truncate">{m.savings_rate_pct}%</div>
         </div>
       </div>
     </div>
