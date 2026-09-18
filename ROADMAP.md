@@ -1,0 +1,153 @@
+# Moneta Desktop: Product Roadmap & Feature Parity Plan
+
+This roadmap defines the multi-phase engineering plan to achieve full feature parity between the **Odoo `moneta_finance` suite** and the standalone, portable **Moneta Desktop** application built with **Tauri v2 + Svelte 5 + SQLite**.
+
+---
+
+## 🎯 Architecture Pillars
+
+```
++-------------------------------------------------------------------------+
+|                  MONETA DESKTOP (Tauri v2 + Svelte 5)                   |
+|                                                                         |
+|  [ Svelte 5 UI Layer ]                                                  |
+|  ├── Fast Checkbook Registers (TanStack Table virtualized 120 FPS)      |
+|  ├── Financial Dashboards & Charts (LayerChart / D3)                    |
+|  └── Responsive Multi-Window Desktop Shell (Tauri Cocoa / Win32)        |
+|                                                                         |
+|  [ Pluggable Data Repository (IMonetaRepository) ]                      |
+|  ├── Driver A: Standalone Local SQLite (100% Offline, Microsecond Speed)|
+|  ├── Driver B: Live Odoo 18 Server (/api/v1/mobile/* with Bearer PAT)   |
+|  └── Driver C: Supabase Cloud Sync (Pro Subscription Multi-Device Sync) |
+|                                                                         |
+|  [ Native Financial Computation Core (Rust / TypeScript) ]              |
+|  ├── 1,000-Path Monte Carlo Wealth Simulator Worker                     |
+|  ├── Tax-Lot Accounting Engine (FIFO / LIFO / Specific ID / Avg Cost)   |
+|  ├── Loan & Mortgage Amortization Math Engine                           |
+|  └── Singapore CPF & Malaysia EPF Regional Calculations                 |
++-------------------------------------------------------------------------+
+```
+
+---
+
+## 📊 Phase-by-Phase Parity Roadmap
+
+### Phase 1: Foundation & Core Ledger (Shipped & Active)
+- [x] **Project Scaffolding:** Tauri v2 + Svelte 5 + Vite + TypeScript + Tailwind CSS v4.
+- [x] **Pluggable Data Adapter:** `IMonetaRepository` supporting Live Odoo 18, Local SQLite, and Demo Sandbox.
+- [x] **Local SQLite Engine:** WebAssembly SQLite (`sql.js`) with persistent IndexedDB auto-save and `.sqlite` export/backup.
+- [x] **Wealth Command Center:** Total Net Worth, Liquid Cash, Investments, Liabilities, and 4% FIRE milestone target.
+- [x] **Interactive Checkbook Register:** 1-Click `Clr` reconciliation toggle (`unreconciled` → `cleared` → `reconciled`), status filter tabs, and running balances.
+- [x] **1-Click Odoo Migration:** One-click data migration from live Odoo server into local SQLite.
+
+---
+
+### Phase 2: Advanced Banking & Transaction Management (Target: Q4 2026)
+*Parity with Odoo `account.py`, `transaction.py`, `transaction_rule.py`, `payee.py`*
+
+- [ ] **Split Transactions:** Support splitting a single expense or deposit across multiple categories and tax deductibles.
+- [ ] **Bank Statement Reconciliation Wizard:**
+  - Import bank statements (CSV, OFX, QIF formats).
+  - Side-by-side transaction matching against the ledger.
+  - Auto-match by date, amount, and payee with 1-click reconcile.
+- [ ] **Automated Categorization Rules Engine:**
+  - If payee contains keyword $\rightarrow$ auto-assign category and tags.
+  - Regex and string matching with priority order.
+- [ ] **Payee Intelligence & Directory:**
+  - Auto-complete payees with historical category memory.
+  - Total historical spend per merchant and average transaction size.
+- [ ] **Multi-Currency Engine:**
+  - Built-in FX conversion table.
+  - Automatic base currency normalization (e.g. USD brokerage converted to SGD net worth).
+
+---
+
+### Phase 3: Planning, Envelope Budgets & Cash Flow (Target: Q1 2027)
+*Parity with Odoo `budget.py`, `recurring.py`, `cashflow_calendar.py`, `subscription_detector.py`*
+
+- [ ] **Zero-Based Envelope Budgeting (YNAB Paradigm):**
+  - Monthly income allocation to category envelopes.
+  - Real-time "Ready to Assign" calculation.
+  - Month-to-month rollover balances (positive surplus rolls forward; negative debt flagged).
+- [ ] **Recurring Bills & Subscription Detector:**
+  - 14-Day recurring bill countdown calendar.
+  - Automated detection of recurring charges (Netflix, Spotify, utilities, gym).
+  - Days-until-due badges with auto-pay tracking.
+- [ ] **Cash Flow Forecaster & Sankey Diagram:**
+  - 12-Month cash flow trajectory based on scheduled income and recurring bills.
+  - Interactive Sankey diagram showing Income $\rightarrow$ Accounts $\rightarrow$ Spending $\rightarrow$ Savings.
+- [ ] **Financial Goals Tracker:**
+  - Milestone goals (Emergency Fund, Down Payment, Vacation, Wedding) with progress bars.
+
+---
+
+### Phase 4: Stock Portfolio & Tax-Lot Accounting (Target: Q2 2027)
+*Parity with Odoo `investment.py`, `tax_lot.py`, `portfolio_analytics.py`, `quote_provider.py`*
+
+- [ ] **Stock & ETF Holdings Register:**
+  - Multi-brokerage portfolio tracking (IBKR, Tiger, Moomoo, CDP).
+  - Ticker lookup and live market quotes via Yahoo Finance (using native Tauri HTTP client).
+- [ ] **Advanced Tax-Lot Accounting:**
+  - Multiple cost basis methods: FIFO, LIFO, HIFO, Average Cost Basis, and Specific Lot Identification.
+  - Realized gain/loss calculations per lot sold.
+  - Unrealized gain/loss analytics with cost basis vs current market value.
+- [ ] **Portfolio Performance Metrics:**
+  - Time-Weighted Return (TWR) and Money-Weighted Return (MWR / IRR).
+  - Dividend tracking and forward annual dividend yield projection.
+  - Asset allocation donut chart (Equities, Fixed Income, Cash, Alternatives).
+
+---
+
+### Phase 5: Real Estate, Mortgages & Debt Payoff (Target: Q3 2027)
+*Parity with Odoo `property.py`, `loan.py`*
+
+- [ ] **Property Equity & Valuation Tracker:**
+  - Real estate market valuation tracking with mortgage linkage.
+  - Net Home Equity calculation ($\text{Property Value} - \text{Remaining Loan}$).
+- [ ] **Mortgage Amortization Schedule:**
+  - Full monthly principal vs interest breakdown schedule.
+  - Step-rate interest support (fixed period $\rightarrow$ floating SORA/SIBOR rate).
+- [ ] **Debt Prepayment Simulator:**
+  - Interactive sliders: "What if I pay an extra $500/month towards principal?"
+  - Computes total interest saved and brings forward the payoff date.
+- [ ] **Landlord Rental Property Hub:**
+  - Tenant lease tracking, monthly rent roll receivables, and property maintenance ledger.
+
+---
+
+### Phase 6: Regional Financial Ecosystems (Singapore & Malaysia) (Target: Q3 2027)
+*Parity with Odoo `moneta_finance_singapore` and `moneta_finance_malaysia`*
+
+- [ ] **Singapore CPF Hub:**
+  - Full support for OA, SA, MA, RA, and SRS accounts.
+  - Monthly CPF contribution calculator based on age and wage ceiling (OW/AW).
+  - CPF Housing Refund & Accrued Interest calculator (2.5% compounded).
+  - Singapore Savings Bonds (SSB) and MAS 6-Month T-Bills ladder.
+  - IRAS Personal Income Tax relief optimizer.
+- [ ] **Malaysia EPF/KWSP Hub:**
+  - 3-Account structure: Akaun Persaraan (Akaun 1), Akaun Sejahtera (Akaun 2), Akaun Fleksibel (Akaun 3).
+  - LHDN Borang BE personal income tax relief calculator.
+  - PRS (Private Retirement Scheme) and ASNB tracking.
+
+---
+
+### Phase 7: AI Financial Advisor & Stochastic Simulators (Target: Q4 2027)
+*Parity with Odoo `monte_carlo.py`, `insight.py`, `moneta_finance_ai_advisor`*
+
+- [ ] **1,000-Path Monte Carlo Wealth Simulator:**
+  - Stochastic market return engine executed via Rust / Web Worker.
+  - $P_{10} / P_{50} / P_{90}$ probability bands for retirement survival over 30–50 years.
+- [ ] **Local AI Financial Advisor:**
+  - Privacy-preserving local financial health audit (cash flow leak detection, high-interest debt alert).
+  - Integration with local LLM (Ollama) or private API keys (Claude / OpenAI).
+
+---
+
+### Phase 8: Cloud Sync, Multi-Device & Subscriptions (Target: Q1 2028)
+- [ ] **Supabase Cloud Sync Engine:**
+  - Seamless background synchronization between local SQLite and remote Supabase PostgreSQL.
+  - Bi-directional conflict resolution and offline mutation queue.
+- [ ] **End-to-End Encryption (E2EE):**
+  - Zero-knowledge encryption for cloud backups (user master password never touches the server).
+- [ ] **Stripe Subscription Billing:**
+  - Pro Tier unlocks automated live cloud sync across multiple desktop and mobile devices.
