@@ -5,6 +5,7 @@ import type {
   DashboardMetrics,
   ReconcileState,
   EnvelopeBudget,
+  OdooSettingsPayload,
 } from '../types/moneta';
 
 export const OdooApi = {
@@ -121,5 +122,16 @@ export const OdooApi = {
       params: {},
     });
     return response.data?.result?.budgets || [];
+  },
+
+  /**
+   * Fetch canonical Odoo settings (base currency, FX rates, categorization rules)
+   */
+  async fetchSettings(): Promise<OdooSettingsPayload | null> {
+    const response = await getApiClient().post('/api/v1/mobile/settings', {
+      jsonrpc: '2.0',
+      params: {},
+    });
+    return response.data?.result?.settings || null;
   },
 };

@@ -4,6 +4,7 @@ import type {
   DashboardMetrics,
   ReconcileState,
   EnvelopeBudget,
+  OdooSettingsPayload,
 } from '../types/moneta';
 
 export interface IMonetaRepository {
@@ -24,4 +25,6 @@ export interface IMonetaRepository {
   createBudget?(payload: Partial<EnvelopeBudget>): Promise<EnvelopeBudget>;
   updateBudget?(id: string | number, payload: Partial<EnvelopeBudget>): Promise<EnvelopeBudget>;
   deleteBudget?(id: string | number): Promise<boolean>;
+  getSettings?(): Promise<OdooSettingsPayload | null>;
+  syncSettingsFromOdoo?(settings: OdooSettingsPayload): Promise<void>;
 }

@@ -5,6 +5,7 @@ import type {
   ReconcileState,
   ConnectionConfig,
   EnvelopeBudget,
+  OdooSettingsPayload,
 } from '../types/moneta';
 import type { IMonetaRepository } from '../data/repository';
 import { OdooAdapter } from '../data/odooAdapter';
@@ -31,6 +32,7 @@ class FinanceStore {
   activeView = $state<'command_center' | 'register' | 'budgets'>('command_center');
   transactions = $state<MonetaTransaction[]>([]);
   budgets = $state<EnvelopeBudget[]>([]);
+  settings = $state<OdooSettingsPayload | null>(null);
   filterState = $state<'all' | 'unreconciled' | 'cleared' | 'reconciled'>('all');
   isLoading = $state<boolean>(false);
 
@@ -117,6 +119,21 @@ class FinanceStore {
         return;
       }
 
+      // Always refer back to Odoo DB for settings (base currency, FX rates, rules)
+      if (this.config.mode === 'odoo' || (this.config.serverUrl && this.config.apiToken)) {
+        await this.syncOdooSettingsToSqlite();
+      }
+
+      // If in SQLite mode and SQLite database has 0 accounts, auto-populate from Odoo DB
+      if (this.config.mode === 'sqlite' && this.config.serverUrl && this.config.apiToken) {
+        const localAccounts = await this.sqliteAdapter.getAccounts();
+        if (localAccounts.length === 0) {
+          await this.migrateFromOdoo(this.config.serverUrl, this.config.apiToken);
+        }
+      }
+
+      await this.loadSettings();
+
       const [metrics, accounts] = await Promise.all([
         this.repository.getDashboardSummary(),
         this.repository.getAccounts(),
@@ -138,6 +155,35 @@ class FinanceStore {
       console.error('Error refreshing finance data:', err);
     } finally {
       this.isLoading = false;
+    }
+  }
+
+  /**
+   * Always sync settings from Odoo DB into SQLite DB
+   */
+  async syncOdooSettingsToSqlite() {
+    try {
+      if (this.config.serverUrl && this.config.apiToken) {
+        configureApiClient(this.config.serverUrl, this.config.apiToken);
+        const odoo = new OdooAdapter();
+        const settings = await odoo.getSettings();
+        if (settings) {
+          await this.sqliteAdapter.syncSettingsFromOdoo(settings);
+          this.settings = settings;
+        }
+      }
+    } catch (err) {
+      console.warn('Could not sync settings from Odoo DB to SQLite DB:', err);
+    }
+  }
+
+  async loadSettings() {
+    try {
+      if (this.repository.getSettings) {
+        this.settings = await this.repository.getSettings();
+      }
+    } catch (err) {
+      console.error('Failed to load settings:', err);
     }
   }
 

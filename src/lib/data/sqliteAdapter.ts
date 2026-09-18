@@ -5,6 +5,7 @@ import type {
   DashboardMetrics,
   ReconcileState,
   EnvelopeBudget,
+  OdooSettingsPayload,
 } from '../types/moneta';
 import initSqlJs, { type Database, type SqlJsStatic } from 'sql.js';
 import { DEFAULT_RULES } from './rulesEngine';
@@ -136,6 +137,31 @@ export class SqliteAdapter implements IMonetaRepository {
         rollover INTEGER DEFAULT 0,
         color_code TEXT DEFAULT '#3b82f6'
       );
+
+      CREATE TABLE IF NOT EXISTS app_settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS currency_rates (
+        currency_code TEXT PRIMARY KEY,
+        rate_to_base REAL NOT NULL,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // Seed default settings and rates if empty
+    this.db.run(`
+      INSERT OR IGNORE INTO app_settings (key, value) VALUES ('base_currency', 'SGD');
+      INSERT OR IGNORE INTO currency_rates (currency_code, rate_to_base) VALUES
+        ('SGD', 1.0),
+        ('MYR', 3.18),
+        ('USD', 0.7633587786259541),
+        ('EUR', 1.0),
+        ('GBP', 1.0),
+        ('HKD', 1.0),
+        ('JPY', 1.0);
     `);
 
     // Seed default categorization rules if table is empty
@@ -186,49 +212,12 @@ export class SqliteAdapter implements IMonetaRepository {
       }
     }
 
-    // Check if empty, seed default accounts if brand new
-    const res = this.db.exec('SELECT COUNT(*) as count FROM accounts;');
-    const count = res[0]?.values[0]?.[0] as number;
-    if (count === 0) {
-      this.seedDefaultAccounts();
-    } else {
-      // Auto-purge placeholder demo seed accounts (Brokerage Equity Portfolio, etc.) if real accounts exist
-      const nonSeedRes = this.db.exec("SELECT COUNT(*) FROM accounts WHERE id NOT LIKE 'sq-acc-%';");
-      const realCount = (nonSeedRes[0]?.values[0]?.[0] as number) || 0;
-      if (realCount > 0) {
-        this.db.run(`
-          DELETE FROM transaction_splits WHERE transaction_id IN (SELECT id FROM transactions WHERE account_id LIKE 'sq-acc-%');
-          DELETE FROM transactions WHERE account_id LIKE 'sq-acc-%' OR id LIKE 'sq-tx-%';
-          DELETE FROM accounts WHERE id LIKE 'sq-acc-%';
-        `);
-        this.persist();
-      }
-    }
-  }
-
-  private seedDefaultAccounts() {
-    if (!this.db) return;
-
+    // Always purge any leftover placeholder demo accounts (Brokerage Equity Portfolio, etc.)
     this.db.run(`
-      INSERT INTO accounts (id, name, account_type, institution_name, account_number_mask, currency_code, current_balance, cleared_balance)
-      VALUES 
-        ('sq-acc-1', 'Main Checking (Local)', 'checking', 'DBS Bank', '••••1234', 'SGD', 12500.0, 12500.0),
-        ('sq-acc-2', 'High-Yield Savings', 'savings', 'OCBC Bank', '••••5678', 'SGD', 35000.0, 35000.0),
-        ('sq-acc-3', 'Brokerage Equity Portfolio', 'brokerage', 'IBKR', '••••U109', 'USD', 85000.0, 85000.0),
-        ('sq-acc-4', 'Everyday Rewards Card', 'credit', 'StanChart', '••••9921', 'SGD', -1450.0, -1450.0);
-
-      INSERT INTO transactions (id, account_id, date, payee_name, category_name, amount, transaction_type, reconciliation_state, running_balance, memo)
-      VALUES
-        ('sq-tx-1', 'sq-acc-1', date('now', '-1 day'), 'FairPrice Supermarket', 'Split', -85.50, 'expense', 'cleared', 12500.0, 'Weekly household groceries'),
-        ('sq-tx-2', 'sq-acc-1', date('now', '-3 day'), 'Salary Payroll Transfer', 'Income & Salary', 6500.00, 'income', 'reconciled', 12585.5, 'Monthly salary deposit'),
-        ('sq-tx-3', 'sq-acc-1', date('now', '-5 day'), 'SP Utilities Services', 'Utilities', -145.20, 'expense', 'unreconciled', 6085.5, 'Water and power bill');
-
-      INSERT INTO transaction_splits (id, transaction_id, category_name, amount, memo)
-      VALUES
-        ('sp-1', 'sq-tx-1', 'Groceries', -65.50, 'Food & pantry essentials'),
-        ('sp-2', 'sq-tx-1', 'Household Supplies', -20.00, 'Detergent and paper towels');
+      DELETE FROM transaction_splits WHERE transaction_id IN (SELECT id FROM transactions WHERE account_id LIKE 'sq-acc-%');
+      DELETE FROM transactions WHERE account_id LIKE 'sq-acc-%' OR id LIKE 'sq-tx-%';
+      DELETE FROM accounts WHERE id LIKE 'sq-acc-%';
     `);
-
     this.persist();
   }
 
@@ -252,19 +241,46 @@ export class SqliteAdapter implements IMonetaRepository {
   }
 
   /**
-   * Currency conversion helper for offline SQLite multi-currency parity
-   * Default Odoo parity exchange rates: 1 SGD = 3.18 MYR, 1 SGD = 0.763358 USD
+   * Currency conversion helper referring dynamically to Odoo exchange rates stored in SQLite
    */
   private convertToBaseCurrency(amount: number, currencyCode: string = 'SGD'): number {
-    if (!currencyCode || currencyCode.toUpperCase() === 'SGD') return amount;
-    const curr = currencyCode.toUpperCase();
-    const rates: Record<string, number> = {
+    if (!this.db) return amount;
+    const curr = (currencyCode || 'SGD').toUpperCase();
+
+    // 1. Get base currency from app_settings
+    let baseCurrency = 'SGD';
+    try {
+      const baseRes = this.db.exec("SELECT value FROM app_settings WHERE key = 'base_currency';");
+      if (baseRes?.[0]?.values?.[0]?.[0]) {
+        baseCurrency = String(baseRes[0].values[0][0]).toUpperCase();
+      }
+    } catch {
+      // fallback
+    }
+
+    if (curr === baseCurrency) return amount;
+
+    // 2. Query currency_rates synced from Odoo
+    try {
+      const rateRes = this.db.exec("SELECT rate_to_base FROM currency_rates WHERE currency_code = :curr;", {
+        ':curr': curr,
+      });
+      const rate = Number(rateRes?.[0]?.values?.[0]?.[0]);
+      if (rate && rate > 0) {
+        return amount / rate;
+      }
+    } catch {
+      // fallback
+    }
+
+    // 3. Fallback parity rates
+    const fallbackRates: Record<string, number> = {
       SGD: 1.0,
       MYR: 3.18,
       USD: 0.7633587786259541,
     };
-    const rate = rates[curr];
-    return rate && rate > 0 ? amount / rate : amount;
+    const fbRate = fallbackRates[curr];
+    return fbRate && fbRate > 0 ? amount / fbRate : amount;
   }
 
   async getDashboardSummary(): Promise<DashboardMetrics> {
@@ -849,6 +865,103 @@ export class SqliteAdapter implements IMonetaRepository {
     this.db.run('DELETE FROM budgets WHERE id = :id;', { ':id': String(id) });
     await this.persist();
     return true;
+  }
+
+  /**
+   * Always sync and refer back to Odoo DB for settings (base currency, FX rates, rules)
+   */
+  async syncSettingsFromOdoo(settings: OdooSettingsPayload): Promise<void> {
+    if (!this.db) await this.init();
+    if (!this.db) return;
+
+    // 1. Update app_settings
+    this.db.run(`
+      INSERT OR REPLACE INTO app_settings (key, value, updated_at) VALUES
+        ('base_currency', :base_curr, CURRENT_TIMESTAMP),
+        ('base_symbol', :base_sym, CURRENT_TIMESTAMP),
+        ('company_name', :comp_name, CURRENT_TIMESTAMP),
+        ('last_odoo_sync', :last_sync, CURRENT_TIMESTAMP);
+    `, {
+      ':base_curr': settings.base_currency || 'SGD',
+      ':base_sym': settings.base_symbol || '$',
+      ':comp_name': settings.company_name || '',
+      ':last_sync': new Date().toISOString(),
+    });
+
+    // 2. Update currency_rates
+    if (settings.rates) {
+      for (const [code, rate] of Object.entries(settings.rates)) {
+        this.db.run(`
+          INSERT OR REPLACE INTO currency_rates (currency_code, rate_to_base, updated_at)
+          VALUES (:code, :rate, CURRENT_TIMESTAMP);
+        `, {
+          ':code': code.toUpperCase(),
+          ':rate': Number(rate),
+        });
+      }
+    }
+
+    // 3. Update categorization_rules if provided by Odoo
+    if (settings.rules && settings.rules.length > 0) {
+      this.db.run('DELETE FROM categorization_rules;');
+      for (const rule of settings.rules) {
+        this.db.run(`
+          INSERT INTO categorization_rules (id, priority, match_field, match_pattern, category_name)
+          VALUES (:id, :priority, :field, :pattern, :cat);
+        `, {
+          ':id': String(rule.id),
+          ':priority': rule.priority,
+          ':field': rule.match_field,
+          ':pattern': rule.match_pattern,
+          ':cat': rule.category_name,
+        });
+      }
+    }
+
+    await this.persist();
+  }
+
+  async getSettings(): Promise<OdooSettingsPayload | null> {
+    if (!this.db) await this.init();
+    if (!this.db) return null;
+
+    let baseCurrency = 'SGD';
+    let baseSymbol = '$';
+    let companyName = '';
+
+    try {
+      const sRes = this.db.exec("SELECT key, value FROM app_settings;");
+      if (sRes?.[0]?.values) {
+        for (const row of sRes[0].values) {
+          const k = String(row[0]);
+          const v = String(row[1]);
+          if (k === 'base_currency') baseCurrency = v;
+          if (k === 'base_symbol') baseSymbol = v;
+          if (k === 'company_name') companyName = v;
+        }
+      }
+    } catch {
+      // fallback
+    }
+
+    const rates: Record<string, number> = {};
+    try {
+      const rRes = this.db.exec("SELECT currency_code, rate_to_base FROM currency_rates;");
+      if (rRes?.[0]?.values) {
+        for (const row of rRes[0].values) {
+          rates[String(row[0])] = Number(row[1]);
+        }
+      }
+    } catch {
+      // fallback
+    }
+
+    return {
+      base_currency: baseCurrency,
+      base_symbol: baseSymbol,
+      company_name: companyName,
+      rates,
+    };
   }
 
   /**

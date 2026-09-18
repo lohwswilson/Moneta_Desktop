@@ -111,3 +111,25 @@ export interface EnvelopeBudget {
   color_code?: string;
   alert_level?: 'none' | 'warning' | 'critical' | 'over_budget';
 }
+
+export interface OdooSettingsPayload {
+  base_currency: string;
+  base_symbol?: string;
+  company_name?: string;
+  user_name?: string;
+  rates: Record<string, number>;
+  rules?: Array<{
+    id: string | number;
+    priority: number;
+    match_field: string;
+    match_pattern: string;
+    category_name: string;
+  }>;
+  categories?: Array<{
+    id: string | number;
+    name: string;
+    group?: string;
+    color_hex?: string;
+  }>;
+}
+

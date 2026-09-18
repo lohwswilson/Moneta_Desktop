@@ -5,6 +5,7 @@ import type {
   DashboardMetrics,
   ReconcileState,
   EnvelopeBudget,
+  OdooSettingsPayload,
 } from '../types/moneta';
 
 let mockAccounts: MonetaAccount[] = [
@@ -354,6 +355,24 @@ export class MockAdapter implements IMonetaRepository {
       return true;
     }
     return false;
+  }
+
+  async getSettings(): Promise<OdooSettingsPayload | null> {
+    return {
+      base_currency: 'SGD',
+      base_symbol: '$',
+      company_name: 'Demo Company',
+      user_name: 'Demo Sandbox User',
+      rates: {
+        SGD: 1.0,
+        MYR: 3.18,
+        USD: 0.76335878,
+      },
+    };
+  }
+
+  async syncSettingsFromOdoo(_settings: OdooSettingsPayload): Promise<void> {
+    // Mock adapter no-op
   }
 }
 
