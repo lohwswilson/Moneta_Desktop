@@ -16,6 +16,10 @@ import type {
   TaxLotDisposal,
   PortfolioSummary,
   TaxLotStrategy,
+  PropertyAsset,
+  PropertyTenant,
+  RentPayment,
+  LoanScenario,
 } from '../types/moneta';
 import type { IMonetaRepository } from '../data/repository';
 import { OdooAdapter } from '../data/odooAdapter';
@@ -39,7 +43,7 @@ class FinanceStore {
   metrics = $state<DashboardMetrics | null>(null);
   accounts = $state<MonetaAccount[]>([]);
   selectedAccountId = $state<string | number | null>(null);
-  activeView = $state<'command_center' | 'register' | 'budgets' | 'bills' | 'cashflow' | 'payees' | 'goals' | 'portfolio'>('command_center');
+  activeView = $state<'command_center' | 'register' | 'budgets' | 'bills' | 'cashflow' | 'payees' | 'goals' | 'portfolio' | 'property' | 'loans' | 'landlord'>('command_center');
   transactions = $state<MonetaTransaction[]>([]);
   budgets = $state<EnvelopeBudget[]>([]);
   bills = $state<RecurringBill[]>([]);
@@ -55,6 +59,13 @@ class FinanceStore {
   selectedPortfolioAccountId = $state<string | number | null>(null);
   isTradeModalOpen = $state<boolean>(false);
   tradingHolding = $state<PortfolioHolding | null>(null);
+
+  // Phase 5: property, rental & loan scenarios
+  properties = $state<PropertyAsset[]>([]);
+  tenants = $state<PropertyTenant[]>([]);
+  rentPayments = $state<RentPayment[]>([]);
+  loanScenarios = $state<LoanScenario[]>([]);
+  selectedLoanId = $state<string | number | null>(null);
   settings = $state<OdooSettingsPayload | null>(null);
   filterState = $state<'all' | 'unreconciled' | 'cleared' | 'reconciled'>('all');
   isLoading = $state<boolean>(false);
@@ -71,6 +82,14 @@ class FinanceStore {
   editingGoal = $state<FinancialGoal | null>(null);
   isFundGoalOpen = $state<boolean>(false);
   fundingGoal = $state<FinancialGoal | null>(null);
+  isPropertyModalOpen = $state<boolean>(false);
+  editingProperty = $state<PropertyAsset | null>(null);
+  isValuationModalOpen = $state<boolean>(false);
+  valuingProperty = $state<PropertyAsset | null>(null);
+  isTenantModalOpen = $state<boolean>(false);
+  editingTenant = $state<PropertyTenant | null>(null);
+  isLoanModalOpen = $state<boolean>(false);
+  editingLoan = $state<LoanScenario | null>(null);
 
   public sqliteAdapter: SqliteAdapter = new SqliteAdapter();
   private repository: IMonetaRepository = new MockAdapter();
@@ -176,6 +195,10 @@ class FinanceStore {
       await this.loadCashflow();
       await this.loadPayees();
       await this.loadGoals();
+      await this.loadProperties();
+      await this.loadTenants();
+      await this.loadRentPayments();
+      await this.loadLoanScenarios();
       await this.loadPortfolio();
 
       if (!this.selectedAccountId && accounts.length > 0) {
@@ -583,6 +606,239 @@ class FinanceStore {
     } catch (err: any) {
       console.error('Failed to execute trade:', err);
       return { success: false, message: err?.message || 'Trade execution failed' };
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Phase 5: Property, Rental & Loan Scenarios
+  // -------------------------------------------------------------------------
+
+  async navigateToProperties() {
+    this.selectedAccountId = null;
+    this.activeView = 'property';
+    await this.loadProperties();
+  }
+
+  async loadProperties() {
+    try {
+      this.properties = this.repository.getProperties ? await this.repository.getProperties() : [];
+    } catch (err) {
+      console.error('Failed to load properties:', err);
+    }
+  }
+
+  async saveProperty(payload: Partial<PropertyAsset>): Promise<boolean> {
+    this.isLoading = true;
+    try {
+      const editing = this.editingProperty;
+      if (editing) {
+        if (this.repository.updateProperty) await this.repository.updateProperty(editing.id, payload);
+      } else if (this.repository.createProperty) {
+        await this.repository.createProperty(payload);
+      }
+      await this.loadProperties();
+      return true;
+    } catch (err) {
+      console.error('Failed to save property:', err);
+      return false;
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  async deleteProperty(id: string | number): Promise<boolean> {
+    this.isLoading = true;
+    try {
+      const ok = this.repository.deleteProperty ? await this.repository.deleteProperty(id) : false;
+      if (ok) await this.loadProperties();
+      return ok;
+    } catch (err) {
+      console.error('Failed to delete property:', err);
+      return false;
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  async addPropertyValuation(
+    id: string | number,
+    payload: { valuation_date: string; appraised_value: number; appraiser?: string; notes?: string }
+  ): Promise<boolean> {
+    this.isLoading = true;
+    try {
+      if (this.repository.addPropertyValuation) {
+        await this.repository.addPropertyValuation(id, payload);
+      }
+      // A new appraisal changes the property's market value, which changes
+      // equity, LTV and yield — so reload rather than patching one row.
+      await this.loadProperties();
+      return true;
+    } catch (err) {
+      console.error('Failed to add valuation:', err);
+      return false;
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  async navigateToLandlord() {
+    this.selectedAccountId = null;
+    this.activeView = 'landlord';
+    await Promise.all([this.loadTenants(), this.loadRentPayments()]);
+  }
+
+  async loadTenants() {
+    try {
+      this.tenants = this.repository.getTenants ? await this.repository.getTenants() : [];
+    } catch (err) {
+      console.error('Failed to load tenants:', err);
+    }
+  }
+
+  async loadRentPayments(tenantId?: string | number) {
+    try {
+      this.rentPayments = this.repository.getRentPayments
+        ? await this.repository.getRentPayments(tenantId)
+        : [];
+    } catch (err) {
+      console.error('Failed to load rent payments:', err);
+    }
+  }
+
+  async saveTenant(payload: Partial<PropertyTenant>): Promise<boolean> {
+    this.isLoading = true;
+    try {
+      const editing = this.editingTenant;
+      if (editing) {
+        if (this.repository.updateTenant) await this.repository.updateTenant(editing.id, payload);
+      } else if (this.repository.createTenant) {
+        await this.repository.createTenant(payload);
+      }
+      await this.loadTenants();
+      return true;
+    } catch (err) {
+      console.error('Failed to save tenant:', err);
+      return false;
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  async deleteTenant(id: string | number): Promise<boolean> {
+    this.isLoading = true;
+    try {
+      const ok = this.repository.deleteTenant ? await this.repository.deleteTenant(id) : false;
+      if (ok) await Promise.all([this.loadTenants(), this.loadRentPayments()]);
+      return ok;
+    } catch (err) {
+      console.error('Failed to delete tenant:', err);
+      return false;
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  /** Returns how many rent payments were generated — zero means the schedule was already complete. */
+  async generateRentSchedule(tenantId: string | number): Promise<number> {
+    this.isLoading = true;
+    try {
+      const created = this.repository.generateRentSchedule
+        ? await this.repository.generateRentSchedule(tenantId)
+        : 0;
+      await Promise.all([this.loadTenants(), this.loadRentPayments()]);
+      return created;
+    } catch (err) {
+      console.error('Failed to generate rent schedule:', err);
+      return 0;
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  async markRentPaid(paymentId: string | number): Promise<boolean> {
+    this.isLoading = true;
+    try {
+      if (this.repository.markRentPaid) await this.repository.markRentPaid(paymentId);
+      await Promise.all([this.loadTenants(), this.loadRentPayments()]);
+      return true;
+    } catch (err) {
+      console.error('Failed to mark rent paid:', err);
+      return false;
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  async navigateToLoans() {
+    this.selectedAccountId = null;
+    this.activeView = 'loans';
+    await this.loadLoanScenarios();
+  }
+
+  async loadLoanScenarios() {
+    try {
+      this.loanScenarios = this.repository.getLoanScenarios
+        ? await this.repository.getLoanScenarios()
+        : [];
+      if (!this.selectedLoanId && this.loanScenarios.length > 0) {
+        this.selectedLoanId = this.loanScenarios[0].id;
+      }
+    } catch (err) {
+      console.error('Failed to load loan scenarios:', err);
+    }
+  }
+
+  async saveLoanScenario(payload: Partial<LoanScenario>): Promise<boolean> {
+    this.isLoading = true;
+    try {
+      const editing = this.editingLoan;
+      if (editing) {
+        if (this.repository.updateLoanScenario) await this.repository.updateLoanScenario(editing.id, payload);
+      } else if (this.repository.createLoanScenario) {
+        const created = await this.repository.createLoanScenario(payload);
+        if (created?.id) this.selectedLoanId = created.id;
+      }
+      await this.loadLoanScenarios();
+      return true;
+    } catch (err) {
+      console.error('Failed to save loan scenario:', err);
+      return false;
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  async deleteLoanScenario(id: string | number): Promise<boolean> {
+    this.isLoading = true;
+    try {
+      const ok = this.repository.deleteLoanScenario ? await this.repository.deleteLoanScenario(id) : false;
+      if (ok) {
+        if (String(this.selectedLoanId) === String(id)) this.selectedLoanId = null;
+        await this.loadLoanScenarios();
+      }
+      return ok;
+    } catch (err) {
+      console.error('Failed to delete loan scenario:', err);
+      return false;
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  /** Returns how many rate-change segments were inferred. */
+  async inferLoanRateChanges(id: string | number): Promise<number> {
+    this.isLoading = true;
+    try {
+      const segments = this.repository.inferLoanRateChanges
+        ? await this.repository.inferLoanRateChanges(id)
+        : [];
+      await this.loadLoanScenarios();
+      return segments.length;
+    } catch (err) {
+      console.error('Failed to infer rate changes:', err);
+      return 0;
     } finally {
       this.isLoading = false;
     }

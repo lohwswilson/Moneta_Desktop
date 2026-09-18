@@ -110,20 +110,30 @@ This roadmap defines the multi-phase engineering plan to achieve full feature pa
 
 ---
 
-### Phase 5: Real Estate, Mortgages & Debt Payoff (Target: Q3 2027)
-*Parity with Odoo `property.py`, `loan.py`*
+### Phase 5: Real Estate, Mortgages & Debt Payoff (Completed ✅)
+*Parity with Odoo `property.py`, `loan.py`, and the `moneta_finance_property` satellite*
 
-- [ ] **Property Equity & Valuation Tracker:**
-  - Real estate market valuation tracking with mortgage linkage.
-  - Net Home Equity calculation ($\text{Property Value} - \text{Remaining Loan}$).
-- [ ] **Mortgage Amortization Schedule:**
-  - Full monthly principal vs interest breakdown schedule.
-  - Step-rate interest support (fixed period $\rightarrow$ floating SORA/SIBOR rate).
-- [ ] **Debt Prepayment Simulator:**
-  - Interactive sliders: "What if I pay an extra $500/month towards principal?"
-  - Computes total interest saved and brings forward the payoff date.
-- [ ] **Landlord Rental Property Hub:**
-  - Tenant lease tracking, monthly rent roll receivables, and property maintenance ledger.
+- [x] **Property Equity & Valuation Tracker:**
+  - Real estate, vehicle and valuables tracking with a linked mortgage account.
+  - Derived net equity and loan-to-value, with an appraised-valuation history per asset.
+  - Equity is **clamped at zero**, mirroring Odoo's `max(value − debt, 0)` — see the note below.
+- [x] **Mortgage Amortization Schedule:**
+  - Full month-by-month principal vs interest schedule, derived through one shared engine (`loanMath.ts`).
+  - Step-rate support: rate changes apply from their effective date, and historical rate shifts can be inferred from interest payments already in the ledger.
+  - The schedule is built from the currency-rounded payment, so a 30-year loan is 360 payments rather than 361.
+- [x] **Debt Prepayment Simulator:**
+  - Interactive extra-monthly and lump-sum inputs with a live baseline-vs-accelerated comparison.
+  - Reports interest saved and time saved, measured against the computed baseline schedule.
+- [x] **Landlord & Rent Roll Hub:**
+  - Tenant and lease tracking with date-driven lease status, and a rent roll with per-payment status.
+  - Idempotent rent-schedule generation keyed by rental month, and 1-click Mark Paid.
+  - Overdue detection that upstream leaves unimplemented — see the note below.
+  - **Not implemented:** the "property maintenance ledger" named in the original scope. Upstream has no maintenance model, so there is nothing to mirror; rental expenses are recorded through ordinary categorized transactions instead.
+
+**Two deliberate notes, recorded so they are not mistaken for defects:**
+
+1. **Equity floors at zero.** An underwater property (owing more than it is worth) reports `0` equity rather than a negative figure, matching Odoo numerically. The debt remains fully visible in `mortgage_balance`, and LTV reports above 100% — that ratio is the signal a property is under water.
+2. **Overdue is a Desktop addition.** Upstream's rent-payment compute only ever assigns `paid` or `partial` and leaves `overdue` to logic that exists nowhere in the module. A rent roll that cannot say "overdue" is not a rent roll, so the Desktop derives it: a payment past its due date with a balance outstanding is overdue, whether or not part of it has been paid.
 
 ---
 

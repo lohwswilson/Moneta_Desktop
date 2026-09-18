@@ -16,6 +16,11 @@ import type {
   TaxLotDisposal,
   PortfolioSummary,
   TaxLotStrategy,
+  PropertyAsset,
+  PropertyTenant,
+  RentPayment,
+  LoanScenario,
+  LoanRateChange,
 } from '../types/moneta';
 
 export const OdooApi = {
@@ -396,6 +401,149 @@ export const OdooApi = {
       open_lots_count: 0,
       asset_allocation: [],
     };
+  },
+
+  // -------------------------------------------------------------------------
+  // Phase 5: Property, Rental & Loan Scenarios
+  // -------------------------------------------------------------------------
+
+  async getProperties(): Promise<PropertyAsset[]> {
+    const response = await getApiClient().post('/api/v1/mobile/property/list', {
+      jsonrpc: '2.0',
+      params: {},
+    });
+    return response.data?.result?.properties || [];
+  },
+
+  async createProperty(payload: Partial<PropertyAsset>): Promise<PropertyAsset> {
+    const response = await getApiClient().post('/api/v1/mobile/property/create', {
+      jsonrpc: '2.0',
+      params: payload,
+    });
+    return response.data?.result?.property;
+  },
+
+  async updateProperty(id: string | number, payload: Partial<PropertyAsset>): Promise<PropertyAsset> {
+    const response = await getApiClient().post('/api/v1/mobile/property/update', {
+      jsonrpc: '2.0',
+      params: { property_id: id, ...payload },
+    });
+    return response.data?.result?.property;
+  },
+
+  async deleteProperty(id: string | number): Promise<boolean> {
+    const response = await getApiClient().post('/api/v1/mobile/property/delete', {
+      jsonrpc: '2.0',
+      params: { property_id: id },
+    });
+    return response.data?.result?.success || false;
+  },
+
+  async addPropertyValuation(
+    id: string | number,
+    payload: { valuation_date: string; appraised_value: number; appraiser?: string; notes?: string }
+  ): Promise<PropertyAsset> {
+    const response = await getApiClient().post('/api/v1/mobile/property/valuation', {
+      jsonrpc: '2.0',
+      params: { property_id: id, ...payload },
+    });
+    return response.data?.result?.property;
+  },
+
+  async getTenants(): Promise<PropertyTenant[]> {
+    const response = await getApiClient().post('/api/v1/mobile/tenants/list', {
+      jsonrpc: '2.0',
+      params: {},
+    });
+    return response.data?.result?.tenants || [];
+  },
+
+  async createTenant(payload: Partial<PropertyTenant>): Promise<PropertyTenant> {
+    const response = await getApiClient().post('/api/v1/mobile/tenants/create', {
+      jsonrpc: '2.0',
+      params: payload,
+    });
+    return response.data?.result?.tenant;
+  },
+
+  async updateTenant(id: string | number, payload: Partial<PropertyTenant>): Promise<PropertyTenant> {
+    const response = await getApiClient().post('/api/v1/mobile/tenants/update', {
+      jsonrpc: '2.0',
+      params: { tenant_id: id, ...payload },
+    });
+    return response.data?.result?.tenant;
+  },
+
+  async deleteTenant(id: string | number): Promise<boolean> {
+    const response = await getApiClient().post('/api/v1/mobile/tenants/delete', {
+      jsonrpc: '2.0',
+      params: { tenant_id: id },
+    });
+    return response.data?.result?.success || false;
+  },
+
+  async generateRentSchedule(tenantId: string | number): Promise<number> {
+    const response = await getApiClient().post('/api/v1/mobile/tenants/generate_rent', {
+      jsonrpc: '2.0',
+      params: { tenant_id: tenantId },
+    });
+    return response.data?.result?.created_count || 0;
+  },
+
+  async getRentPayments(tenantId?: string | number): Promise<RentPayment[]> {
+    const response = await getApiClient().post('/api/v1/mobile/rent/list', {
+      jsonrpc: '2.0',
+      params: { tenant_id: tenantId },
+    });
+    return response.data?.result?.payments || [];
+  },
+
+  async markRentPaid(paymentId: string | number): Promise<RentPayment> {
+    const response = await getApiClient().post('/api/v1/mobile/rent/mark_paid', {
+      jsonrpc: '2.0',
+      params: { payment_id: paymentId },
+    });
+    return response.data?.result?.payment;
+  },
+
+  async getLoanScenarios(): Promise<LoanScenario[]> {
+    const response = await getApiClient().post('/api/v1/mobile/loans/list', {
+      jsonrpc: '2.0',
+      params: {},
+    });
+    return response.data?.result?.scenarios || [];
+  },
+
+  async createLoanScenario(payload: Partial<LoanScenario>): Promise<LoanScenario> {
+    const response = await getApiClient().post('/api/v1/mobile/loans/create', {
+      jsonrpc: '2.0',
+      params: payload,
+    });
+    return response.data?.result?.scenario;
+  },
+
+  async updateLoanScenario(id: string | number, payload: Partial<LoanScenario>): Promise<LoanScenario> {
+    const response = await getApiClient().post('/api/v1/mobile/loans/update', {
+      jsonrpc: '2.0',
+      params: { scenario_id: id, ...payload },
+    });
+    return response.data?.result?.scenario;
+  },
+
+  async deleteLoanScenario(id: string | number): Promise<boolean> {
+    const response = await getApiClient().post('/api/v1/mobile/loans/delete', {
+      jsonrpc: '2.0',
+      params: { scenario_id: id },
+    });
+    return response.data?.result?.success || false;
+  },
+
+  async inferLoanRateChanges(id: string | number): Promise<LoanRateChange[]> {
+    const response = await getApiClient().post('/api/v1/mobile/loans/infer_rates', {
+      jsonrpc: '2.0',
+      params: { scenario_id: id },
+    });
+    return response.data?.result?.segments || [];
   },
 };
 

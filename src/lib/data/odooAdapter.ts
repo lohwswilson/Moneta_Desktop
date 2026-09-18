@@ -17,6 +17,11 @@ import type {
   TaxLotDisposal,
   PortfolioSummary,
   TaxLotStrategy,
+  PropertyAsset,
+  PropertyTenant,
+  RentPayment,
+  LoanScenario,
+  LoanRateChange,
 } from '../types/moneta';
 
 export class OdooAdapter implements IMonetaRepository {
@@ -151,5 +156,78 @@ export class OdooAdapter implements IMonetaRepository {
 
   async getPortfolioSummary(accountId?: string | number): Promise<PortfolioSummary> {
     return OdooApi.getPortfolioSummary(accountId);
+  }
+
+  // --- Phase 5 ---
+
+  async getProperties(): Promise<PropertyAsset[]> {
+    return OdooApi.getProperties();
+  }
+
+  async createProperty(payload: Partial<PropertyAsset>): Promise<PropertyAsset> {
+    return OdooApi.createProperty(payload);
+  }
+
+  async updateProperty(id: string | number, payload: Partial<PropertyAsset>): Promise<PropertyAsset> {
+    return OdooApi.updateProperty(id, payload);
+  }
+
+  async deleteProperty(id: string | number): Promise<boolean> {
+    return OdooApi.deleteProperty(id);
+  }
+
+  async addPropertyValuation(
+    id: string | number,
+    payload: { valuation_date: string; appraised_value: number; appraiser?: string; notes?: string }
+  ): Promise<PropertyAsset> {
+    return OdooApi.addPropertyValuation(id, payload);
+  }
+
+  async getTenants(): Promise<PropertyTenant[]> {
+    return OdooApi.getTenants();
+  }
+
+  async createTenant(payload: Partial<PropertyTenant>): Promise<PropertyTenant> {
+    return OdooApi.createTenant(payload);
+  }
+
+  async updateTenant(id: string | number, payload: Partial<PropertyTenant>): Promise<PropertyTenant> {
+    return OdooApi.updateTenant(id, payload);
+  }
+
+  async deleteTenant(id: string | number): Promise<boolean> {
+    return OdooApi.deleteTenant(id);
+  }
+
+  async generateRentSchedule(tenantId: string | number): Promise<number> {
+    return OdooApi.generateRentSchedule(tenantId);
+  }
+
+  async getRentPayments(tenantId?: string | number): Promise<RentPayment[]> {
+    return OdooApi.getRentPayments(tenantId);
+  }
+
+  async markRentPaid(paymentId: string | number): Promise<RentPayment> {
+    return OdooApi.markRentPaid(paymentId);
+  }
+
+  async getLoanScenarios(): Promise<LoanScenario[]> {
+    return OdooApi.getLoanScenarios();
+  }
+
+  async createLoanScenario(payload: Partial<LoanScenario>): Promise<LoanScenario> {
+    return OdooApi.createLoanScenario(payload);
+  }
+
+  async updateLoanScenario(id: string | number, payload: Partial<LoanScenario>): Promise<LoanScenario> {
+    return OdooApi.updateLoanScenario(id, payload);
+  }
+
+  async deleteLoanScenario(id: string | number): Promise<boolean> {
+    return OdooApi.deleteLoanScenario(id);
+  }
+
+  async inferLoanRateChanges(id: string | number): Promise<LoanRateChange[]> {
+    return OdooApi.inferLoanRateChanges(id);
   }
 }

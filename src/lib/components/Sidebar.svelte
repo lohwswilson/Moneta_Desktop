@@ -18,7 +18,10 @@
     Workflow,
     Store,
     Target,
-    Briefcase
+    Briefcase,
+    Building2,
+    Landmark,
+    KeyRound
   } from '@lucide/svelte';
 
   const formatCurrency = (amount: number, currency: string = 'SGD') => {
@@ -205,6 +208,51 @@
         {:else if financeStore.holdings.length > 0}
           <span class="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-950/60 text-emerald-400 border border-emerald-800/60">
             {financeStore.holdings.length}
+          </span>
+        {/if}
+      </button>
+
+      <button
+        onclick={() => financeStore.navigateToProperties()}
+        class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition-colors {financeStore.activeView === 'property' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200'}"
+      >
+        <span class="flex items-center gap-2">
+          <Building2 class="w-4 h-4 text-amber-400" />
+          Property & Equity
+        </span>
+        {#if financeStore.properties.length > 0}
+          {@const equity = financeStore.properties.reduce((s, p) => s + (p.equity_value || 0), 0)}
+          <span class="font-mono text-[11px] text-zinc-300">{formatCurrency(equity)}</span>
+        {/if}
+      </button>
+
+      <button
+        onclick={() => financeStore.navigateToLoans()}
+        class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition-colors {financeStore.activeView === 'loans' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200'}"
+      >
+        <span class="flex items-center gap-2">
+          <Landmark class="w-4 h-4 text-rose-400" />
+          Loans & Payoff
+        </span>
+        {#if financeStore.loanScenarios.length > 0}
+          <span class="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-950/60 text-rose-400 border border-rose-800/60">
+            {financeStore.loanScenarios.length}
+          </span>
+        {/if}
+      </button>
+
+      <button
+        onclick={() => financeStore.navigateToLandlord()}
+        class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition-colors {financeStore.activeView === 'landlord' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200'}"
+      >
+        <span class="flex items-center gap-2">
+          <KeyRound class="w-4 h-4 text-amber-400" />
+          Landlord & Rent Roll
+        </span>
+        {#if financeStore.tenants.length > 0}
+          {@const activeLeases = financeStore.tenants.filter((t) => t.lease_status === 'active').length}
+          <span class="font-mono text-[11px] {activeLeases > 0 ? 'text-emerald-400' : 'text-zinc-500'}">
+            {activeLeases}/{financeStore.tenants.length}
           </span>
         {/if}
       </button>

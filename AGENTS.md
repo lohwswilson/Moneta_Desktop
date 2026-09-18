@@ -48,9 +48,14 @@ This document defines the canonical architecture rules, coding standards, and op
 │   ├── 06_COMMAND_CENTER_AND_FIRE.. # Net worth & financial metrics
 │   ├── 07_ROADMAP_AND_FEATURE_PA..  # Parity audit against moneta_finance
 │   ├── 08_PLANNING_AND_FORECASTI... # Budgets, bills, cash flow & goals hubs
-│   └── 09_PAYEE_INTELLIGENCE_A...   # Merchant memory & spend analytics
+│   ├── 09_PAYEE_INTELLIGENCE_A...   # Merchant memory & spend analytics
+│   ├── 10_STOCK_PORTFOLIO_AND_T...  # Holdings, disposal strategies, TWR/MWR
+│   └── 11_PROPERTY_MORTGAGES_AN...  # Equity, amortization, prepayment, rent roll
 ├── scripts/
-│   └── verify_goal_math.ts          # Goal progress maths assertions
+│   ├── verify_goal_math.ts          # Goal progress maths assertions
+│   ├── verify_portfolio_math.ts     # Lot / disposal / TWR-MWR assertions
+│   ├── verify_loan_math.ts          # Amortization & prepayment assertions
+│   └── verify_property_math.ts      # Equity / rental / rent-roll assertions
 ├── src/
 │   ├── App.svelte                   # Root application shell & view routing
 │   ├── lib/
@@ -67,6 +72,8 @@ This document defines the canonical architecture rules, coding standards, and op
 │   │   │   ├── rulesEngine.ts       # 33 Singapore merchant rules engine
 │   │   │   ├── goalMath.ts          # Shared goal-progress derivation
 │   │   │   ├── portfolioMath.ts     # Shared lot / disposal / TWR-MWR derivation
+│   │   │   ├── loanMath.ts          # Shared amortization / prepayment derivation
+│   │   │   ├── propertyMath.ts      # Shared equity / rental / rent-roll derivation
 │   │   │   └── importers/
 │   │   │       └── bankStatementParser.ts # CSV & QIF statement parser
 │   │   └── components/
@@ -79,6 +86,9 @@ This document defines the canonical architecture rules, coding standards, and op
 │   │       ├── PayeeDirectoryHub.svelte # Merchant intelligence directory
 │   │       ├── GoalsHub.svelte      # Financial goals & sinking funds
 │   │       ├── PortfolioHub.svelte  # Holdings, tax lots, realized & allocation
+│   │       ├── PropertyHub.svelte   # Property equity, LTV & valuation history
+│   │       ├── LoanHub.svelte       # Amortization schedule & prepayment simulator
+│   │       ├── LandlordHub.svelte   # Tenants, leases & rent roll
 │   │       ├── QuickAddModal.svelte # Transaction capture & split allocations
 │   │       ├── StatementImportModal.svelte # Drag-and-drop statement wizard
 │   │       └── ConnectionModal.svelte # Mode switcher & Odoo migration
@@ -111,6 +121,8 @@ npm run build
 # 3. Run domain-maths assertions
 node --experimental-strip-types scripts/verify_goal_math.ts
 node --experimental-strip-types scripts/verify_portfolio_math.ts
+node --experimental-strip-types scripts/verify_loan_math.ts
+node --experimental-strip-types scripts/verify_property_math.ts
 
 # 4. Confirm every client route exists on the server
 #    (client calls are in src/lib/api/odooApi.ts; routes in the Odoo

@@ -320,6 +320,180 @@ export interface PortfolioSummary {
   }>;
 }
 
+// ---------------------------------------------------------------------------
+// Phase 5: Property, Rental & Loan Scenarios
+// ---------------------------------------------------------------------------
+
+export type AssetCategory = 'real_estate' | 'vehicle' | 'jewelry' | 'antiques' | 'other';
+
+export type PropertyType =
+  | 'primary_residence'
+  | 'vacation_home'
+  | 'rental_property'
+  | 'commercial'
+  | 'land'
+  | 'automobile'
+  | 'motorcycle'
+  | 'luxury_watch'
+  | 'fine_jewelry'
+  | 'antique_furniture'
+  | 'fine_art'
+  | 'collectible'
+  | 'other';
+
+export interface PropertyValuation {
+  id: string | number;
+  property_id: string | number;
+  valuation_date: string;
+  appraised_value: number;
+  appraiser?: string;
+  notes?: string;
+}
+
+export interface PropertyAsset {
+  id: string | number;
+  name: string;
+  asset_category: AssetCategory;
+  property_type: PropertyType;
+  purchase_date?: string;
+  purchase_price?: number;
+  current_market_value: number;
+  mortgage_account_id?: string | number;
+  mortgage_account_name?: string;
+  color?: number;
+  notes?: string;
+  /** Vehicle detail, when `asset_category` is `vehicle`. */
+  vehicle_make?: string;
+  vehicle_model?: string;
+  vehicle_year?: number;
+  vehicle_vin?: string;
+  vehicle_license_plate?: string;
+  vehicle_mileage?: number;
+  /** Valuables detail, when `asset_category` is `jewelry` or `antiques`. */
+  antique_era?: string;
+  maker_artist?: string;
+  condition_grade?: 'mint' | 'near_mint' | 'excellent' | 'very_good' | 'good' | 'fair';
+  insured_value?: number;
+  insurance_policy_number?: string;
+  storage_location?: string;
+  /** User-entered rental cost inputs — see `propertyMath.ts` for the derivation. */
+  monthly_rental_income?: number;
+  monthly_property_tax?: number;
+  monthly_insurance?: number;
+  monthly_hoa_maintenance?: number;
+  /**
+   * Derived — see `propertyMath.ts`; never persisted by an adapter. Mirrors
+   * `moneta.property._compute_equity` and the rental extension's
+   * `_compute_rental_metrics`.
+   */
+  mortgage_balance: number;
+  equity_value: number;
+  loan_to_value_ratio: number;
+  tenant_count: number;
+  gross_annual_rental_income: number;
+  gross_rental_yield_pct: number;
+  net_operating_income: number;
+  net_monthly_cashflow: number;
+  occupancy_rate_pct: number;
+  valuation_history?: PropertyValuation[];
+}
+
+export type LeaseStatus = 'upcoming' | 'active' | 'expired' | 'terminated';
+export type DepositStatus = 'held' | 'partially_refunded' | 'refunded' | 'forfeited';
+export type RentPaymentStatus = 'pending' | 'paid' | 'partial' | 'overdue' | 'waived';
+
+export interface PropertyTenant {
+  id: string | number;
+  name: string;
+  property_id: string | number;
+  property_name?: string;
+  unit_number?: string;
+  email?: string;
+  phone?: string;
+  emergency_contact?: string;
+  lease_start_date: string;
+  lease_end_date: string;
+  monthly_rent_amount: number;
+  rent_due_day: number;
+  security_deposit_held?: number;
+  security_deposit_refunded?: number;
+  deposit_status: DepositStatus;
+  notes?: string;
+  /** Derived — see `propertyMath.ts`. */
+  lease_status: LeaseStatus;
+  total_rent_collected: number;
+  total_rent_overdue: number;
+}
+
+export interface RentPayment {
+  id: string | number;
+  tenant_id: string | number;
+  tenant_name?: string;
+  property_id?: string | number;
+  /** First day of the rental month this payment covers. */
+  period_month: string;
+  due_date: string;
+  amount_due: number;
+  amount_paid: number;
+  /** Derived: `max(amount_due − amount_paid, 0)`. */
+  balance_due: number;
+  paid_date?: string;
+  payment_status: RentPaymentStatus;
+  memo?: string;
+  notes?: string;
+}
+
+export interface LoanRateChange {
+  id?: string | number;
+  scenario_id?: string | number;
+  effective_date: string;
+  /** Annual rate as a percentage, e.g. 4.25 for 4.25%. */
+  annual_rate: number;
+  note?: string;
+}
+
+export interface AmortizationLine {
+  payment_number: number;
+  payment_date: string;
+  starting_balance: number;
+  scheduled_payment: number;
+  principal_amount: number;
+  interest_amount: number;
+  extra_payment: number;
+  total_payment: number;
+  ending_balance: number;
+}
+
+export interface LoanScenario {
+  id: string | number;
+  name: string;
+  account_id?: string | number;
+  account_name?: string;
+  principal_amount: number;
+  annual_interest_rate: number;
+  loan_term_years: number;
+  loan_term_months: number;
+  start_date: string;
+  extra_monthly_payment: number;
+  lump_sum_payment: number;
+  lump_sum_date?: string;
+  rate_changes?: LoanRateChange[];
+  /**
+   * Derived — see `loanMath.ts`; never persisted by an adapter. Mirrors
+   * `moneta.loan.scenario._compute_amortization_schedule`.
+   */
+  monthly_payment: number;
+  total_payment_original: number;
+  total_interest_original: number;
+  original_payoff_date: string;
+  total_payment_actual: number;
+  total_interest_actual: number;
+  actual_payoff_date: string;
+  interest_saved: number;
+  months_saved: number;
+  years_saved: number;
+}
+
 
 
 

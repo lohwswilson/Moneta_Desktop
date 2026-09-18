@@ -67,9 +67,16 @@ class FinanceStore {
   taxLotDisposals = $state<TaxLotDisposal[]>([]);
   portfolioSummary = $state<PortfolioSummary | null>(null);
 
+  // Property, rental & loan state (Phase 5)
+  properties = $state<PropertyAsset[]>([]);
+  tenants = $state<PropertyTenant[]>([]);
+  rentPayments = $state<RentPayment[]>([]);
+  loanScenarios = $state<LoanScenario[]>([]);
+
   // View routing — one discriminant, one branch per view in App.svelte
   activeView = $state<'command_center' | 'register' | 'budgets' | 'bills'
-                     | 'cashflow' | 'payees' | 'goals' | 'portfolio'>('command_center');
+                     | 'cashflow' | 'payees' | 'goals' | 'portfolio'
+                     | 'property' | 'loans' | 'landlord'>('command_center');
 
   // Modal visibility
   isQuickAddOpen = $state<boolean>(false);
@@ -135,15 +142,21 @@ The trade-off is that a **missing** implementation degrades silently to an empty
 
 ### Shared Derivation (Anti-Drift Rule)
 
-Derived figures that Odoo also computes are implemented **once** in a shared module and called by every adapter, rather than reimplemented per adapter. Two modules follow this rule today:
+Derived figures that Odoo also computes are implemented **once** in a shared module and called by every adapter, rather than reimplemented per adapter. Four modules follow this rule today:
 
 - [`src/lib/data/goalMath.ts`](file:///opt/moneta_desktop/src/lib/data/goalMath.ts) — mirrors `goal.py::_compute_goal_progress`
 - [`src/lib/data/portfolioMath.ts`](file:///opt/moneta_desktop/src/lib/data/portfolioMath.ts) — mirrors `investment.py` / `tax_lot.py` (`_modified_dietz`, `_xirr`)
+- [`src/lib/data/loanMath.ts`](file:///opt/moneta_desktop/src/lib/data/loanMath.ts) — mirrors `loan.py` (amortization, prepayment, rate inference)
+- [`src/lib/data/propertyMath.ts`](file:///opt/moneta_desktop/src/lib/data/propertyMath.ts) — mirrors `property.py` and `rental_property.py` (equity, rental metrics, rent roll)
 
 ```typescript
 // Both adapters do this — neither defines its own maths
 import { computeLotMetrics, disposeTaxLots, computeModifiedDietz, computeXIRR } from './portfolioMath';
+import { computePropertyMetrics, computeLeaseStatus, computeRentTotals } from './propertyMath';
+import { simulatePrepayment, detectRateChanges } from './loanMath';
 ```
+
+Each module has a matching assertion suite under `scripts/` — 175 assertions in total across the four at the time of writing. They exist because the maths is the part that fails *silently*: a wrong amortization figure still renders, and nothing else in the stack would catch it.
 
 The alternative — each adapter deriving its own numbers — produces a record that reads differently depending on which data source is active. The Odoo roadmap documents this failure mode in its scheduled-occurrence contract track as the largest single architectural gap in the upstream module; Moneta Desktop does not reintroduce it.
 

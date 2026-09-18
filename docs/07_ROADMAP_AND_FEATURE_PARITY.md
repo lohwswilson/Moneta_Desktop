@@ -28,7 +28,11 @@ This document details the feature parity comparison between the **Odoo `moneta_f
 | **Tax-Lot Accounting** | FIFO / LIFO / HIFO / Specific ID | Shared disposal engine, per-disposal term classification | **100% Parity** |
 | **Portfolio Metrics (TWR/MWR)** | `_modified_dietz` / `_xirr` | Modified Dietz and XIRR bisection in one shared module | **100% Parity** |
 | **Live Market Quotes** | Hourly Yahoo Finance quote sync | Prices maintained by hand, `last_quote_date` only | *Phase 4 remainder* |
-| **Property & Mortgages** | `moneta.loan`, `moneta_finance_property` | Aggregate asset values only | *Phase 5* |
+| **Property Equity & Valuation** | `moneta.property` + valuation log | Equity, LTV and appraisal history per asset | **100% Parity** |
+| **Mortgage Amortization** | `moneta.loan.scenario` | Shared engine, step-rate and rate inference | **100% Parity** |
+| **Debt Prepayment Simulator** | Extra monthly + lump sum | Live baseline-vs-accelerated comparison | **100% Parity** |
+| **Landlord & Rent Roll** | `moneta_finance_property` satellite | Tenants, leases, rent roll, overdue detection | **100% Parity** |
+| **Property Maintenance Ledger** | — none upstream | Not implemented | *Not in scope* |
 | **Regional Packs (CPF/EPF)** | `moneta_finance_singapore` / `_malaysia` | Not implemented | *Phase 6* |
 | **Monte Carlo Simulation** | 1,000-path stochastic FIRE engine | Deterministic 4% rule & runway calculation | *Phase 7* |
 | **Cloud Sync & Billing** | Self-hosted server | Not implemented | *Phase 8* |
@@ -84,13 +88,20 @@ See [`10_STOCK_PORTFOLIO_AND_TAX_LOTS.md`](10_STOCK_PORTFOLIO_AND_TAX_LOTS.md).
 
 ---
 
-### Phase 5: Real Estate, Mortgages & Debt Payoff (Target: Q3 2027)
-*Parity with Odoo `property.py`, `loan.py`*
+### Phase 5: Real Estate, Mortgages & Debt Payoff (Completed ✅)
+*Parity with Odoo `property.py`, `loan.py`, and the `moneta_finance_property` satellite*
 
-- [ ] **Property Equity & Valuation Tracker**: Market valuation tracking with mortgage linkage and net home equity.
-- [ ] **Mortgage Amortization Schedule**: Principal vs interest breakdown with step-rate support (fixed period → floating SORA/SIBOR).
-- [ ] **Debt Prepayment Simulator**: Interactive extra-payment modelling computing interest saved and the brought-forward payoff date.
-- [ ] **Landlord Rental Property Hub**: Tenant lease tracking, monthly rent roll receivables, and a property maintenance ledger.
+- [x] **Property Equity & Valuation Tracker**: Real estate, vehicle and valuables tracking with linked mortgage accounts, derived equity and LTV, and a per-asset appraisal history.
+- [x] **Mortgage Amortization Schedule**: Month-by-month principal vs interest from one shared engine, with step-rate application and rate inference from ledger interest payments.
+- [x] **Debt Prepayment Simulator**: Live extra-monthly and lump-sum modelling reporting interest and time saved.
+- [x] **Landlord & Rent Roll Hub**: Tenant and lease tracking, idempotent rent-schedule generation, 1-click Mark Paid, and overdue detection.
+- [ ] **Property Maintenance Ledger**: Not implemented — upstream has no maintenance model to mirror. Rental expenses flow through ordinary categorized transactions.
+
+**Two divergences from upstream, both deliberate** — see [`11_PROPERTY_MORTGAGES_AND_RENTAL.md`](11_PROPERTY_MORTGAGES_AND_RENTAL.md):
+
+1. **Equity is clamped at zero**, matching Odoo's `max(value − debt, 0)`. An underwater property reads as zero equity; LTV above 100% is the signal that it is under water.
+2. **Overdue detection is a Desktop addition.** Upstream assigns only `paid`/`partial` and leaves `overdue` to logic present nowhere in the module. The Desktop derives it from the due date and outstanding balance.
+3. **The amortization engine is the one numerical divergence.** Upstream's baseline and accelerated summary loops disagree with each other by one installment because only one applies the remainder absorption. The Desktop uses a single builder for both, so its figures always match the table on screen.
 
 ---
 

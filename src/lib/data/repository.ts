@@ -15,6 +15,11 @@ import type {
   TaxLotDisposal,
   PortfolioSummary,
   TaxLotStrategy,
+  PropertyAsset,
+  PropertyTenant,
+  RentPayment,
+  LoanScenario,
+  LoanRateChange,
 } from '../types/moneta';
 
 export interface IMonetaRepository {
@@ -71,5 +76,31 @@ export interface IMonetaRepository {
     memo?: string;
   }): Promise<{ success: boolean; transactionId?: number }>;
   getPortfolioSummary?(accountId?: string | number): Promise<PortfolioSummary>;
+
+  // --- Phase 5: Property, Rental & Loan Scenarios ---
+  getProperties?(): Promise<PropertyAsset[]>;
+  createProperty?(payload: Partial<PropertyAsset>): Promise<PropertyAsset>;
+  updateProperty?(id: string | number, payload: Partial<PropertyAsset>): Promise<PropertyAsset>;
+  deleteProperty?(id: string | number): Promise<boolean>;
+  addPropertyValuation?(
+    id: string | number,
+    payload: { valuation_date: string; appraised_value: number; appraiser?: string; notes?: string }
+  ): Promise<PropertyAsset>;
+
+  getTenants?(): Promise<PropertyTenant[]>;
+  createTenant?(payload: Partial<PropertyTenant>): Promise<PropertyTenant>;
+  updateTenant?(id: string | number, payload: Partial<PropertyTenant>): Promise<PropertyTenant>;
+  deleteTenant?(id: string | number): Promise<boolean>;
+  /** Returns how many rent payments were created. Idempotent per rental month. */
+  generateRentSchedule?(tenantId: string | number): Promise<number>;
+  getRentPayments?(tenantId?: string | number): Promise<RentPayment[]>;
+  markRentPaid?(paymentId: string | number): Promise<RentPayment>;
+
+  getLoanScenarios?(): Promise<LoanScenario[]>;
+  createLoanScenario?(payload: Partial<LoanScenario>): Promise<LoanScenario>;
+  updateLoanScenario?(id: string | number, payload: Partial<LoanScenario>): Promise<LoanScenario>;
+  deleteLoanScenario?(id: string | number): Promise<boolean>;
+  /** Infers rate-change segments from historical interest payments on the linked account. */
+  inferLoanRateChanges?(id: string | number): Promise<LoanRateChange[]>;
 }
 

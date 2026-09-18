@@ -16,9 +16,25 @@ import type {
   TaxLotDisposal,
   PortfolioSummary,
   TaxLotStrategy,
+  PropertyAsset,
+  PropertyTenant,
+  RentPayment,
+  LoanScenario,
+  LoanRateChange,
+  PropertyValuation,
 } from '../types/moneta';
 import { computeGoalMetrics, toDateOnlyString, todayDateOnly } from './goalMath';
 import { computeLotMetrics, disposeTaxLots, computeModifiedDietz, computeXIRR } from './portfolioMath';
+import {
+  computePropertyMetrics,
+  computeLeaseStatus,
+  computeBalanceDue,
+  computeRentPaymentStatus,
+  computeRentTotals,
+  generateRentSchedule,
+} from './propertyMath';
+import { simulatePrepayment, detectRateChanges } from './loanMath';
+import type { RateObservation } from './loanMath';
 
 let mockAccounts: MonetaAccount[] = [
   {
@@ -191,6 +207,60 @@ let mockTransactions: MonetaTransaction[] = [
     reconciliation_state: 'cleared',
     running_balance: -2480.6,
     memo: 'iCloud 2TB + Apple One Premier',
+  },
+  // Monthly interest charges on the HDB mortgage — the basis for
+  // `inferLoanRateChanges` on the linked loan scenario.
+  {
+    id: 'tx-7',
+    account_id: 'acc-6',
+    account_name: 'HDB Concessionary Housing Loan',
+    date: '2026-06-02',
+    payee_name: 'HDB Concessionary Housing Loan',
+    category_name: 'Mortgage Interest',
+    amount: -617.5,
+    transaction_type: 'expense',
+    reconciliation_state: 'cleared',
+    running_balance: -285000.0,
+    memo: 'June monthly interest',
+  },
+  {
+    id: 'tx-8',
+    account_id: 'acc-6',
+    account_name: 'HDB Concessionary Housing Loan',
+    date: '2026-07-02',
+    payee_name: 'HDB Concessionary Housing Loan',
+    category_name: 'Mortgage Interest',
+    amount: -616.16,
+    transaction_type: 'expense',
+    reconciliation_state: 'cleared',
+    running_balance: -284382.5,
+    memo: 'July monthly interest',
+  },
+  {
+    id: 'tx-9',
+    account_id: 'acc-6',
+    account_name: 'HDB Concessionary Housing Loan',
+    date: '2026-08-03',
+    payee_name: 'HDB Concessionary Housing Loan',
+    category_name: 'Mortgage Interest',
+    amount: -614.83,
+    transaction_type: 'expense',
+    reconciliation_state: 'cleared',
+    running_balance: -283766.33,
+    memo: 'August monthly interest',
+  },
+  {
+    id: 'tx-10',
+    account_id: 'acc-6',
+    account_name: 'HDB Concessionary Housing Loan',
+    date: '2026-09-02',
+    payee_name: 'HDB Concessionary Housing Loan',
+    category_name: 'Mortgage Interest',
+    amount: -613.5,
+    transaction_type: 'expense',
+    reconciliation_state: 'cleared',
+    running_balance: -283151.5,
+    memo: 'September monthly interest',
   },
 ];
 
@@ -960,6 +1030,399 @@ export class MockAdapter implements IMonetaRepository {
       asset_allocation: allocation,
     };
   }
+
+  /**
+   * Phase 5: Property, Rental & Loan Scenario Methods
+   *
+   * Derived figures are recomputed on read through propertyMath.ts and
+   * loanMath.ts, exactly as `getGoals()` recomputes goal metrics — a seeded
+   * property cannot carry a stale equity or rent roll as time passes.
+   */
+
+  private deriveProperty(p: PropertyAsset): PropertyAsset {
+    const acc = p.mortgage_account_id
+      ? mockAccounts.find((a) => String(a.id) === String(p.mortgage_account_id))
+      : undefined;
+
+    // Only tenants whose lease is active contribute to the rent roll.
+    const activeTenants = mockTenants
+      .filter((t) => String(t.property_id) === String(p.id))
+      .filter((t) => computeLeaseStatus(t.lease_start_date, t.lease_end_date) === 'active')
+      .map((t) => ({ monthly_rent_amount: t.monthly_rent_amount }));
+
+    const metrics = computePropertyMetrics({
+      current_market_value: p.current_market_value,
+      mortgageBalance: acc?.current_balance,
+      mortgageMonthlyPayment: acc?.monthly_payment,
+      monthly_rental_income: p.monthly_rental_income,
+      monthly_property_tax: p.monthly_property_tax,
+      monthly_insurance: p.monthly_insurance,
+      monthly_hoa_maintenance: p.monthly_hoa_maintenance,
+      activeTenants,
+    });
+
+    const valuation_history = mockPropertyValuations
+      .filter((v) => String(v.property_id) === String(p.id))
+      .sort((a, b) => b.valuation_date.localeCompare(a.valuation_date));
+
+    return { ...p, ...metrics, valuation_history };
+  }
+
+  async getProperties(): Promise<PropertyAsset[]> {
+    return mockProperties
+      .map((p) => this.deriveProperty(p))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  async createProperty(payload: Partial<PropertyAsset>): Promise<PropertyAsset> {
+    const property: PropertyAsset = {
+      id: payload.id || `mock-prop-${Date.now()}`,
+      name: payload.name || 'New Property',
+      asset_category: payload.asset_category || 'real_estate',
+      property_type: payload.property_type || 'other',
+      purchase_date: payload.purchase_date,
+      purchase_price: payload.purchase_price !== undefined ? Number(payload.purchase_price) : undefined,
+      current_market_value: Number(payload.current_market_value || 0),
+      mortgage_account_id: payload.mortgage_account_id,
+      mortgage_account_name: payload.mortgage_account_name,
+      color: payload.color,
+      notes: payload.notes,
+      vehicle_make: payload.vehicle_make,
+      vehicle_model: payload.vehicle_model,
+      vehicle_year: payload.vehicle_year,
+      vehicle_vin: payload.vehicle_vin,
+      vehicle_license_plate: payload.vehicle_license_plate,
+      vehicle_mileage: payload.vehicle_mileage,
+      antique_era: payload.antique_era,
+      maker_artist: payload.maker_artist,
+      condition_grade: payload.condition_grade,
+      insured_value: payload.insured_value !== undefined ? Number(payload.insured_value) : undefined,
+      insurance_policy_number: payload.insurance_policy_number,
+      storage_location: payload.storage_location,
+      monthly_rental_income:
+        payload.monthly_rental_income !== undefined ? Number(payload.monthly_rental_income) : undefined,
+      monthly_property_tax:
+        payload.monthly_property_tax !== undefined ? Number(payload.monthly_property_tax) : undefined,
+      monthly_insurance: payload.monthly_insurance !== undefined ? Number(payload.monthly_insurance) : undefined,
+      monthly_hoa_maintenance:
+        payload.monthly_hoa_maintenance !== undefined ? Number(payload.monthly_hoa_maintenance) : undefined,
+      // Placeholders — never returned; `getProperties()` derives these on read.
+      mortgage_balance: 0,
+      equity_value: 0,
+      loan_to_value_ratio: 0,
+      tenant_count: 0,
+      gross_annual_rental_income: 0,
+      gross_rental_yield_pct: 0,
+      net_operating_income: 0,
+      net_monthly_cashflow: 0,
+      occupancy_rate_pct: 0,
+      valuation_history: [],
+    };
+    mockProperties.push(property);
+    return this.deriveProperty(property);
+  }
+
+  async updateProperty(id: string | number, payload: Partial<PropertyAsset>): Promise<PropertyAsset> {
+    const idx = mockProperties.findIndex((p) => String(p.id) === String(id));
+    if (idx === -1) throw new Error(`Property ${id} not found`);
+
+    const merged: PropertyAsset = { ...mockProperties[idx], ...payload };
+    mockProperties[idx] = merged;
+    return this.deriveProperty(merged);
+  }
+
+  async deleteProperty(id: string | number): Promise<boolean> {
+    const idx = mockProperties.findIndex((p) => String(p.id) === String(id));
+    if (idx === -1) return false;
+    mockProperties.splice(idx, 1);
+    return true;
+  }
+
+  async addPropertyValuation(
+    id: string | number,
+    payload: { valuation_date: string; appraised_value: number; appraiser?: string; notes?: string }
+  ): Promise<PropertyAsset> {
+    const idx = mockProperties.findIndex((p) => String(p.id) === String(id));
+    if (idx === -1) throw new Error(`Property ${id} not found`);
+
+    const appraisedValue = Number(payload.appraised_value || 0);
+    mockPropertyValuations.push({
+      id: `mock-valu-${Date.now()}`,
+      property_id: String(id),
+      valuation_date: payload.valuation_date || new Date().toISOString().split('T')[0],
+      appraised_value: appraisedValue,
+      appraiser: payload.appraiser,
+      notes: payload.notes,
+    });
+
+    const updated = { ...mockProperties[idx], current_market_value: appraisedValue };
+    mockProperties[idx] = updated;
+    return this.deriveProperty(updated);
+  }
+
+  async getTenants(): Promise<PropertyTenant[]> {
+    const propNames = new Map(mockProperties.map((p) => [String(p.id), p.name]));
+    return mockTenants
+      .map((t) => {
+        const payments = mockRentPayments.filter((p) => String(p.tenant_id) === String(t.id));
+        return {
+          ...t,
+          property_name: propNames.get(String(t.property_id)),
+          lease_status: computeLeaseStatus(t.lease_start_date, t.lease_end_date),
+          ...computeRentTotals(payments),
+        };
+      })
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  async createTenant(payload: Partial<PropertyTenant>): Promise<PropertyTenant> {
+    const tenant: PropertyTenant = {
+      id: payload.id || `mock-tenant-${Date.now()}`,
+      name: payload.name || 'New Tenant',
+      property_id: payload.property_id || '',
+      property_name: mockProperties.find((p) => String(p.id) === String(payload.property_id))?.name,
+      unit_number: payload.unit_number,
+      email: payload.email,
+      phone: payload.phone,
+      emergency_contact: payload.emergency_contact,
+      lease_start_date: payload.lease_start_date || new Date().toISOString().split('T')[0],
+      lease_end_date: payload.lease_end_date || new Date().toISOString().split('T')[0],
+      monthly_rent_amount: Number(payload.monthly_rent_amount || 0),
+      rent_due_day: payload.rent_due_day !== undefined ? Number(payload.rent_due_day) : 1,
+      security_deposit_held: Number(payload.security_deposit_held ?? 0),
+      security_deposit_refunded: Number(payload.security_deposit_refunded ?? 0),
+      deposit_status: payload.deposit_status || 'held',
+      notes: payload.notes,
+      lease_status: 'active',
+      total_rent_collected: 0,
+      total_rent_overdue: 0,
+    };
+    const created = {
+      ...tenant,
+      lease_status: computeLeaseStatus(tenant.lease_start_date, tenant.lease_end_date),
+    };
+    mockTenants.push(created);
+    return created;
+  }
+
+  async updateTenant(id: string | number, payload: Partial<PropertyTenant>): Promise<PropertyTenant> {
+    const idx = mockTenants.findIndex((t) => String(t.id) === String(id));
+    if (idx === -1) throw new Error(`Tenant ${id} not found`);
+
+    const merged: PropertyTenant = { ...mockTenants[idx], ...payload };
+    const updated = {
+      ...merged,
+      lease_status: computeLeaseStatus(merged.lease_start_date, merged.lease_end_date),
+    };
+    mockTenants[idx] = updated;
+    return updated;
+  }
+
+  async deleteTenant(id: string | number): Promise<boolean> {
+    const idx = mockTenants.findIndex((t) => String(t.id) === String(id));
+    if (idx === -1) return false;
+    mockTenants.splice(idx, 1);
+    // A deleted tenant's rent roll is meaningless — drop it with the tenant.
+    mockRentPayments = mockRentPayments.filter((p) => String(p.tenant_id) !== String(id));
+    return true;
+  }
+
+  async generateRentSchedule(tenantId: string | number): Promise<number> {
+    const tenant = mockTenants.find((t) => String(t.id) === String(tenantId));
+    if (!tenant) throw new Error(`Tenant ${tenantId} not found`);
+
+    const existingPeriodMonths = mockRentPayments
+      .filter((p) => String(p.tenant_id) === String(tenantId))
+      .map((p) => p.period_month);
+
+    const generated = generateRentSchedule(
+      {
+        lease_start_date: tenant.lease_start_date,
+        lease_end_date: tenant.lease_end_date,
+        monthly_rent_amount: tenant.monthly_rent_amount,
+        rent_due_day: tenant.rent_due_day,
+      },
+      existingPeriodMonths
+    );
+
+    const base = Date.now();
+    generated.forEach((g, i) => {
+      mockRentPayments.push({
+        id: `mock-rp-${base}-${i}`,
+        tenant_id: String(tenantId),
+        property_id: tenant.property_id,
+        period_month: g.period_month,
+        due_date: g.due_date,
+        amount_due: g.amount_due,
+        amount_paid: g.amount_paid,
+        balance_due: 0,
+        paid_date: undefined,
+        payment_status: g.payment_status,
+        memo: undefined,
+        notes: undefined,
+      });
+    });
+
+    return generated.length;
+  }
+
+  async getRentPayments(tenantId?: string | number): Promise<RentPayment[]> {
+    const tenantNames = new Map(mockTenants.map((t) => [String(t.id), t.name]));
+    let payments = mockRentPayments;
+    if (tenantId) {
+      payments = payments.filter((p) => String(p.tenant_id) === String(tenantId));
+    }
+    return payments
+      .map((p) => ({
+        ...p,
+        tenant_name: tenantNames.get(String(p.tenant_id)),
+        balance_due: computeBalanceDue(p.amount_due, p.amount_paid),
+        payment_status: computeRentPaymentStatus(p),
+      }))
+      .sort((a, b) => b.period_month.localeCompare(a.period_month));
+  }
+
+  async markRentPaid(paymentId: string | number): Promise<RentPayment> {
+    const idx = mockRentPayments.findIndex((p) => String(p.id) === String(paymentId));
+    if (idx === -1) throw new Error(`Rent payment ${paymentId} not found`);
+
+    mockRentPayments[idx] = {
+      ...mockRentPayments[idx],
+      amount_paid: mockRentPayments[idx].amount_due,
+      paid_date: toDateOnlyString(todayDateOnly()),
+    };
+
+    const payments = await this.getRentPayments();
+    return payments.find((p) => String(p.id) === String(paymentId)) || mockRentPayments[idx];
+  }
+
+  private deriveLoanScenario(s: LoanScenario): LoanScenario {
+    const termMonths =
+      (Number(s.loan_term_years) || 0) * 12 + (Number(s.loan_term_months) || 0);
+    const rateChanges = mockLoanRateChanges.filter((rc) => String(rc.scenario_id) === String(s.id));
+    const sim = simulatePrepayment({
+      principal: s.principal_amount,
+      annualRatePct: s.annual_interest_rate,
+      termMonths,
+      startDate: s.start_date,
+      extraMonthly: s.extra_monthly_payment,
+      lumpSum: s.lump_sum_payment,
+      lumpSumDate: s.lump_sum_date,
+      rateChanges,
+    });
+    return {
+      ...s,
+      rate_changes: rateChanges,
+      monthly_payment: sim.baseline.monthlyPayment,
+      total_payment_original: sim.baseline.totalPaid,
+      total_interest_original: sim.baseline.totalInterest,
+      original_payoff_date: sim.baseline.payoffDate,
+      total_payment_actual: sim.accelerated.totalPaid,
+      total_interest_actual: sim.accelerated.totalInterest,
+      actual_payoff_date: sim.accelerated.payoffDate,
+      interest_saved: sim.interestSaved,
+      months_saved: sim.monthsSaved,
+      years_saved: sim.yearsSaved,
+    };
+  }
+
+  async getLoanScenarios(): Promise<LoanScenario[]> {
+    return mockLoanScenarios
+      .map((s) => this.deriveLoanScenario(s))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  async createLoanScenario(payload: Partial<LoanScenario>): Promise<LoanScenario> {
+    const scenario: LoanScenario = {
+      id: payload.id || `mock-loan-${Date.now()}`,
+      name: payload.name || 'New Loan Scenario',
+      account_id: payload.account_id,
+      account_name: payload.account_name,
+      principal_amount: Number(payload.principal_amount || 0),
+      annual_interest_rate: Number(payload.annual_interest_rate || 0),
+      loan_term_years: Number(payload.loan_term_years || 0),
+      loan_term_months: Number(payload.loan_term_months || 0),
+      start_date: payload.start_date || toDateOnlyString(todayDateOnly()),
+      extra_monthly_payment: Number(payload.extra_monthly_payment || 0),
+      lump_sum_payment: Number(payload.lump_sum_payment || 0),
+      lump_sum_date: payload.lump_sum_date,
+      rate_changes: [],
+      // Placeholders — never returned; `getLoanScenarios()` derives these on read.
+      monthly_payment: 0,
+      total_payment_original: 0,
+      total_interest_original: 0,
+      original_payoff_date: '',
+      total_payment_actual: 0,
+      total_interest_actual: 0,
+      actual_payoff_date: '',
+      interest_saved: 0,
+      months_saved: 0,
+      years_saved: 0,
+    };
+    mockLoanScenarios.push(scenario);
+    return this.deriveLoanScenario(scenario);
+  }
+
+  async updateLoanScenario(id: string | number, payload: Partial<LoanScenario>): Promise<LoanScenario> {
+    const idx = mockLoanScenarios.findIndex((s) => String(s.id) === String(id));
+    if (idx === -1) throw new Error(`Loan scenario ${id} not found`);
+
+    const merged: LoanScenario = { ...mockLoanScenarios[idx], ...payload };
+    mockLoanScenarios[idx] = merged;
+    return this.deriveLoanScenario(merged);
+  }
+
+  async deleteLoanScenario(id: string | number): Promise<boolean> {
+    const idx = mockLoanScenarios.findIndex((s) => String(s.id) === String(id));
+    if (idx === -1) return false;
+    mockLoanScenarios.splice(idx, 1);
+    // Rate-change segments belong to the scenario; drop them with it.
+    mockLoanRateChanges = mockLoanRateChanges.filter((rc) => String(rc.scenario_id) !== String(id));
+    return true;
+  }
+
+  async inferLoanRateChanges(id: string | number): Promise<LoanRateChange[]> {
+    const scenario = mockLoanScenarios.find((s) => String(s.id) === String(id));
+    if (!scenario) throw new Error(`Loan scenario ${id} not found`);
+    if (!scenario.account_id) return [];
+
+    // Annualise the interest actually charged: (interest / balance) * 12 * 100.
+    const observations: RateObservation[] = [];
+    for (const tx of mockTransactions) {
+      if (String(tx.account_id) !== String(scenario.account_id)) continue;
+      const category = (tx.category_name || '').toLowerCase();
+      if (!category.includes('interest')) continue;
+      const interest = Math.abs(Number(tx.amount) || 0);
+      const runningBalance = Number(tx.running_balance) || 0;
+      const balanceBefore = Math.abs(runningBalance) + interest;
+      if (balanceBefore <= 500) continue;
+      const rate = (interest / balanceBefore) * 12 * 100;
+      if (rate < 0.1 || rate > 30) continue;
+      observations.push({ date: tx.date, rate, interest, balance: balanceBefore });
+    }
+
+    const segments = detectRateChanges(observations);
+    if (segments.length === 0) return [];
+
+    // Segment 0 is the loan's opening rate, not a change. Existing segments are
+    // replaced so re-running reflects the current transaction history.
+    scenario.annual_interest_rate = segments[0].annual_rate;
+    mockLoanRateChanges = mockLoanRateChanges.filter((rc) => String(rc.scenario_id) !== String(id));
+
+    const created: LoanRateChange[] = [];
+    segments.slice(1).forEach((seg, i) => {
+      const rateChange: LoanRateChange = {
+        id: `mock-rc-${Date.now()}-${i}`,
+        scenario_id: String(id),
+        effective_date: seg.effective_date,
+        annual_rate: seg.annual_rate,
+        note: `Inferred from ${seg.observation_count} interest payments`,
+      };
+      mockLoanRateChanges.push(rateChange);
+      created.push(rateChange);
+    });
+    return created;
+  }
 }
 
 let mockHoldings: PortfolioHolding[] = [
@@ -1610,3 +2073,260 @@ let mockGoals: FinancialGoal[] = [
     monthly_contribution_required: 0,
   },
 ];
+
+/**
+ * Phase 5 seed data. Mirroring `mockGoals`, properties and loan scenarios
+ * persist only their own fields — the derived figures (equity, rent roll,
+ * valuation history, amortization summaries) are computed on read through
+ * `propertyMath.ts` / `loanMath.ts` by `getProperties()` and
+ * `getLoanScenarios()`. The zeroed metrics are placeholders, never returned.
+ */
+let mockPropertyValuations: PropertyValuation[] = [
+  {
+    id: 'valu-1',
+    property_id: 'prop-1',
+    valuation_date: '2024-12-01',
+    appraised_value: 745000,
+    appraiser: 'Independent Valuers Pte Ltd',
+    notes: 'HDB resale market benchmark',
+  },
+  {
+    id: 'valu-2',
+    property_id: 'prop-1',
+    valuation_date: '2026-03-02',
+    appraised_value: 780000,
+    appraiser: 'Independent Valuers Pte Ltd',
+    notes: 'Post-uplift valuation for refinancing review',
+  },
+];
+
+let mockProperties: PropertyAsset[] = [
+  {
+    id: 'prop-1',
+    name: 'Tanjong Pagar 4-Room Flat',
+    asset_category: 'real_estate',
+    property_type: 'primary_residence',
+    purchase_date: '2019-03-15',
+    purchase_price: 520000,
+    current_market_value: 780000,
+    mortgage_account_id: 'acc-6',
+    mortgage_account_name: 'HDB Concessionary Housing Loan',
+    color: 2,
+    notes: 'Corner unit with unblocked view; master bedroom rented out.',
+    monthly_rental_income: 1200,
+    monthly_property_tax: 92.5,
+    monthly_insurance: 28.5,
+    monthly_hoa_maintenance: 63.4,
+    mortgage_balance: 0,
+    equity_value: 0,
+    loan_to_value_ratio: 0,
+    tenant_count: 0,
+    gross_annual_rental_income: 0,
+    gross_rental_yield_pct: 0,
+    net_operating_income: 0,
+    net_monthly_cashflow: 0,
+    occupancy_rate_pct: 0,
+    valuation_history: [],
+  },
+  {
+    id: 'prop-2',
+    name: 'Johor Bahru Investment Condo',
+    asset_category: 'real_estate',
+    property_type: 'rental_property',
+    purchase_date: '2022-09-30',
+    purchase_price: 425000,
+    current_market_value: 460000,
+    notes: 'Freehold unit near CIQ; tenanted on a one-year lease.',
+    monthly_rental_income: 3800,
+    monthly_property_tax: 140,
+    monthly_insurance: 55,
+    monthly_hoa_maintenance: 120,
+    mortgage_balance: 0,
+    equity_value: 0,
+    loan_to_value_ratio: 0,
+    tenant_count: 0,
+    gross_annual_rental_income: 0,
+    gross_rental_yield_pct: 0,
+    net_operating_income: 0,
+    net_monthly_cashflow: 0,
+    occupancy_rate_pct: 0,
+    valuation_history: [],
+  },
+];
+
+let mockTenants: PropertyTenant[] = [
+  {
+    id: 'tenant-1',
+    name: 'Lim Wei Jie',
+    property_id: 'prop-2',
+    property_name: 'Johor Bahru Investment Condo',
+    unit_number: '12-03',
+    email: 'weijie.lim@example.com',
+    phone: '+60 12-345 6789',
+    emergency_contact: 'Lim Ah Kow (father) +60 16-222 3333',
+    lease_start_date: '2026-01-01',
+    lease_end_date: '2026-12-31',
+    monthly_rent_amount: 3800,
+    rent_due_day: 1,
+    security_deposit_held: 11400,
+    security_deposit_refunded: 0,
+    deposit_status: 'held',
+    notes: 'Works in Singapore, commutes weekly; rent via DBS transfer.',
+    lease_status: 'active',
+    total_rent_collected: 0,
+    total_rent_overdue: 0,
+  },
+  {
+    id: 'tenant-2',
+    name: 'Nurul Aisyah',
+    property_id: 'prop-1',
+    property_name: 'Tanjong Pagar 4-Room Flat',
+    unit_number: '08-21 (Common Room)',
+    email: 'nurul.aisyah@example.com',
+    phone: '+65 8123 4567',
+    emergency_contact: 'Dewi Kartini (mother) +65 9123 8899',
+    lease_start_date: '2025-06-01',
+    lease_end_date: '2026-11-30',
+    monthly_rent_amount: 1200,
+    rent_due_day: 5,
+    security_deposit_held: 1200,
+    security_deposit_refunded: 0,
+    deposit_status: 'held',
+    notes: 'Room rental; utilities shared.',
+    lease_status: 'active',
+    total_rent_collected: 0,
+    total_rent_overdue: 0,
+  },
+];
+
+let mockRentPayments: RentPayment[] = [
+  // tenant-1 (JB condo): paid through August, September overdue.
+  {
+    id: 'rp-1',
+    tenant_id: 'tenant-1',
+    property_id: 'prop-2',
+    period_month: '2026-06-01',
+    due_date: '2026-06-01',
+    amount_due: 3800,
+    amount_paid: 3800,
+    balance_due: 0,
+    paid_date: '2026-06-02',
+    payment_status: 'paid',
+    memo: 'June rent — DBS transfer',
+    notes: undefined,
+  },
+  {
+    id: 'rp-2',
+    tenant_id: 'tenant-1',
+    property_id: 'prop-2',
+    period_month: '2026-07-01',
+    due_date: '2026-07-01',
+    amount_due: 3800,
+    amount_paid: 3800,
+    balance_due: 0,
+    paid_date: '2026-07-02',
+    payment_status: 'paid',
+    memo: 'July rent — DBS transfer',
+    notes: undefined,
+  },
+  {
+    id: 'rp-3',
+    tenant_id: 'tenant-1',
+    property_id: 'prop-2',
+    period_month: '2026-08-01',
+    due_date: '2026-08-01',
+    amount_due: 3800,
+    amount_paid: 3800,
+    balance_due: 0,
+    paid_date: '2026-08-03',
+    payment_status: 'paid',
+    memo: 'August rent — paid late after reminder',
+    notes: undefined,
+  },
+  {
+    id: 'rp-4',
+    tenant_id: 'tenant-1',
+    property_id: 'prop-2',
+    period_month: '2026-09-01',
+    due_date: '2026-09-01',
+    amount_due: 3800,
+    amount_paid: 0,
+    balance_due: 0,
+    paid_date: undefined,
+    payment_status: 'pending',
+    memo: 'September rent',
+    notes: undefined,
+  },
+  // tenant-2 (TP flat room): July paid, August and September overdue.
+  {
+    id: 'rp-5',
+    tenant_id: 'tenant-2',
+    property_id: 'prop-1',
+    period_month: '2026-07-01',
+    due_date: '2026-07-05',
+    amount_due: 1200,
+    amount_paid: 1200,
+    balance_due: 0,
+    paid_date: '2026-07-05',
+    payment_status: 'paid',
+    memo: 'July room rent',
+    notes: undefined,
+  },
+  {
+    id: 'rp-6',
+    tenant_id: 'tenant-2',
+    property_id: 'prop-1',
+    period_month: '2026-08-01',
+    due_date: '2026-08-05',
+    amount_due: 1200,
+    amount_paid: 0,
+    balance_due: 0,
+    paid_date: undefined,
+    payment_status: 'pending',
+    memo: 'August room rent',
+    notes: undefined,
+  },
+  {
+    id: 'rp-7',
+    tenant_id: 'tenant-2',
+    property_id: 'prop-1',
+    period_month: '2026-09-01',
+    due_date: '2026-09-05',
+    amount_due: 1200,
+    amount_paid: 0,
+    balance_due: 0,
+    paid_date: undefined,
+    payment_status: 'pending',
+    memo: 'September room rent',
+    notes: undefined,
+  },
+];
+
+let mockLoanScenarios: LoanScenario[] = [
+  {
+    id: 'loan-1',
+    name: 'HDB Concessionary Housing Loan',
+    account_id: 'acc-6',
+    account_name: 'HDB Concessionary Housing Loan',
+    principal_amount: 285000,
+    annual_interest_rate: 2.6,
+    loan_term_years: 25,
+    loan_term_months: 0,
+    start_date: '2024-06-01',
+    extra_monthly_payment: 0,
+    lump_sum_payment: 0,
+    rate_changes: [],
+    monthly_payment: 0,
+    total_payment_original: 0,
+    total_interest_original: 0,
+    original_payoff_date: '',
+    total_payment_actual: 0,
+    total_interest_actual: 0,
+    actual_payoff_date: '',
+    interest_saved: 0,
+    months_saved: 0,
+    years_saved: 0,
+  },
+];
+
+let mockLoanRateChanges: LoanRateChange[] = [];

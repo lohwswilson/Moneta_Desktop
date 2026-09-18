@@ -25,6 +25,7 @@ It operates completely **100% offline-first** using an embedded WebAssembly SQLi
 |  ├── Financial Goals Tracker (Milestones & Sinking Funds)               |
 |  ├── Payee Intelligence Directory (Cadence & Spend Analytics)           |
 |  ├── Stock Portfolio & Tax-Lot Hub (Holdings, Lots, Gains, Alloc)       |
+|  ├── Property, Loans & Landlord Hubs (Equity, Payoff, Rent Roll)        |
 |  └── Connection & Migration Modal (Odoo 18 / Local SQLite / Sandbox)    |
 |                                                                         |
 |  [ Pluggable Data Repository (IMonetaRepository) ]                      |
@@ -39,6 +40,8 @@ It operates completely **100% offline-first** using an embedded WebAssembly SQLi
 |  ├── Cash Flow Projection & Sankey Graph Builder (30-365 day horizon)   |
 |  ├── Goal Progress Engine (shared, mirrors Odoo relativedelta maths)    |
 |  ├── Tax-Lot Disposal Engine (FIFO/LIFO/HIFO/SpecID) & TWR/MWR Engine   |
+|  ├── Loan Amortization & Prepayment Engine (step-rate, 360-payment term)|
+|  ├── Property Equity & Rental Yield Engine (LTV, NOI, rent roll)        |
 |  └── Point-in-Time Running Balance Partition Engine                     |
 +-------------------------------------------------------------------------+
 ```
@@ -116,6 +119,13 @@ It operates completely **100% offline-first** using an embedded WebAssembly SQLi
 - **Performance Metrics**: TWR via Modified Dietz and MWR via XIRR, both in one shared engine.
 - **Known boundary**: prices are maintained by hand (no quote provider), and a trade does not yet post to the cash ledger.
 
+### 13. 🏡 Property, Mortgages & Landlord Hub
+- **Property Equity & Valuation**: Real estate, vehicle and valuables tracking with linked mortgage accounts, derived equity and LTV, and a per-asset appraisal history.
+- **Mortgage Amortization**: Month-by-month principal vs interest with step-rate support and rate inference from ledger interest payments.
+- **Debt Prepayment Simulator**: Live extra-monthly and lump-sum modelling showing interest and time saved.
+- **Landlord & Rent Roll**: Tenants, leases, idempotent rent-schedule generation, 1-click Mark Paid, and overdue detection.
+- **Known boundaries**: equity is clamped at zero to match Odoo, and the property maintenance ledger has no upstream counterpart to mirror.
+
 ---
 
 ## 📊 Feature Comparison Matrix
@@ -136,6 +146,9 @@ It operates completely **100% offline-first** using an embedded WebAssembly SQLi
 | **Financial Goals & Sinking Funds** | **✔ Native** | ✔ Native | ✔ Native | ✔ Native | ✔ Native |
 | **Stock & Tax-Lot Portfolio** | **✔ FIFO/LIFO/HIFO/SpecID** | ✔ Native | ✖ No | ✔ Native | ✔ Native |
 | **TWR / MWR Performance Metrics** | **✔ Dietz + XIRR** | ✔ Native | ✖ No | ✔ Native | ✔ Native |
+| **Property Equity & Property LTV** | **✔ Native** | ✔ Native | ✖ No | ✔ Native | ✔ Native |
+| **Mortgage Amortization & Prepayment** | **✔ Native** | ✔ Native | ✖ No | Partial | ✔ Native |
+| **Landlord Rent Roll & Tenants** | **✔ Native** | ✖ No | ✖ No | ✖ No | ✔ Satellite |
 | **Direct Odoo 18 Server Sync** | **✔ Native (Bearer PAT)**| ✖ No | ✖ No | ✖ No | Host Backend |
 | **Zero Subscription Cost** | **✔ Free & Open-Source** | ✖ $70+/yr | ✖ $109/yr | ✖ $100/yr | ✔ Free Self-Hosted |
 
@@ -153,3 +166,4 @@ It operates completely **100% offline-first** using an embedded WebAssembly SQLi
 8. **[Planning, Budgeting & Forecasting Hubs](08_PLANNING_AND_FORECASTING_HUBS.md)**: Envelope budgets, recurring bills, cash flow forecasting and financial goals.
 9. **[Payee Intelligence & Directory](09_PAYEE_INTELLIGENCE_AND_DIRECTORY.md)**: Merchant memory, cadence detection and spend analytics.
 10. **[Stock Portfolio & Tax-Lot Accounting](10_STOCK_PORTFOLIO_AND_TAX_LOTS.md)**: Holdings register, disposal strategies, TWR/MWR, and the two Phase 4 boundaries.
+11. **[Property, Mortgages & Rental Income](11_PROPERTY_MORTGAGES_AND_RENTAL.md)**: Property equity, the amortization engine, the rent roll, and the Phase 5 divergences.

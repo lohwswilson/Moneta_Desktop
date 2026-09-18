@@ -17,11 +17,27 @@ import type {
   TaxLotDisposal,
   PortfolioSummary,
   TaxLotStrategy,
+  PropertyAsset,
+  PropertyTenant,
+  RentPayment,
+  LoanScenario,
+  LoanRateChange,
+  PropertyValuation,
 } from '../types/moneta';
 import initSqlJs, { type Database, type SqlJsStatic } from 'sql.js';
 import { DEFAULT_RULES } from './rulesEngine';
 import { computeGoalMetrics, toDateOnlyString, todayDateOnly } from './goalMath';
 import { computeLotMetrics, disposeTaxLots, computeModifiedDietz, computeXIRR } from './portfolioMath';
+import {
+  computePropertyMetrics,
+  computeLeaseStatus,
+  computeBalanceDue,
+  computeRentPaymentStatus,
+  computeRentTotals,
+  generateRentSchedule,
+} from './propertyMath';
+import { simulatePrepayment, detectRateChanges } from './loanMath';
+import type { RateObservation } from './loanMath';
 
 const DB_INDEXEDDB_NAME = 'moneta_sqlite_db';
 const STORE_NAME = 'sqlite_storage';
@@ -254,6 +270,105 @@ export class SqliteAdapter implements IMonetaRepository {
         term_type TEXT NOT NULL,
         disposal_strategy TEXT DEFAULT 'FIFO',
         created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS properties (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        asset_category TEXT,
+        property_type TEXT,
+        purchase_date TEXT,
+        purchase_price REAL,
+        current_market_value REAL DEFAULT 0,
+        mortgage_account_id TEXT,
+        mortgage_account_name TEXT,
+        color INTEGER,
+        notes TEXT,
+        vehicle_make TEXT,
+        vehicle_model TEXT,
+        vehicle_year INTEGER,
+        vehicle_vin TEXT,
+        vehicle_license_plate TEXT,
+        vehicle_mileage INTEGER,
+        antique_era TEXT,
+        maker_artist TEXT,
+        condition_grade TEXT,
+        insured_value REAL,
+        insurance_policy_number TEXT,
+        storage_location TEXT,
+        monthly_rental_income REAL,
+        monthly_property_tax REAL,
+        monthly_insurance REAL,
+        monthly_hoa_maintenance REAL,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS property_valuations (
+        id TEXT PRIMARY KEY,
+        property_id TEXT NOT NULL,
+        valuation_date TEXT NOT NULL,
+        appraised_value REAL NOT NULL,
+        appraiser TEXT,
+        notes TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS tenants (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        property_id TEXT NOT NULL,
+        unit_number TEXT,
+        email TEXT,
+        phone TEXT,
+        emergency_contact TEXT,
+        lease_start_date TEXT NOT NULL,
+        lease_end_date TEXT NOT NULL,
+        monthly_rent_amount REAL NOT NULL,
+        rent_due_day INTEGER DEFAULT 1,
+        security_deposit_held REAL DEFAULT 0,
+        security_deposit_refunded REAL DEFAULT 0,
+        deposit_status TEXT DEFAULT 'held',
+        notes TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS rent_payments (
+        id TEXT PRIMARY KEY,
+        tenant_id TEXT NOT NULL,
+        property_id TEXT,
+        period_month TEXT NOT NULL,
+        due_date TEXT NOT NULL,
+        amount_due REAL NOT NULL,
+        amount_paid REAL DEFAULT 0,
+        paid_date TEXT,
+        payment_status TEXT DEFAULT 'pending',
+        memo TEXT,
+        notes TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS loan_scenarios (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        account_id TEXT,
+        account_name TEXT,
+        principal_amount REAL NOT NULL,
+        annual_interest_rate REAL NOT NULL,
+        loan_term_years INTEGER,
+        loan_term_months INTEGER,
+        start_date TEXT NOT NULL,
+        extra_monthly_payment REAL DEFAULT 0,
+        lump_sum_payment REAL DEFAULT 0,
+        lump_sum_date TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS loan_rate_changes (
+        id TEXT PRIMARY KEY,
+        scenario_id TEXT NOT NULL,
+        effective_date TEXT NOT NULL,
+        annual_rate REAL NOT NULL,
+        note TEXT
       );
     `);
 
@@ -2431,6 +2546,922 @@ export class SqliteAdapter implements IMonetaRepository {
       money_weighted_return: xirr !== null ? Math.round(xirr * 10000) / 100 : undefined,
       asset_allocation: allocation,
     };
+  }
+
+  /**
+   * Phase 5: Property, Rental & Loan Scenario Methods
+   */
+
+  /**
+   * Maps a `properties` row to the persisted field shape. Everything that is
+   * derived (equity, rental metrics, valuation history) is attached later by
+   * `enrichProperty` through `computePropertyMetrics` — see propertyMath.ts.
+   */
+  private mapPropertyColumns(row: any[], columns: string[]): PropertyAsset {
+    const raw: Record<string, any> = {};
+    columns.forEach((col, idx) => (raw[col] = row[idx]));
+    return {
+      id: String(raw.id ?? ''),
+      name: String(raw.name ?? ''),
+      asset_category: (raw.asset_category as PropertyAsset['asset_category']) || 'real_estate',
+      property_type: (raw.property_type as PropertyAsset['property_type']) || 'other',
+      purchase_date: raw.purchase_date ? String(raw.purchase_date) : undefined,
+      purchase_price: raw.purchase_price !== null && raw.purchase_price !== undefined ? Number(raw.purchase_price) : undefined,
+      current_market_value: Number(raw.current_market_value) || 0,
+      mortgage_account_id: raw.mortgage_account_id ? String(raw.mortgage_account_id) : undefined,
+      mortgage_account_name: raw.mortgage_account_name ? String(raw.mortgage_account_name) : undefined,
+      color: raw.color !== null && raw.color !== undefined ? Number(raw.color) : undefined,
+      notes: raw.notes ? String(raw.notes) : undefined,
+      vehicle_make: raw.vehicle_make ? String(raw.vehicle_make) : undefined,
+      vehicle_model: raw.vehicle_model ? String(raw.vehicle_model) : undefined,
+      vehicle_year: raw.vehicle_year !== null && raw.vehicle_year !== undefined ? Number(raw.vehicle_year) : undefined,
+      vehicle_vin: raw.vehicle_vin ? String(raw.vehicle_vin) : undefined,
+      vehicle_license_plate: raw.vehicle_license_plate ? String(raw.vehicle_license_plate) : undefined,
+      vehicle_mileage: raw.vehicle_mileage !== null && raw.vehicle_mileage !== undefined ? Number(raw.vehicle_mileage) : undefined,
+      antique_era: raw.antique_era ? String(raw.antique_era) : undefined,
+      maker_artist: raw.maker_artist ? String(raw.maker_artist) : undefined,
+      condition_grade: raw.condition_grade ? (raw.condition_grade as PropertyAsset['condition_grade']) : undefined,
+      insured_value: raw.insured_value !== null && raw.insured_value !== undefined ? Number(raw.insured_value) : undefined,
+      insurance_policy_number: raw.insurance_policy_number ? String(raw.insurance_policy_number) : undefined,
+      storage_location: raw.storage_location ? String(raw.storage_location) : undefined,
+      monthly_rental_income:
+        raw.monthly_rental_income !== null && raw.monthly_rental_income !== undefined ? Number(raw.monthly_rental_income) : undefined,
+      monthly_property_tax:
+        raw.monthly_property_tax !== null && raw.monthly_property_tax !== undefined ? Number(raw.monthly_property_tax) : undefined,
+      monthly_insurance:
+        raw.monthly_insurance !== null && raw.monthly_insurance !== undefined ? Number(raw.monthly_insurance) : undefined,
+      monthly_hoa_maintenance:
+        raw.monthly_hoa_maintenance !== null && raw.monthly_hoa_maintenance !== undefined
+          ? Number(raw.monthly_hoa_maintenance)
+          : undefined,
+    } as PropertyAsset;
+  }
+
+  /**
+   * Attaches every derived figure to a persisted property: the linked mortgage
+   * account's balance and payment, the property's active tenants, the metrics
+   * from `computePropertyMetrics` and the valuation history.
+   */
+  private async enrichProperty(persisted: PropertyAsset): Promise<PropertyAsset> {
+    if (!this.db) return persisted;
+
+    let mortgageBalance: number | undefined;
+    let mortgageMonthlyPayment: number | undefined;
+    if (persisted.mortgage_account_id) {
+      const accRes = this.db.exec(`SELECT current_balance, monthly_payment FROM accounts WHERE id = :id;`, {
+        ':id': String(persisted.mortgage_account_id),
+      });
+      const acc = accRes[0]?.values?.[0];
+      if (acc) {
+        mortgageBalance = Number(acc[0]) || 0;
+        mortgageMonthlyPayment = Number(acc[1]) || 0;
+      }
+    }
+
+    // Only tenants with an active lease contribute rent (propertyMath.ts).
+    const tenantRes = this.db.exec(
+      `SELECT lease_start_date, lease_end_date, monthly_rent_amount FROM tenants WHERE property_id = :id;`,
+      { ':id': String(persisted.id) }
+    );
+    const activeTenants: Array<{ monthly_rent_amount: number }> = [];
+    for (const row of tenantRes[0]?.values || []) {
+      const start = row[0] ? String(row[0]) : undefined;
+      const end = row[1] ? String(row[1]) : undefined;
+      if (computeLeaseStatus(start, end) === 'active') {
+        activeTenants.push({ monthly_rent_amount: Number(row[2]) || 0 });
+      }
+    }
+
+    const metrics = computePropertyMetrics({
+      current_market_value: persisted.current_market_value,
+      mortgageBalance,
+      mortgageMonthlyPayment,
+      monthly_rental_income: persisted.monthly_rental_income,
+      monthly_property_tax: persisted.monthly_property_tax,
+      monthly_insurance: persisted.monthly_insurance,
+      monthly_hoa_maintenance: persisted.monthly_hoa_maintenance,
+      activeTenants,
+    });
+
+    const valRes = this.db.exec(
+      `SELECT id, property_id, valuation_date, appraised_value, appraiser, notes
+       FROM property_valuations WHERE property_id = :id ORDER BY valuation_date DESC;`,
+      { ':id': String(persisted.id) }
+    );
+    const valuation_history: PropertyValuation[] = (valRes[0]?.values || []).map((r) => ({
+      id: String(r[0]),
+      property_id: String(r[1]),
+      valuation_date: String(r[2]),
+      appraised_value: Number(r[3]) || 0,
+      appraiser: r[4] ? String(r[4]) : undefined,
+      notes: r[5] ? String(r[5]) : undefined,
+    }));
+
+    return { ...persisted, ...metrics, valuation_history };
+  }
+
+  private async fetchProperty(id: string | number): Promise<PropertyAsset | null> {
+    if (!this.db) return null;
+    const res = this.db.exec(`SELECT * FROM properties WHERE id = :id;`, { ':id': String(id) });
+    if (!res || !res[0]?.values?.length) return null;
+    return this.enrichProperty(this.mapPropertyColumns(res[0].values[0], res[0].columns));
+  }
+
+  async getProperties(): Promise<PropertyAsset[]> {
+    if (!this.db) await this.init();
+    if (!this.db) return [];
+
+    const res = this.db.exec(`SELECT * FROM properties ORDER BY name ASC;`);
+    if (!res || res.length === 0 || !res[0].values) return [];
+
+    return Promise.all(res[0].values.map((row) => this.enrichProperty(this.mapPropertyColumns(row, res[0].columns))));
+  }
+
+  async createProperty(payload: Partial<PropertyAsset>): Promise<PropertyAsset> {
+    if (!this.db) await this.init();
+    if (!this.db) throw new Error('Database not initialized');
+
+    const id = payload.id ? String(payload.id) : `sq-prop-${Date.now()}`;
+
+    this.db.run(
+      `INSERT INTO properties (
+         id, name, asset_category, property_type, purchase_date, purchase_price, current_market_value,
+         mortgage_account_id, mortgage_account_name, color, notes,
+         vehicle_make, vehicle_model, vehicle_year, vehicle_vin, vehicle_license_plate, vehicle_mileage,
+         antique_era, maker_artist, condition_grade, insured_value, insurance_policy_number, storage_location,
+         monthly_rental_income, monthly_property_tax, monthly_insurance, monthly_hoa_maintenance
+       ) VALUES (
+         :id, :name, :asset_category, :property_type, :purchase_date, :purchase_price, :current_market_value,
+         :mortgage_account_id, :mortgage_account_name, :color, :notes,
+         :vehicle_make, :vehicle_model, :vehicle_year, :vehicle_vin, :vehicle_license_plate, :vehicle_mileage,
+         :antique_era, :maker_artist, :condition_grade, :insured_value, :insurance_policy_number, :storage_location,
+         :monthly_rental_income, :monthly_property_tax, :monthly_insurance, :monthly_hoa_maintenance
+       );`,
+      {
+        ':id': id,
+        ':name': payload.name || 'New Property',
+        ':asset_category': payload.asset_category || 'real_estate',
+        ':property_type': payload.property_type || 'other',
+        ':purchase_date': payload.purchase_date || null,
+        ':purchase_price': payload.purchase_price !== undefined ? Number(payload.purchase_price) : null,
+        ':current_market_value': Number(payload.current_market_value || 0),
+        ':mortgage_account_id': payload.mortgage_account_id ? String(payload.mortgage_account_id) : null,
+        ':mortgage_account_name': payload.mortgage_account_name || null,
+        ':color': payload.color !== undefined ? Number(payload.color) : null,
+        ':notes': payload.notes || null,
+        ':vehicle_make': payload.vehicle_make || null,
+        ':vehicle_model': payload.vehicle_model || null,
+        ':vehicle_year': payload.vehicle_year !== undefined ? Number(payload.vehicle_year) : null,
+        ':vehicle_vin': payload.vehicle_vin || null,
+        ':vehicle_license_plate': payload.vehicle_license_plate || null,
+        ':vehicle_mileage': payload.vehicle_mileage !== undefined ? Number(payload.vehicle_mileage) : null,
+        ':antique_era': payload.antique_era || null,
+        ':maker_artist': payload.maker_artist || null,
+        ':condition_grade': payload.condition_grade || null,
+        ':insured_value': payload.insured_value !== undefined ? Number(payload.insured_value) : null,
+        ':insurance_policy_number': payload.insurance_policy_number || null,
+        ':storage_location': payload.storage_location || null,
+        ':monthly_rental_income': payload.monthly_rental_income !== undefined ? Number(payload.monthly_rental_income) : null,
+        ':monthly_property_tax': payload.monthly_property_tax !== undefined ? Number(payload.monthly_property_tax) : null,
+        ':monthly_insurance': payload.monthly_insurance !== undefined ? Number(payload.monthly_insurance) : null,
+        ':monthly_hoa_maintenance':
+          payload.monthly_hoa_maintenance !== undefined ? Number(payload.monthly_hoa_maintenance) : null,
+      }
+    );
+
+    await this.persist();
+    return (await this.fetchProperty(id)) || ({ id, ...payload } as PropertyAsset);
+  }
+
+  /**
+   * Partial update via the load-merge-write approach, mirroring `updateGoal`.
+   */
+  async updateProperty(id: string | number, payload: Partial<PropertyAsset>): Promise<PropertyAsset> {
+    if (!this.db) await this.init();
+    if (!this.db) throw new Error('Database not initialized');
+
+    const existing = this.db.exec(`SELECT * FROM properties WHERE id = :id;`, { ':id': String(id) });
+    if (!existing || existing.length === 0 || !existing[0].values?.length) {
+      throw new Error(`Property ${id} not found`);
+    }
+    const current = this.mapPropertyColumns(existing[0].values[0], existing[0].columns);
+
+    this.db.run(
+      `UPDATE properties SET
+         name = :name, asset_category = :asset_category, property_type = :property_type,
+         purchase_date = :purchase_date, purchase_price = :purchase_price,
+         current_market_value = :current_market_value,
+         mortgage_account_id = :mortgage_account_id, mortgage_account_name = :mortgage_account_name,
+         color = :color, notes = :notes,
+         vehicle_make = :vehicle_make, vehicle_model = :vehicle_model, vehicle_year = :vehicle_year,
+         vehicle_vin = :vehicle_vin, vehicle_license_plate = :vehicle_license_plate,
+         vehicle_mileage = :vehicle_mileage,
+         antique_era = :antique_era, maker_artist = :maker_artist, condition_grade = :condition_grade,
+         insured_value = :insured_value, insurance_policy_number = :insurance_policy_number,
+         storage_location = :storage_location,
+         monthly_rental_income = :monthly_rental_income, monthly_property_tax = :monthly_property_tax,
+         monthly_insurance = :monthly_insurance, monthly_hoa_maintenance = :monthly_hoa_maintenance
+       WHERE id = :id;`,
+      {
+        ':id': String(id),
+        ':name': payload.name !== undefined ? payload.name : current.name,
+        ':asset_category': payload.asset_category !== undefined ? payload.asset_category : current.asset_category,
+        ':property_type': payload.property_type !== undefined ? payload.property_type : current.property_type,
+        ':purchase_date':
+          payload.purchase_date !== undefined
+            ? payload.purchase_date || null
+            : current.purchase_date || null,
+        ':purchase_price':
+          payload.purchase_price !== undefined
+            ? payload.purchase_price !== null
+              ? Number(payload.purchase_price)
+              : null
+            : current.purchase_price ?? null,
+        ':current_market_value':
+          payload.current_market_value !== undefined ? Number(payload.current_market_value) : current.current_market_value,
+        ':mortgage_account_id':
+          payload.mortgage_account_id !== undefined
+            ? payload.mortgage_account_id
+              ? String(payload.mortgage_account_id)
+              : null
+            : current.mortgage_account_id
+              ? String(current.mortgage_account_id)
+              : null,
+        ':mortgage_account_name':
+          payload.mortgage_account_name !== undefined
+            ? payload.mortgage_account_name || null
+            : current.mortgage_account_name || null,
+        ':color': payload.color !== undefined ? payload.color : current.color ?? null,
+        ':notes': payload.notes !== undefined ? payload.notes || null : current.notes || null,
+        ':vehicle_make': payload.vehicle_make !== undefined ? payload.vehicle_make || null : current.vehicle_make || null,
+        ':vehicle_model': payload.vehicle_model !== undefined ? payload.vehicle_model || null : current.vehicle_model || null,
+        ':vehicle_year': payload.vehicle_year !== undefined ? payload.vehicle_year ?? null : current.vehicle_year ?? null,
+        ':vehicle_vin': payload.vehicle_vin !== undefined ? payload.vehicle_vin || null : current.vehicle_vin || null,
+        ':vehicle_license_plate':
+          payload.vehicle_license_plate !== undefined
+            ? payload.vehicle_license_plate || null
+            : current.vehicle_license_plate || null,
+        ':vehicle_mileage':
+          payload.vehicle_mileage !== undefined ? payload.vehicle_mileage ?? null : current.vehicle_mileage ?? null,
+        ':antique_era': payload.antique_era !== undefined ? payload.antique_era || null : current.antique_era || null,
+        ':maker_artist': payload.maker_artist !== undefined ? payload.maker_artist || null : current.maker_artist || null,
+        ':condition_grade':
+          payload.condition_grade !== undefined ? payload.condition_grade || null : current.condition_grade || null,
+        ':insured_value': payload.insured_value !== undefined ? payload.insured_value ?? null : current.insured_value ?? null,
+        ':insurance_policy_number':
+          payload.insurance_policy_number !== undefined
+            ? payload.insurance_policy_number || null
+            : current.insurance_policy_number || null,
+        ':storage_location':
+          payload.storage_location !== undefined ? payload.storage_location || null : current.storage_location || null,
+        ':monthly_rental_income':
+          payload.monthly_rental_income !== undefined
+            ? payload.monthly_rental_income ?? null
+            : current.monthly_rental_income ?? null,
+        ':monthly_property_tax':
+          payload.monthly_property_tax !== undefined ? payload.monthly_property_tax ?? null : current.monthly_property_tax ?? null,
+        ':monthly_insurance':
+          payload.monthly_insurance !== undefined ? payload.monthly_insurance ?? null : current.monthly_insurance ?? null,
+        ':monthly_hoa_maintenance':
+          payload.monthly_hoa_maintenance !== undefined
+            ? payload.monthly_hoa_maintenance ?? null
+            : current.monthly_hoa_maintenance ?? null,
+      }
+    );
+
+    await this.persist();
+    return (await this.fetchProperty(id)) || current;
+  }
+
+  async deleteProperty(id: string | number): Promise<boolean> {
+    if (!this.db) await this.init();
+    if (!this.db) return false;
+
+    this.db.run(`DELETE FROM properties WHERE id = :id;`, { ':id': String(id) });
+    await this.persist();
+    return true;
+  }
+
+  /**
+   * Records a valuation and lifts the property's `current_market_value` to the
+   * appraised value, matching upstream's valuation action.
+   */
+  async addPropertyValuation(
+    id: string | number,
+    payload: { valuation_date: string; appraised_value: number; appraiser?: string; notes?: string }
+  ): Promise<PropertyAsset> {
+    if (!this.db) await this.init();
+    if (!this.db) throw new Error('Database not initialized');
+
+    const propertyId = String(id);
+    const appraisedValue = Number(payload.appraised_value || 0);
+
+    this.db.run(
+      `INSERT INTO property_valuations (id, property_id, valuation_date, appraised_value, appraiser, notes)
+       VALUES (:id, :property_id, :valuation_date, :appraised_value, :appraiser, :notes);`,
+      {
+        ':id': `sq-valu-${Date.now()}`,
+        ':property_id': propertyId,
+        ':valuation_date': payload.valuation_date || new Date().toISOString().split('T')[0],
+        ':appraised_value': appraisedValue,
+        ':appraiser': payload.appraiser || null,
+        ':notes': payload.notes || null,
+      }
+    );
+
+    this.db.run(`UPDATE properties SET current_market_value = :val WHERE id = :id;`, {
+      ':val': appraisedValue,
+      ':id': propertyId,
+    });
+
+    await this.persist();
+    const updated = await this.fetchProperty(id);
+    if (!updated) throw new Error(`Property ${id} not found`);
+    return updated;
+  }
+
+  /**
+   * Maps a `tenants` row to the persisted field shape. Lease status and rent
+   * totals are derived on read by `getTenants` through propertyMath.ts.
+   */
+  private mapTenantColumns(
+    row: any[],
+    columns: string[]
+  ): Omit<PropertyTenant, 'lease_status' | 'total_rent_collected' | 'total_rent_overdue'> {
+    const raw: Record<string, any> = {};
+    columns.forEach((col, idx) => (raw[col] = row[idx]));
+    return {
+      id: String(raw.id ?? ''),
+      name: String(raw.name ?? ''),
+      property_id: String(raw.property_id ?? ''),
+      unit_number: raw.unit_number ? String(raw.unit_number) : undefined,
+      email: raw.email ? String(raw.email) : undefined,
+      phone: raw.phone ? String(raw.phone) : undefined,
+      emergency_contact: raw.emergency_contact ? String(raw.emergency_contact) : undefined,
+      lease_start_date: raw.lease_start_date ? String(raw.lease_start_date) : '',
+      lease_end_date: raw.lease_end_date ? String(raw.lease_end_date) : '',
+      monthly_rent_amount: Number(raw.monthly_rent_amount) || 0,
+      rent_due_day: Number(raw.rent_due_day) || 1,
+      security_deposit_held: Number(raw.security_deposit_held) || 0,
+      security_deposit_refunded: Number(raw.security_deposit_refunded) || 0,
+      deposit_status: (raw.deposit_status as PropertyTenant['deposit_status']) || 'held',
+      notes: raw.notes ? String(raw.notes) : undefined,
+    };
+  }
+
+  async getTenants(): Promise<PropertyTenant[]> {
+    if (!this.db) await this.init();
+    if (!this.db) return [];
+
+    const propRes = this.db.exec(`SELECT id, name FROM properties;`);
+    const propNames = new Map<string, string>();
+    for (const r of propRes[0]?.values || []) propNames.set(String(r[0]), String(r[1] || ''));
+
+    const payRes = this.db.exec(`SELECT * FROM rent_payments;`);
+    const paymentsByTenant = new Map<string, RentPayment[]>();
+    for (const row of payRes[0]?.values || []) {
+      const p = this.mapRentPaymentColumns(row, payRes[0].columns);
+      const tid = String(p.tenant_id);
+      if (!paymentsByTenant.has(tid)) paymentsByTenant.set(tid, []);
+      paymentsByTenant.get(tid)!.push(p);
+    }
+
+    const res = this.db.exec(`SELECT * FROM tenants ORDER BY name ASC;`);
+    if (!res || res.length === 0 || !res[0].values) return [];
+
+    return res[0].values.map((row) => {
+      const t = this.mapTenantColumns(row, res[0].columns);
+      return {
+        ...t,
+        property_name: propNames.get(String(t.property_id)),
+        lease_status: computeLeaseStatus(t.lease_start_date, t.lease_end_date),
+        ...computeRentTotals(paymentsByTenant.get(String(t.id)) || []),
+      };
+    });
+  }
+
+  async createTenant(payload: Partial<PropertyTenant>): Promise<PropertyTenant> {
+    if (!this.db) await this.init();
+    if (!this.db) throw new Error('Database not initialized');
+
+    const id = payload.id ? String(payload.id) : `sq-tenant-${Date.now()}`;
+
+    this.db.run(
+      `INSERT INTO tenants (
+         id, name, property_id, unit_number, email, phone, emergency_contact,
+         lease_start_date, lease_end_date, monthly_rent_amount, rent_due_day,
+         security_deposit_held, security_deposit_refunded, deposit_status, notes
+       ) VALUES (
+         :id, :name, :property_id, :unit_number, :email, :phone, :emergency_contact,
+         :lease_start_date, :lease_end_date, :monthly_rent_amount, :rent_due_day,
+         :security_deposit_held, :security_deposit_refunded, :deposit_status, :notes
+       );`,
+      {
+        ':id': id,
+        ':name': payload.name || 'New Tenant',
+        ':property_id': payload.property_id ? String(payload.property_id) : '',
+        ':unit_number': payload.unit_number || null,
+        ':email': payload.email || null,
+        ':phone': payload.phone || null,
+        ':emergency_contact': payload.emergency_contact || null,
+        ':lease_start_date': payload.lease_start_date || new Date().toISOString().split('T')[0],
+        ':lease_end_date': payload.lease_end_date || new Date().toISOString().split('T')[0],
+        ':monthly_rent_amount': Number(payload.monthly_rent_amount || 0),
+        ':rent_due_day': payload.rent_due_day !== undefined ? Number(payload.rent_due_day) : 1,
+        ':security_deposit_held': Number(payload.security_deposit_held ?? 0),
+        ':security_deposit_refunded': Number(payload.security_deposit_refunded ?? 0),
+        ':deposit_status': payload.deposit_status || 'held',
+        ':notes': payload.notes || null,
+      }
+    );
+
+    await this.persist();
+
+    const tenants = await this.getTenants();
+    return (
+      tenants.find((t) => String(t.id) === id) || ({ id, name: payload.name || 'New Tenant' } as PropertyTenant)
+    );
+  }
+
+  /**
+   * Partial update via the load-merge-write approach, mirroring `updateGoal`.
+   */
+  async updateTenant(id: string | number, payload: Partial<PropertyTenant>): Promise<PropertyTenant> {
+    if (!this.db) await this.init();
+    if (!this.db) throw new Error('Database not initialized');
+
+    const existing = this.db.exec(`SELECT * FROM tenants WHERE id = :id;`, { ':id': String(id) });
+    if (!existing || existing.length === 0 || !existing[0].values?.length) {
+      throw new Error(`Tenant ${id} not found`);
+    }
+    const current = this.mapTenantColumns(existing[0].values[0], existing[0].columns);
+
+    this.db.run(
+      `UPDATE tenants SET
+         name = :name, property_id = :property_id, unit_number = :unit_number,
+         email = :email, phone = :phone, emergency_contact = :emergency_contact,
+         lease_start_date = :lease_start_date, lease_end_date = :lease_end_date,
+         monthly_rent_amount = :monthly_rent_amount, rent_due_day = :rent_due_day,
+         security_deposit_held = :security_deposit_held,
+         security_deposit_refunded = :security_deposit_refunded,
+         deposit_status = :deposit_status, notes = :notes
+       WHERE id = :id;`,
+      {
+        ':id': String(id),
+        ':name': payload.name !== undefined ? payload.name : current.name,
+        ':property_id': payload.property_id !== undefined ? String(payload.property_id) : current.property_id,
+        ':unit_number': payload.unit_number !== undefined ? payload.unit_number || null : current.unit_number || null,
+        ':email': payload.email !== undefined ? payload.email || null : current.email || null,
+        ':phone': payload.phone !== undefined ? payload.phone || null : current.phone || null,
+        ':emergency_contact':
+          payload.emergency_contact !== undefined ? payload.emergency_contact || null : current.emergency_contact || null,
+        ':lease_start_date':
+          payload.lease_start_date !== undefined ? payload.lease_start_date : current.lease_start_date,
+        ':lease_end_date': payload.lease_end_date !== undefined ? payload.lease_end_date : current.lease_end_date,
+        ':monthly_rent_amount':
+          payload.monthly_rent_amount !== undefined
+            ? Number(payload.monthly_rent_amount)
+            : current.monthly_rent_amount,
+        ':rent_due_day': payload.rent_due_day !== undefined ? Number(payload.rent_due_day) : current.rent_due_day,
+        ':security_deposit_held':
+          payload.security_deposit_held !== undefined
+            ? Number(payload.security_deposit_held)
+            : current.security_deposit_held ?? 0,
+        ':security_deposit_refunded':
+          payload.security_deposit_refunded !== undefined
+            ? Number(payload.security_deposit_refunded)
+            : current.security_deposit_refunded ?? 0,
+        ':deposit_status':
+          payload.deposit_status !== undefined ? payload.deposit_status : current.deposit_status,
+        ':notes': payload.notes !== undefined ? payload.notes || null : current.notes || null,
+      }
+    );
+
+    await this.persist();
+
+    const tenants = await this.getTenants();
+    return tenants.find((t) => String(t.id) === String(id)) || ({ ...current } as PropertyTenant);
+  }
+
+  async deleteTenant(id: string | number): Promise<boolean> {
+    if (!this.db) await this.init();
+    if (!this.db) return false;
+
+    // A deleted tenant's rent roll is meaningless — drop it with the tenant.
+    this.db.run(`DELETE FROM rent_payments WHERE tenant_id = :id;`, { ':id': String(id) });
+    this.db.run(`DELETE FROM tenants WHERE id = :id;`, { ':id': String(id) });
+    await this.persist();
+    return true;
+  }
+
+  /**
+   * Generates one rent payment per lease month via propertyMath.ts. Returns the
+   * count of rows actually inserted — months that already have a payment are
+   * skipped, so re-running is idempotent.
+   */
+  async generateRentSchedule(tenantId: string | number): Promise<number> {
+    if (!this.db) await this.init();
+    if (!this.db) return 0;
+
+    const tRes = this.db.exec(`SELECT * FROM tenants WHERE id = :id;`, { ':id': String(tenantId) });
+    if (!tRes || !tRes[0]?.values?.length) throw new Error(`Tenant ${tenantId} not found`);
+    const tenant = this.mapTenantColumns(tRes[0].values[0], tRes[0].columns);
+    const db = this.db;
+
+    const existingRes = this.db.exec(`SELECT period_month FROM rent_payments WHERE tenant_id = :id;`, {
+      ':id': String(tenantId),
+    });
+    const existingPeriodMonths = (existingRes[0]?.values || []).map((r) => String(r[0]));
+
+    const generated = generateRentSchedule(
+      {
+        lease_start_date: tenant.lease_start_date,
+        lease_end_date: tenant.lease_end_date,
+        monthly_rent_amount: tenant.monthly_rent_amount,
+        rent_due_day: tenant.rent_due_day,
+      },
+      existingPeriodMonths
+    );
+
+    const base = Date.now();
+    generated.forEach((g, i) => {
+      db.run(
+        `INSERT INTO rent_payments (id, tenant_id, property_id, period_month, due_date, amount_due, amount_paid, paid_date, payment_status, memo, notes)
+         VALUES (:id, :tenant_id, :property_id, :period_month, :due_date, :amount_due, :amount_paid, :paid_date, :payment_status, :memo, :notes);`,
+        {
+          ':id': `sq-rp-${base}-${i}`,
+          ':tenant_id': String(tenantId),
+          ':property_id': tenant.property_id ? String(tenant.property_id) : null,
+          ':period_month': g.period_month,
+          ':due_date': g.due_date,
+          ':amount_due': g.amount_due,
+          ':amount_paid': g.amount_paid,
+          ':paid_date': null,
+          ':payment_status': g.payment_status,
+          ':memo': null,
+          ':notes': null,
+        }
+      );
+    });
+
+    await this.persist();
+    return generated.length;
+  }
+
+  /**
+   * Maps a `rent_payments` row; `balance_due` and `payment_status` are placeholders,
+   * always replaced through `computeBalanceDue` / `computeRentPaymentStatus` on read.
+   */
+  private mapRentPaymentColumns(row: any[], columns: string[]): RentPayment {
+    const raw: Record<string, any> = {};
+    columns.forEach((col, idx) => (raw[col] = row[idx]));
+    return {
+      id: String(raw.id ?? ''),
+      tenant_id: String(raw.tenant_id ?? ''),
+      property_id: raw.property_id ? String(raw.property_id) : undefined,
+      period_month: String(raw.period_month ?? ''),
+      due_date: String(raw.due_date ?? ''),
+      amount_due: Number(raw.amount_due) || 0,
+      amount_paid: Number(raw.amount_paid) || 0,
+      balance_due: 0,
+      paid_date: raw.paid_date ? String(raw.paid_date) : undefined,
+      payment_status: (raw.payment_status as RentPayment['payment_status']) || 'pending',
+      memo: raw.memo ? String(raw.memo) : undefined,
+      notes: raw.notes ? String(raw.notes) : undefined,
+    } as RentPayment;
+  }
+
+  async getRentPayments(tenantId?: string | number): Promise<RentPayment[]> {
+    if (!this.db) await this.init();
+    if (!this.db) return [];
+
+    const tenantRes = this.db.exec(`SELECT id, name FROM tenants;`);
+    const tenantNames = new Map<string, string>();
+    for (const r of tenantRes[0]?.values || []) tenantNames.set(String(r[0]), String(r[1] || ''));
+
+    const res = this.db.exec(
+      tenantId
+        ? `SELECT * FROM rent_payments WHERE tenant_id = :tid ORDER BY period_month DESC, id DESC;`
+        : `SELECT * FROM rent_payments ORDER BY period_month DESC, id DESC;`,
+      tenantId ? { ':tid': String(tenantId) } : undefined
+    );
+    if (!res || res.length === 0 || !res[0].values) return [];
+
+    return res[0].values.map((row) => {
+      const p = this.mapRentPaymentColumns(row, res[0].columns);
+      return {
+        ...p,
+        tenant_name: tenantNames.get(String(p.tenant_id)),
+        balance_due: computeBalanceDue(p.amount_due, p.amount_paid),
+        payment_status: computeRentPaymentStatus(p),
+      };
+    });
+  }
+
+  async markRentPaid(paymentId: string | number): Promise<RentPayment> {
+    if (!this.db) await this.init();
+    if (!this.db) throw new Error('Database not initialized');
+
+    const today = toDateOnlyString(todayDateOnly());
+    this.db.run(
+      `UPDATE rent_payments SET amount_paid = amount_due, paid_date = :today, payment_status = 'paid' WHERE id = :id;`,
+      { ':today': today, ':id': String(paymentId) }
+    );
+    await this.persist();
+
+    const payments = await this.getRentPayments();
+    const updated = payments.find((r) => String(r.id) === String(paymentId));
+    if (!updated) throw new Error(`Rent payment ${paymentId} not found`);
+    return updated;
+  }
+
+  /**
+   * Maps a `loan_scenarios` row. Every summary figure is derived on read by
+   * `deriveLoanScenario` through `simulatePrepayment` — see loanMath.ts.
+   */
+  private mapLoanScenarioColumns(row: any[], columns: string[]): LoanScenario {
+    const raw: Record<string, any> = {};
+    columns.forEach((col, idx) => (raw[col] = row[idx]));
+    return {
+      id: String(raw.id ?? ''),
+      name: String(raw.name ?? ''),
+      account_id: raw.account_id ? String(raw.account_id) : undefined,
+      account_name: raw.account_name ? String(raw.account_name) : undefined,
+      principal_amount: Number(raw.principal_amount) || 0,
+      annual_interest_rate: Number(raw.annual_interest_rate) || 0,
+      loan_term_years: Number(raw.loan_term_years) || 0,
+      loan_term_months: Number(raw.loan_term_months) || 0,
+      start_date: raw.start_date ? String(raw.start_date) : '',
+      extra_monthly_payment: Number(raw.extra_monthly_payment) || 0,
+      lump_sum_payment: Number(raw.lump_sum_payment) || 0,
+      lump_sum_date: raw.lump_sum_date ? String(raw.lump_sum_date) : undefined,
+      rate_changes: [],
+      monthly_payment: 0,
+      total_payment_original: 0,
+      total_interest_original: 0,
+      original_payoff_date: '',
+      total_payment_actual: 0,
+      total_interest_actual: 0,
+      actual_payoff_date: '',
+      interest_saved: 0,
+      months_saved: 0,
+      years_saved: 0,
+    } as LoanScenario;
+  }
+
+  private deriveLoanScenario(scenario: LoanScenario, rateChanges: LoanRateChange[]): LoanScenario {
+    const termMonths =
+      (Number(scenario.loan_term_years) || 0) * 12 + (Number(scenario.loan_term_months) || 0);
+    const sim = simulatePrepayment({
+      principal: scenario.principal_amount,
+      annualRatePct: scenario.annual_interest_rate,
+      termMonths,
+      startDate: scenario.start_date,
+      extraMonthly: scenario.extra_monthly_payment,
+      lumpSum: scenario.lump_sum_payment,
+      lumpSumDate: scenario.lump_sum_date,
+      rateChanges,
+    });
+    return {
+      ...scenario,
+      rate_changes: rateChanges,
+      monthly_payment: sim.baseline.monthlyPayment,
+      total_payment_original: sim.baseline.totalPaid,
+      total_interest_original: sim.baseline.totalInterest,
+      original_payoff_date: sim.baseline.payoffDate,
+      total_payment_actual: sim.accelerated.totalPaid,
+      total_interest_actual: sim.accelerated.totalInterest,
+      actual_payoff_date: sim.accelerated.payoffDate,
+      interest_saved: sim.interestSaved,
+      months_saved: sim.monthsSaved,
+      years_saved: sim.yearsSaved,
+    };
+  }
+
+  async getLoanScenarios(): Promise<LoanScenario[]> {
+    if (!this.db) await this.init();
+    if (!this.db) return [];
+
+    const res = this.db.exec(`SELECT * FROM loan_scenarios ORDER BY name ASC;`);
+    if (!res || res.length === 0 || !res[0].values) return [];
+
+    const rcRes = this.db.exec(`SELECT * FROM loan_rate_changes ORDER BY effective_date ASC;`);
+    const changesByScenario = new Map<string, LoanRateChange[]>();
+    for (const row of rcRes[0]?.values || []) {
+      const raw: Record<string, any> = {};
+      rcRes[0].columns.forEach((col, idx) => (raw[col] = row[idx]));
+      const rc: LoanRateChange = {
+        id: String(raw.id ?? ''),
+        scenario_id: raw.scenario_id ? String(raw.scenario_id) : undefined,
+        effective_date: String(raw.effective_date ?? ''),
+        annual_rate: Number(raw.annual_rate) || 0,
+        note: raw.note ? String(raw.note) : undefined,
+      };
+      const sid = String(rc.scenario_id ?? '');
+      if (!changesByScenario.has(sid)) changesByScenario.set(sid, []);
+      changesByScenario.get(sid)!.push(rc);
+    }
+
+    return res[0].values.map((row) => {
+      const scenario = this.mapLoanScenarioColumns(row, res[0].columns);
+      return this.deriveLoanScenario(scenario, changesByScenario.get(String(scenario.id)) || []);
+    });
+  }
+
+  async createLoanScenario(payload: Partial<LoanScenario>): Promise<LoanScenario> {
+    if (!this.db) await this.init();
+    if (!this.db) throw new Error('Database not initialized');
+
+    const id = payload.id ? String(payload.id) : `sq-loan-${Date.now()}`;
+    const today = toDateOnlyString(todayDateOnly());
+
+    this.db.run(
+      `INSERT INTO loan_scenarios (
+         id, name, account_id, account_name, principal_amount, annual_interest_rate,
+         loan_term_years, loan_term_months, start_date, extra_monthly_payment,
+         lump_sum_payment, lump_sum_date
+       ) VALUES (
+         :id, :name, :account_id, :account_name, :principal_amount, :annual_interest_rate,
+         :loan_term_years, :loan_term_months, :start_date, :extra_monthly_payment,
+         :lump_sum_payment, :lump_sum_date
+       );`,
+      {
+        ':id': id,
+        ':name': payload.name || 'New Loan Scenario',
+        ':account_id': payload.account_id ? String(payload.account_id) : null,
+        ':account_name': payload.account_name || null,
+        ':principal_amount': Number(payload.principal_amount || 0),
+        ':annual_interest_rate': Number(payload.annual_interest_rate || 0),
+        ':loan_term_years': Number(payload.loan_term_years || 0),
+        ':loan_term_months': Number(payload.loan_term_months || 0),
+        ':start_date': payload.start_date || today,
+        ':extra_monthly_payment': Number(payload.extra_monthly_payment || 0),
+        ':lump_sum_payment': Number(payload.lump_sum_payment || 0),
+        ':lump_sum_date': payload.lump_sum_date || null,
+      }
+    );
+
+    await this.persist();
+
+    const scenarios = await this.getLoanScenarios();
+    return scenarios.find((s) => s.id === id) || (payload as LoanScenario);
+  }
+
+  /**
+   * Partial update via the load-merge-write approach, mirroring `updateGoal`.
+   */
+  async updateLoanScenario(id: string | number, payload: Partial<LoanScenario>): Promise<LoanScenario> {
+    if (!this.db) await this.init();
+    if (!this.db) throw new Error('Database not initialized');
+
+    const existing = this.db.exec(`SELECT * FROM loan_scenarios WHERE id = :id;`, { ':id': String(id) });
+    if (!existing || existing.length === 0 || !existing[0].values?.length) {
+      throw new Error(`Loan scenario ${id} not found`);
+    }
+    const current = this.mapLoanScenarioColumns(existing[0].values[0], existing[0].columns);
+
+    this.db.run(
+      `UPDATE loan_scenarios SET
+         name = :name, account_id = :account_id, account_name = :account_name,
+         principal_amount = :principal_amount, annual_interest_rate = :annual_interest_rate,
+         loan_term_years = :loan_term_years, loan_term_months = :loan_term_months,
+         start_date = :start_date, extra_monthly_payment = :extra_monthly_payment,
+         lump_sum_payment = :lump_sum_payment, lump_sum_date = :lump_sum_date
+       WHERE id = :id;`,
+      {
+        ':id': String(id),
+        ':name': payload.name !== undefined ? payload.name : current.name,
+        ':account_id':
+          payload.account_id !== undefined
+            ? payload.account_id
+              ? String(payload.account_id)
+              : null
+            : current.account_id
+              ? String(current.account_id)
+              : null,
+        ':account_name':
+          payload.account_name !== undefined ? payload.account_name || null : current.account_name || null,
+        ':principal_amount':
+          payload.principal_amount !== undefined ? Number(payload.principal_amount) : current.principal_amount,
+        ':annual_interest_rate':
+          payload.annual_interest_rate !== undefined
+            ? Number(payload.annual_interest_rate)
+            : current.annual_interest_rate,
+        ':loan_term_years':
+          payload.loan_term_years !== undefined ? Number(payload.loan_term_years) : current.loan_term_years,
+        ':loan_term_months':
+          payload.loan_term_months !== undefined ? Number(payload.loan_term_months) : current.loan_term_months,
+        ':start_date': payload.start_date !== undefined ? payload.start_date : current.start_date,
+        ':extra_monthly_payment':
+          payload.extra_monthly_payment !== undefined
+            ? Number(payload.extra_monthly_payment)
+            : current.extra_monthly_payment,
+        ':lump_sum_payment':
+          payload.lump_sum_payment !== undefined ? Number(payload.lump_sum_payment) : current.lump_sum_payment,
+        ':lump_sum_date':
+          payload.lump_sum_date !== undefined ? payload.lump_sum_date || null : current.lump_sum_date || null,
+      }
+    );
+
+    await this.persist();
+
+    const scenarios = await this.getLoanScenarios();
+    return scenarios.find((s) => String(s.id) === String(id)) || current;
+  }
+
+  async deleteLoanScenario(id: string | number): Promise<boolean> {
+    if (!this.db) await this.init();
+    if (!this.db) return false;
+
+    // Rate-change segments belong to the scenario; drop them with it.
+    this.db.run(`DELETE FROM loan_rate_changes WHERE scenario_id = :id;`, { ':id': String(id) });
+    this.db.run(`DELETE FROM loan_scenarios WHERE id = :id;`, { ':id': String(id) });
+    await this.persist();
+    return true;
+  }
+
+  /**
+   * Infers historical rate segments from the linked account's interest
+   * transactions, mirroring `loan.py::action_infer_rate_changes`: the first
+   * segment becomes the scenario's opening rate, the rest become
+   * `loan_rate_changes` rows. Existing segments for the scenario are replaced
+   * so re-running reflects the current transaction history.
+   */
+  async inferLoanRateChanges(id: string | number): Promise<LoanRateChange[]> {
+    if (!this.db) await this.init();
+    if (!this.db) throw new Error('Database not initialized');
+
+    const existing = this.db.exec(`SELECT * FROM loan_scenarios WHERE id = :id;`, { ':id': String(id) });
+    if (!existing || existing.length === 0 || !existing[0].values?.length) {
+      throw new Error(`Loan scenario ${id} not found`);
+    }
+    const scenario = this.mapLoanScenarioColumns(existing[0].values[0], existing[0].columns);
+    if (!scenario.account_id) return [];
+    const db = this.db;
+
+    const txRes = this.db.exec(
+      `SELECT date, amount, running_balance
+       FROM transactions
+       WHERE account_id = :acc AND LOWER(category_name) LIKE '%interest%'
+       ORDER BY date ASC;`,
+      { ':acc': String(scenario.account_id) }
+    );
+
+    const observations: RateObservation[] = [];
+    for (const row of txRes[0]?.values || []) {
+      const interest = Math.abs(Number(row[1]) || 0);
+      const runningBalance = Number(row[2]) || 0;
+      const balanceBefore = Math.abs(runningBalance) + interest;
+      if (balanceBefore <= 500) continue;
+      const rate = (interest / balanceBefore) * 12 * 100;
+      if (rate < 0.1 || rate > 30) continue;
+      observations.push({
+        date: String(row[0] ?? ''),
+        rate,
+        interest,
+        balance: balanceBefore,
+      });
+    }
+
+    const segments = detectRateChanges(observations);
+    if (segments.length === 0) return [];
+
+    // Segment 0 is the loan's opening rate, not a change.
+    this.db.run(`UPDATE loan_scenarios SET annual_interest_rate = :rate WHERE id = :id;`, {
+      ':rate': segments[0].annual_rate,
+      ':id': String(id),
+    });
+
+    this.db.run(`DELETE FROM loan_rate_changes WHERE scenario_id = :id;`, { ':id': String(id) });
+
+    const created: LoanRateChange[] = [];
+    const base = Date.now();
+    segments.slice(1).forEach((seg, i) => {
+      const rcId = `sq-rc-${base}-${i}`;
+      const rcNote = `Inferred from ${seg.observation_count} interest payments`;
+      const rateChange: LoanRateChange = {
+        id: rcId,
+        scenario_id: String(id),
+        effective_date: seg.effective_date,
+        annual_rate: seg.annual_rate,
+        note: rcNote,
+      };
+      db.run(
+        `INSERT INTO loan_rate_changes (id, scenario_id, effective_date, annual_rate, note)
+         VALUES (:id, :scenario_id, :effective_date, :annual_rate, :note);`,
+        {
+          ':id': rcId,
+          ':scenario_id': String(id),
+          ':effective_date': seg.effective_date,
+          ':annual_rate': seg.annual_rate,
+          ':note': rcNote,
+        }
+      );
+      created.push(rateChange);
+    });
+
+    await this.persist();
+    return created;
   }
 
   /**

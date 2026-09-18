@@ -25,6 +25,7 @@ Built with **Tauri v2**, **Svelte 5 (Runes-Native)**, **TypeScript**, **Tailwind
 - 🏆 **Financial Goals Tracker:** Milestone goals and sinking funds with progress bars and the monthly contribution each one needs, computed by a single shared engine so every data source agrees.
 - 🏪 **Payee Intelligence:** Autocomplete that recalls a merchant's category and typical amount, plus cadence detection and lifetime spend analytics.
 - 📊 **Stock Portfolio & Tax-Lot Accounting:** Multi-brokerage holdings across four sub-views, with FIFO/LIFO/HIFO/Specific-ID disposal and TWR/MWR performance metrics from one shared engine.
+- 🏡 **Property, Mortgages & Landlord Hub:** Property equity and LTV with appraisal history, month-by-month mortgage amortization with step-rate support, a prepayment simulator, and a full tenant rent roll.
 - 🔄 **Pluggable Data Engine:** Seamlessly connects to live Odoo 18 instances via REST API with Personal Access Token (PAT), or runs completely standalone on local SQLite.
 - 🚀 **1-Click Odoo Migration:** One-click data migration tool to export accounts, categories, and historical registers from Odoo directly into local SQLite.
 
@@ -83,7 +84,7 @@ See [`ROADMAP.md`](ROADMAP.md) for the detailed feature parity roadmap.
 | **2** | Advanced Banking, Split Transactions & Statement Reconciliation | ✅ Complete |
 | **3** | Envelope Budgets, Recurring Bills, Cash Flow Sankey & Financial Goals | ✅ Complete |
 | **4** | Stock Portfolio, Tax-Lot Accounting (FIFO/LIFO/HIFO/SpecID) & TWR/MWR | ✅ Complete |
-| **5** | Real Estate, Mortgage Amortization & Debt Prepayment Simulator | Planned |
+| **5** | Property Equity, Mortgage Amortization, Prepayment Simulator & Landlord Hub | ✅ Complete |
 | **6** | Regional Financial Packs (Singapore CPF Hub & Malaysia EPF/KWSP) | Planned |
 | **7** | Monte Carlo Wealth Simulator & Local AI Advisor | Planned |
 | **8** | Cloud Synchronization (Supabase + Stripe Subscription) | Planned |
@@ -106,6 +107,7 @@ Full documentation lives in [`docs/`](docs/index.md):
 | 08 | [Planning & Forecasting Hubs](docs/08_PLANNING_AND_FORECASTING_HUBS.md) | Budgets, bills, cash flow, goals |
 | 09 | [Payee Intelligence & Directory](docs/09_PAYEE_INTELLIGENCE_AND_DIRECTORY.md) | Merchant memory, cadence, spend analytics |
 | 10 | [Stock Portfolio & Tax-Lot Accounting](docs/10_STOCK_PORTFOLIO_AND_TAX_LOTS.md) | Holdings, disposal strategies, TWR/MWR |
+| 11 | [Property, Mortgages & Rental Income](docs/11_PROPERTY_MORTGAGES_AND_RENTAL.md) | Equity, amortization, prepayment, rent roll |
 
 ---
 
@@ -120,6 +122,12 @@ node --experimental-strip-types scripts/verify_goal_math.ts
 
 # Portfolio maths (lot metrics, disposal ordering, TWR/MWR convergence)
 node --experimental-strip-types scripts/verify_portfolio_math.ts
+
+# Loan maths (360-vs-361 installments, payoff date, prepayment, rate steps)
+node --experimental-strip-types scripts/verify_loan_math.ts
+
+# Property maths (equity clamping, LTV, rent roll, schedule idempotency)
+node --experimental-strip-types scripts/verify_property_math.ts
 ```
 
 ---
