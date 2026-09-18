@@ -56,21 +56,98 @@ Worth stating because they fail differently and are frequently conflated:
 
 A subscriber may sync indefinitely without ever opening the web UI. **"Can log in to Moneta Cloud" is a capability, not a prerequisite for sync.** A broken login must not stop sync, and vice versa.
 
-### 4. Pricing
+### 4. Pricing and unit economics
 
-$9/month is the proposed subscription price.
+**S$9 SGD per month** is the subscription price (currency confirmed 2026-09-19).
 
-| Comparison | Monthly equivalent |
-| :--- | :--- |
-| YNAB | $9.08 |
-| Monarch | $8.25 |
-| Copilot | $7.92 |
-| Quicken Premier | $5.83 |
-| **Moneta** | **$9 (currency TBC)** |
+#### 4.1 Market position
 
-$9 **SGD** (~US$6.70) sits below the market and is competitive. $9 **USD** sits at the top of it. **Currency must be stated explicitly** — see open questions.
+| | SGD/month equivalent |
+| :--- | ---: |
+| YNAB | ~12.20 |
+| Monarch | ~11.10 |
+| Copilot | ~10.60 |
+| Quicken Premier | ~7.80 |
+| **Moneta** | **9.00** |
 
-**Offer an annual tier** at roughly ten months' price. It improves cash flow, reduces churn, and the annual renewal is the natural moment to deliver the regional tax packs.
+Roughly **25% below YNAB**. That is a defensible discount position for a new entrant with a generous free tier, but it leaves materially less headroom for per-subscriber cost than the incumbents enjoy.
+
+**Pricing is hard to raise once set.** If S$12 proves necessary after sync and Mobile demonstrably work, existing subscribers will resist. Consider launching at the intended long-term price rather than discounting and climbing.
+
+#### 4.2 Payment fees strongly favour annual billing
+
+Stripe Singapore is approximately **3.4% + S$0.50** per charge:
+
+| | Fee | Share of revenue |
+| :--- | ---: | ---: |
+| Monthly (S$9) | S$0.81 | **9.0%** |
+| Annual (S$108) | S$4.17 | **3.9%** |
+
+Monthly billing sends 9% of every payment to the processor, driven mostly by the fixed S$0.50. **Annual more than halves that**, improves cash flow, sharply reduces churn, and places the renewal moment where the regional tax packs land.
+
+**Recommendation: annual at ~S$90 (two months free) is the default and the headline.** Monthly remains available, not promoted.
+
+#### 4.3 Unit economics
+
+> **All figures below are estimates with stated assumptions. They are recorded so they can be corrected as real provider quotes and hosting measurements arrive — not as settled fact.**
+
+**Assumptions**
+
+| Assumption | Value | Confidence |
+| :--- | :--- | :--- |
+| Base size when measured | 100 subscribers | — |
+| Compute / hosting share per subscriber | S$2.00 | Medium — depends on DB density per instance |
+| Backup and storage | S$0.30 | High — personal finance data is kilobytes |
+| Bank feeds, per connected account | S$1.00–1.50/month | **Low — no provider quote obtained** |
+| Typical connections per subscriber | 2–3 | Medium |
+| Stripe fee, monthly billing | 3.4% + S$0.50 | High — published rate |
+| Support cost | Excluded | Not yet quantified |
+| Development cost | Excluded | See §4.4 |
+
+**Per subscriber, per month**
+
+| Line | With bank feeds | Without bank feeds |
+| :--- | ---: | ---: |
+| Revenue | 9.00 | 9.00 |
+| Payment fees (monthly billing) | (0.81) | (0.81) |
+| Compute / hosting share | (2.00) | (2.00) |
+| Backup and storage | (0.30) | (0.30) |
+| **Bank feeds** (2–3 connections) | **(3.00)** | **—** |
+| **Contribution margin** | **2.89 (32%)** | **5.89 (65%)** |
+
+A 32% gross margin before support and before the founder's own time is **too thin for a solo operator**. The whole question is the difference between those two columns.
+
+#### 4.4 Break-even
+
+Fixed infrastructure — a subscriber instance plus the separate licence host ADR 0003 requires — is estimated at **S$200–250/month**.
+
+| Scenario | Contribution | Break-even subscribers |
+| :--- | ---: | ---: |
+| With bank feeds | S$2.89 | ~70–85 |
+| Without bank feeds | S$5.89 | ~35–45 |
+
+Infrastructure break-even is therefore in the **tens**, not hundreds — encouraging.
+
+**But this excludes the founder's time.** Twenty hours a month across development and support, at even S$50/hour opportunity cost, is S$1,000/month — moving break-even to **170–250 subscribers**. That is the threshold that actually matters, and it should be confronted rather than assumed away.
+
+#### 4.5 The bank feed cost risk
+
+Bank feeds are billed **per connected account, per month** — the only line that scales with usage rather than subscriber count. Everything else is effectively fixed.
+
+This makes feeds the single decision that determines whether S$9 works. Two further risks compound it:
+
+- **Coverage.** Plaid's Singapore coverage is limited and Salt Edge partial. Bank feeds may be both expensive *and* difficult to deliver for DBS/OCBC/UOB — which was the primary recommended conversion driver (§ADR 0001 §2).
+- **Unlimited promise.** An unlimited feed entitlement at S$9 is an open-ended cost commitment against a fixed price.
+
+**Recommendation:** cap included connections (e.g. two), or reserve feeds for a future higher tier, or price them once a real provider quote exists. **Do not launch unlimited feeds at S$9.**
+
+#### 4.6 Implications
+
+1. **Push annual.** S$90/year as the default and headline.
+2. **Cap or defer bank feeds** until a provider quote exists.
+3. **Resolve SG coverage before promising feeds at all.** If DBS/OCBC/UOB cannot be served economically, the paid tier must lean harder on sync, backup and Mobile for its value story.
+4. **Keep the free tier free to serve.** It is local-only by design and costs nothing per user. That is what makes a generous free tier affordable — protect it.
+5. **Re-run these numbers** with a real feed quote, real hosting measurements, and a support estimate before finalising price.
 
 ### 5. Partner access is included
 
@@ -125,11 +202,12 @@ At purchase, the licence database must automatically:
 
 ## Open questions
 
-1. **Currency** — is $9 SGD or USD? This changes market positioning materially.
-2. **Annual price and discount** — one free month, or two?
+1. **Bank feed provider and cost** — the highest-priority unknown. Obtain a real quote and confirm Singapore coverage for DBS/OCBC/UOB before feeds are promised in any tier (§4.5).
+2. **Annual price and discount** — S$90 (two months free) is recommended; confirm.
 3. **Partner count** — is one additional member right, or should it be two?
-4. **Price validation** — the free tier is generous; consider validating $9 against real willingness to pay before hard-coding it into the licence database.
-5. **Trial** — length and whether a card is required at signup (ADR 0001 open question, unresolved).
+4. **Price validation** — the free tier is generous and S$9 is 25% below YNAB. Consider validating willingness to pay before hard-coding the price into the licence database, since raising it later is difficult.
+5. **Trial** — length and whether a card is required at signup. Unresolved across ADR 0001 and this ADR; for a feature-gated tier it matters more than the gate.
+6. **Support cost** — not yet quantified, and excluded from §4.3. A sync-plus-feeds product generates tickets; estimate before finalising price.
 
 ---
 
