@@ -83,6 +83,16 @@ let mockAccounts: MonetaAccount[] = [
     monthly_payment: 1340.0,
     active: true,
   },
+  {
+    id: 'acc-7',
+    name: 'Tanjong Pagar 4-Room Flat',
+    account_type: 'asset',
+    institution_name: 'Real Estate',
+    currency_code: 'SGD',
+    current_balance: 780000.0,
+    cleared_balance: 780000.0,
+    active: true,
+  },
 ];
 
 let mockTransactions: MonetaTransaction[] = [
@@ -181,23 +191,28 @@ export class MockAdapter implements IMonetaRepository {
 
   async getDashboardSummary(): Promise<DashboardMetrics> {
     const liquid = mockAccounts
-      .filter((a) => ['checking', 'savings', 'cash', 'cpf_oa', 'cpf_sa', 'cpf_ma'].includes(a.account_type))
+      .filter((a) => ['checking', 'chequing', 'savings', 'cash', 'cpf_oa', 'cpf_sa', 'cpf_ma', 'cpf_ra', 'srs', 'epf_akaun_persaraan', 'epf_akaun_sejahtera', 'epf_akaun_fleksibel'].includes(a.account_type))
       .reduce((sum, a) => sum + a.current_balance, 0);
 
     const investments = mockAccounts
       .filter((a) => ['brokerage', 'retirement', 'crypto'].includes(a.account_type))
       .reduce((sum, a) => sum + a.current_balance, 0);
 
+    const tangibleAssets = mockAccounts
+      .filter((a) => ['asset', 'property', 'other'].includes(a.account_type))
+      .reduce((sum, a) => sum + a.current_balance, 0);
+
     const liabilities = mockAccounts
-      .filter((a) => ['credit', 'loan', 'mortgage'].includes(a.account_type))
+      .filter((a) => ['credit', 'credit_card', 'loc', 'loan', 'mortgage'].includes(a.account_type))
       .reduce((sum, a) => sum + Math.abs(a.current_balance), 0);
 
-    const netWorth = liquid + investments - liabilities;
+    const netWorth = liquid + investments + tangibleAssets - liabilities;
 
     return {
       net_worth: netWorth,
       liquid_cash: liquid,
       investments: investments,
+      tangible_assets: tangibleAssets,
       total_liabilities: liabilities,
       monthly_income: 14500.0,
       monthly_expenses: 4200.0,

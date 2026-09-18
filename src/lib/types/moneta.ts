@@ -1,13 +1,18 @@
 export type AccountType =
   | 'checking'
+  | 'chequing'
   | 'savings'
   | 'cash'
   | 'credit'
+  | 'credit_card'
   | 'loan'
   | 'mortgage'
+  | 'loc'
   | 'brokerage'
   | 'retirement'
   | 'crypto'
+  | 'asset'
+  | 'property'
   | 'cpf_oa'
   | 'cpf_sa'
   | 'cpf_ma'
@@ -15,7 +20,8 @@ export type AccountType =
   | 'srs'
   | 'epf_akaun_persaraan'
   | 'epf_akaun_sejahtera'
-  | 'epf_akaun_fleksibel';
+  | 'epf_akaun_fleksibel'
+  | 'other';
 
 export type ReconcileState = 'unreconciled' | 'cleared' | 'reconciled' | 'void';
 
@@ -74,6 +80,7 @@ export interface DashboardMetrics {
   net_worth: number;
   liquid_cash: number;
   investments: number;
+  tangible_assets?: number;
   total_liabilities: number;
   monthly_income: number;
   monthly_expenses: number;

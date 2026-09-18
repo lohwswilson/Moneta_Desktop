@@ -174,7 +174,16 @@
         {#if filteredTransactions.length === 0}
           <tr>
             <td colspan="8" class="text-center py-16 text-zinc-500 font-sans text-xs">
-              No transactions found for this account and filter.
+              {#if currentAccount?.account_type === 'asset' || currentAccount?.account_type === 'property'}
+                <div class="max-w-md mx-auto space-y-2">
+                  <div class="text-amber-400 font-semibold text-sm">Physical Property & Tangible Asset</div>
+                  <p class="text-zinc-400 text-xs leading-relaxed">
+                    This tangible asset is tracked by its current market valuation ({formatAmount(currentAccount?.current_balance || 0)}). Valuations and mortgage linkages are synchronized directly with Odoo. Checkbook register transactions and statement imports do not apply to physical holdings.
+                  </p>
+                </div>
+              {:else}
+                No transactions found for this account and filter.
+              {/if}
             </td>
           </tr>
         {:else}

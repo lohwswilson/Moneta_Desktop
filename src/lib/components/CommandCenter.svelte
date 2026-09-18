@@ -10,7 +10,8 @@
     Clock,
     Percent,
     Eye,
-    EyeOff
+    EyeOff,
+    Gem
   } from '@lucide/svelte';
 
   let hideAmounts = $state(false);
@@ -61,8 +62,8 @@
   </div>
 
   {#if m}
-    <!-- Top 4 Wealth Pillars -->
-    <div class="grid grid-cols-4 gap-4">
+    <!-- Wealth Pillars -->
+    <div class="grid {(m.tangible_assets || 0) > 0 ? 'grid-cols-5' : 'grid-cols-4'} gap-4">
       <!-- Net Worth Card -->
       <div class="p-5 rounded-xl bg-gradient-to-br from-zinc-900/90 to-zinc-900/40 border border-zinc-800/80 relative overflow-hidden">
         <div class="flex items-center justify-between text-xs text-zinc-400 font-medium">
@@ -76,7 +77,7 @@
         </div>
         <div class="text-[11px] text-zinc-500 mt-1.5 flex items-center gap-1">
           <span>Assets</span>
-          <span class="text-emerald-400">+{formatCurrency(m.liquid_cash + m.investments)}</span>
+          <span class="text-emerald-400">+{formatCurrency(m.liquid_cash + m.investments + (m.tangible_assets || 0))}</span>
           <span class="text-zinc-600">|</span>
           <span>Debt</span>
           <span class="text-rose-400">-{formatCurrency(m.total_liabilities)}</span>
@@ -110,6 +111,22 @@
           Equities, Index ETFs & Retirement
         </div>
       </div>
+
+      <!-- Tangible Assets & Property Card -->
+      {#if (m.tangible_assets || 0) > 0}
+        <div class="p-5 rounded-xl bg-zinc-900/40 border border-zinc-800/80">
+          <div class="flex items-center justify-between text-xs text-zinc-400 font-medium">
+            <span>Tangible Assets</span>
+            <span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
+          </div>
+          <div class="text-2xl font-bold font-mono text-amber-400 mt-3">
+            {formatCurrency(m.tangible_assets || 0)}
+          </div>
+          <div class="text-[11px] text-zinc-500 mt-1.5">
+            Real Estate, Vehicles & Valuables
+          </div>
+        </div>
+      {/if}
 
       <!-- Liabilities Card -->
       <div class="p-5 rounded-xl bg-zinc-900/40 border border-zinc-800/80">

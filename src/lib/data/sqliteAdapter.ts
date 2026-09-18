@@ -205,18 +205,22 @@ export class SqliteAdapter implements IMonetaRepository {
     const accounts = await this.getAccounts();
 
     const liquidCash = accounts
-      .filter((a) => ['checking', 'savings', 'cash', 'cpf_oa', 'cpf_sa', 'cpf_ma', 'cpf_ra', 'srs'].includes(a.account_type))
+      .filter((a) => ['checking', 'chequing', 'savings', 'cash', 'cpf_oa', 'cpf_sa', 'cpf_ma', 'cpf_ra', 'srs', 'epf_akaun_persaraan', 'epf_akaun_sejahtera', 'epf_akaun_fleksibel'].includes(a.account_type))
       .reduce((sum, a) => sum + a.current_balance, 0);
 
     const investments = accounts
       .filter((a) => ['brokerage', 'retirement', 'crypto'].includes(a.account_type))
       .reduce((sum, a) => sum + a.current_balance, 0);
 
+    const tangibleAssets = accounts
+      .filter((a) => ['asset', 'property', 'other'].includes(a.account_type))
+      .reduce((sum, a) => sum + a.current_balance, 0);
+
     const liabilities = accounts
-      .filter((a) => ['credit', 'loan', 'mortgage'].includes(a.account_type))
+      .filter((a) => ['credit', 'credit_card', 'loc', 'loan', 'mortgage'].includes(a.account_type))
       .reduce((sum, a) => sum + Math.abs(a.current_balance), 0);
 
-    const netWorth = liquidCash + investments - liabilities;
+    const netWorth = liquidCash + investments + tangibleAssets - liabilities;
 
     // Calculate monthly income and expenses
     const res = this.db.exec(`
@@ -240,6 +244,7 @@ export class SqliteAdapter implements IMonetaRepository {
       net_worth: netWorth,
       liquid_cash: liquidCash,
       investments: investments,
+      tangible_assets: tangibleAssets,
       total_liabilities: liabilities,
       monthly_income: income,
       monthly_expenses: expenses,

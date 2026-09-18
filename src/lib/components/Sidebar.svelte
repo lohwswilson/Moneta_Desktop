@@ -11,7 +11,8 @@
     Server,
     CheckCircle2,
     AlertCircle,
-    LayoutDashboard
+    LayoutDashboard,
+    Gem
   } from '@lucide/svelte';
 
   const formatCurrency = (amount: number, currency: string = 'SGD') => {
@@ -23,14 +24,17 @@
   };
 
   const getAccountBadge = (type: AccountType) => {
-    if (['checking', 'savings', 'cash', 'cpf_oa', 'cpf_sa', 'cpf_ma', 'cpf_ra', 'srs'].includes(type)) {
+    if (['checking', 'chequing', 'savings', 'cash', 'cpf_oa', 'cpf_sa', 'cpf_ma', 'cpf_ra', 'srs', 'epf_akaun_persaraan', 'epf_akaun_sejahtera', 'epf_akaun_fleksibel'].includes(type)) {
       return { color: 'text-emerald-400 bg-emerald-950/60 border-emerald-800/60', icon: Wallet };
     }
     if (['brokerage', 'retirement', 'crypto'].includes(type)) {
       return { color: 'text-sky-400 bg-sky-950/60 border-sky-800/60', icon: TrendingUp };
     }
-    if (type === 'credit') {
+    if (['credit', 'credit_card', 'loc'].includes(type)) {
       return { color: 'text-purple-400 bg-purple-950/60 border-purple-800/60', icon: CreditCard };
+    }
+    if (['asset', 'property', 'other'].includes(type)) {
+      return { color: 'text-amber-400 bg-amber-950/60 border-amber-800/60', icon: Gem };
     }
     return { color: 'text-rose-400 bg-rose-950/60 border-rose-800/60', icon: Home };
   };
@@ -38,7 +42,7 @@
   // Group accounts
   let bankAccounts = $derived(
     financeStore.accounts.filter((a) =>
-      ['checking', 'savings', 'cash', 'cpf_oa', 'cpf_sa', 'cpf_ma', 'cpf_ra', 'srs'].includes(a.account_type)
+      ['checking', 'chequing', 'savings', 'cash', 'cpf_oa', 'cpf_sa', 'cpf_ma', 'cpf_ra', 'srs', 'epf_akaun_persaraan', 'epf_akaun_sejahtera', 'epf_akaun_fleksibel'].includes(a.account_type)
     )
   );
 
@@ -48,8 +52,16 @@
     )
   );
 
+  let assetAccounts = $derived(
+    financeStore.accounts.filter((a) =>
+      ['asset', 'property', 'other'].includes(a.account_type)
+    )
+  );
+
   let creditAccounts = $derived(
-    financeStore.accounts.filter((a) => a.account_type === 'credit')
+    financeStore.accounts.filter((a) =>
+      ['credit', 'credit_card', 'loc'].includes(a.account_type)
+    )
   );
 
   let loanAccounts = $derived(
@@ -141,6 +153,34 @@
                 <div class="text-[10px] text-zinc-500">{acc.institution_name || 'Brokerage'}</div>
               </div>
               <div class="font-mono text-right whitespace-nowrap text-sky-400">
+                {formatCurrency(acc.current_balance, acc.currency_code)}
+              </div>
+            </button>
+          {/each}
+        </div>
+      </div>
+    {/if}
+
+    <!-- Tangible Assets & Properties -->
+    {#if assetAccounts.length > 0}
+      <div>
+        <div class="flex items-center justify-between text-[11px] font-semibold text-zinc-400 uppercase tracking-wider px-2 mb-1.5">
+          <span class="flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+            Assets & Properties ({assetAccounts.length})
+          </span>
+        </div>
+        <div class="space-y-0.5">
+          {#each assetAccounts as acc}
+            <button
+              onclick={() => financeStore.selectAccount(acc.id)}
+              class="w-full flex items-center justify-between px-2.5 py-2 rounded-md text-xs transition-all {financeStore.selectedAccountId === acc.id ? 'bg-zinc-800 text-white font-medium shadow-sm' : 'text-zinc-400 hover:bg-zinc-900/80 hover:text-zinc-200'}"
+            >
+              <div class="truncate text-left pr-2">
+                <div class="truncate">{acc.name}</div>
+                <div class="text-[10px] text-zinc-500">{acc.institution_name || 'Tangible Asset'}</div>
+              </div>
+              <div class="font-mono text-right whitespace-nowrap text-amber-400">
                 {formatCurrency(acc.current_balance, acc.currency_code)}
               </div>
             </button>
