@@ -5,6 +5,7 @@ import type {
   MonetaTransaction,
   DashboardMetrics,
   ReconcileState,
+  EnvelopeBudget,
 } from '../types/moneta';
 
 export class OdooAdapter implements IMonetaRepository {
@@ -36,5 +37,9 @@ export class OdooAdapter implements IMonetaRepository {
 
   async createTransaction(payload: Partial<MonetaTransaction>): Promise<MonetaTransaction> {
     return OdooApi.createTransaction(payload);
+  }
+
+  async getBudgets(): Promise<EnvelopeBudget[]> {
+    return OdooApi.getBudgets();
   }
 }

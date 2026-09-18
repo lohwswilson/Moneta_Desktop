@@ -4,6 +4,7 @@ import type {
   MonetaTransaction,
   DashboardMetrics,
   ReconcileState,
+  EnvelopeBudget,
 } from '../types/moneta';
 
 export const OdooApi = {
@@ -109,5 +110,16 @@ export const OdooApi = {
       params: payload,
     });
     return response.data?.result?.transaction;
+  },
+
+  /**
+   * Fetch active envelope budgets
+   */
+  async getBudgets(): Promise<EnvelopeBudget[]> {
+    const response = await getApiClient().post('/api/v1/mobile/budgets/list', {
+      jsonrpc: '2.0',
+      params: {},
+    });
+    return response.data?.result?.budgets || [];
   },
 };

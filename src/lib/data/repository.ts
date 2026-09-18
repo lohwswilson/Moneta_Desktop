@@ -3,6 +3,7 @@ import type {
   MonetaTransaction,
   DashboardMetrics,
   ReconcileState,
+  EnvelopeBudget,
 } from '../types/moneta';
 
 export interface IMonetaRepository {
@@ -19,4 +20,8 @@ export interface IMonetaRepository {
     accountId: string | number,
     transactions: Partial<MonetaTransaction>[]
   ): Promise<MonetaTransaction[]>;
+  getBudgets?(): Promise<EnvelopeBudget[]>;
+  createBudget?(payload: Partial<EnvelopeBudget>): Promise<EnvelopeBudget>;
+  updateBudget?(id: string | number, payload: Partial<EnvelopeBudget>): Promise<EnvelopeBudget>;
+  deleteBudget?(id: string | number): Promise<boolean>;
 }

@@ -4,6 +4,7 @@ import type {
   MonetaTransaction,
   DashboardMetrics,
   ReconcileState,
+  EnvelopeBudget,
 } from '../types/moneta';
 
 let mockAccounts: MonetaAccount[] = [
@@ -288,4 +289,157 @@ export class MockAdapter implements IMonetaRepository {
     }
     return created;
   }
+
+  async getBudgets(): Promise<EnvelopeBudget[]> {
+    return [...mockBudgets];
+  }
+
+  async createBudget(payload: Partial<EnvelopeBudget>): Promise<EnvelopeBudget> {
+    const allocated = Number(payload.allocated_amount || 0);
+    const spent = Number(payload.spent_amount || 0);
+    const pct = allocated > 0 ? Math.round((spent / allocated) * 100) : 0;
+    let alertLevel: 'none' | 'warning' | 'critical' | 'over_budget' = 'none';
+    if (pct >= 100) alertLevel = 'over_budget';
+    else if (pct >= 85) alertLevel = 'critical';
+    else if (pct >= 70) alertLevel = 'warning';
+
+    const newBudget: EnvelopeBudget = {
+      id: payload.id || `bgt-${Date.now()}`,
+      name: payload.name || 'New Budget',
+      category_name: payload.category_name || 'General',
+      allocated_amount: allocated,
+      spent_amount: spent,
+      remaining_amount: allocated - spent,
+      spent_percent: pct,
+      period: payload.period || 'monthly',
+      category_group: payload.category_group || 'need',
+      rollover: payload.rollover ?? false,
+      color_code: payload.color_code || '#3b82f6',
+      alert_level: alertLevel,
+    };
+    mockBudgets.push(newBudget);
+    return newBudget;
+  }
+
+  async updateBudget(id: string | number, payload: Partial<EnvelopeBudget>): Promise<EnvelopeBudget> {
+    const idx = mockBudgets.findIndex((b) => String(b.id) === String(id));
+    if (idx === -1) throw new Error(`Budget ${id} not found`);
+
+    const existing = mockBudgets[idx];
+    const allocated = payload.allocated_amount !== undefined ? Number(payload.allocated_amount) : existing.allocated_amount;
+    const spent = payload.spent_amount !== undefined ? Number(payload.spent_amount) : existing.spent_amount;
+    const pct = allocated > 0 ? Math.round((spent / allocated) * 100) : 0;
+    let alertLevel: 'none' | 'warning' | 'critical' | 'over_budget' = 'none';
+    if (pct >= 100) alertLevel = 'over_budget';
+    else if (pct >= 85) alertLevel = 'critical';
+    else if (pct >= 70) alertLevel = 'warning';
+
+    const updated: EnvelopeBudget = {
+      ...existing,
+      ...payload,
+      allocated_amount: allocated,
+      spent_amount: spent,
+      remaining_amount: allocated - spent,
+      spent_percent: pct,
+      alert_level: alertLevel,
+    };
+    mockBudgets[idx] = updated;
+    return updated;
+  }
+
+  async deleteBudget(id: string | number): Promise<boolean> {
+    const idx = mockBudgets.findIndex((b) => String(b.id) === String(id));
+    if (idx !== -1) {
+      mockBudgets.splice(idx, 1);
+      return true;
+    }
+    return false;
+  }
 }
+
+let mockBudgets: EnvelopeBudget[] = [
+  {
+    id: 'bgt-1',
+    name: 'Groceries & Provisions',
+    category_name: 'Groceries',
+    allocated_amount: 650.0,
+    spent_amount: 412.5,
+    remaining_amount: 237.5,
+    spent_percent: 63,
+    period: 'monthly',
+    category_group: 'need',
+    rollover: true,
+    color_code: '#10b981',
+    alert_level: 'none',
+  },
+  {
+    id: 'bgt-2',
+    name: 'Dining & Hawker Food',
+    category_name: 'Dining',
+    allocated_amount: 450.0,
+    spent_amount: 385.0,
+    remaining_amount: 65.0,
+    spent_percent: 86,
+    period: 'monthly',
+    category_group: 'want',
+    rollover: false,
+    color_code: '#f59e0b',
+    alert_level: 'critical',
+  },
+  {
+    id: 'bgt-3',
+    name: 'Utilities & Telco',
+    category_name: 'Utilities',
+    allocated_amount: 250.0,
+    spent_amount: 145.2,
+    remaining_amount: 104.8,
+    spent_percent: 58,
+    period: 'monthly',
+    category_group: 'need',
+    rollover: false,
+    color_code: '#3b82f6',
+    alert_level: 'none',
+  },
+  {
+    id: 'bgt-4',
+    name: 'Public Transport & Grab',
+    category_name: 'Transportation',
+    allocated_amount: 200.0,
+    spent_amount: 195.0,
+    remaining_amount: 5.0,
+    spent_percent: 98,
+    period: 'monthly',
+    category_group: 'need',
+    rollover: false,
+    color_code: '#6366f1',
+    alert_level: 'critical',
+  },
+  {
+    id: 'bgt-5',
+    name: 'Shopping & Retail',
+    category_name: 'Shopping',
+    allocated_amount: 300.0,
+    spent_amount: 320.0,
+    remaining_amount: -20.0,
+    spent_percent: 107,
+    period: 'monthly',
+    category_group: 'want',
+    rollover: false,
+    color_code: '#ec4899',
+    alert_level: 'over_budget',
+  },
+  {
+    id: 'bgt-6',
+    name: 'Entertainment & Outings',
+    category_name: 'Entertainment',
+    allocated_amount: 180.0,
+    spent_amount: 75.0,
+    remaining_amount: 105.0,
+    spent_percent: 42,
+    period: 'monthly',
+    category_group: 'want',
+    rollover: false,
+    color_code: '#8b5cf6',
+    alert_level: 'none',
+  },
+];

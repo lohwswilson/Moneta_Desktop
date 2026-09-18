@@ -4,6 +4,7 @@ import type {
   DashboardMetrics,
   ReconcileState,
   ConnectionConfig,
+  EnvelopeBudget,
 } from '../types/moneta';
 import type { IMonetaRepository } from '../data/repository';
 import { OdooAdapter } from '../data/odooAdapter';
@@ -27,13 +28,18 @@ class FinanceStore {
   metrics = $state<DashboardMetrics | null>(null);
   accounts = $state<MonetaAccount[]>([]);
   selectedAccountId = $state<string | number | null>(null);
+  activeView = $state<'command_center' | 'register' | 'budgets'>('command_center');
   transactions = $state<MonetaTransaction[]>([]);
+  budgets = $state<EnvelopeBudget[]>([]);
   filterState = $state<'all' | 'unreconciled' | 'cleared' | 'reconciled'>('all');
   isLoading = $state<boolean>(false);
 
   isQuickAddOpen = $state<boolean>(false);
   isSettingsOpen = $state<boolean>(false);
   isImportModalOpen = $state<boolean>(false);
+  isBudgetModalOpen = $state<boolean>(false);
+  editingBudget = $state<EnvelopeBudget | null>(null);
+  isCanISpendOpen = $state<boolean>(false);
 
   public sqliteAdapter: SqliteAdapter = new SqliteAdapter();
   private repository: IMonetaRepository = new MockAdapter();
@@ -119,6 +125,8 @@ class FinanceStore {
       this.metrics = metrics;
       this.accounts = accounts;
 
+      await this.loadBudgets();
+
       if (!this.selectedAccountId && accounts.length > 0) {
         this.selectedAccountId = accounts[0].id;
       }
@@ -135,7 +143,64 @@ class FinanceStore {
 
   async selectAccount(accountId: string | number) {
     this.selectedAccountId = accountId;
+    this.activeView = 'register';
     await this.loadRegister(accountId);
+  }
+
+  navigateToOverview() {
+    this.selectedAccountId = null;
+    this.activeView = 'command_center';
+  }
+
+  async navigateToBudgets() {
+    this.selectedAccountId = null;
+    this.activeView = 'budgets';
+    await this.loadBudgets();
+  }
+
+  async loadBudgets() {
+    try {
+      if (this.repository.getBudgets) {
+        this.budgets = await this.repository.getBudgets();
+      } else {
+        this.budgets = [];
+      }
+    } catch (err) {
+      console.error('Failed to load budgets:', err);
+    }
+  }
+
+  async saveBudget(payload: Partial<EnvelopeBudget>) {
+    this.isLoading = true;
+    try {
+      if (payload.id && this.repository.updateBudget) {
+        await this.repository.updateBudget(payload.id, payload);
+      } else if (this.repository.createBudget) {
+        await this.repository.createBudget(payload);
+      }
+      await this.loadBudgets();
+      this.isBudgetModalOpen = false;
+      this.editingBudget = null;
+    } catch (err) {
+      console.error('Failed to save budget:', err);
+      throw err;
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  async deleteBudget(id: string | number) {
+    this.isLoading = true;
+    try {
+      if (this.repository.deleteBudget) {
+        await this.repository.deleteBudget(id);
+      }
+      await this.loadBudgets();
+    } catch (err) {
+      console.error('Failed to delete budget:', err);
+    } finally {
+      this.isLoading = false;
+    }
   }
 
   async loadRegister(accountId: string | number) {
@@ -189,9 +254,10 @@ class FinanceStore {
       });
       this.transactions = [newTx, ...this.transactions];
       this.isQuickAddOpen = false;
-      // Refresh dashboard metrics
+      // Refresh dashboard metrics & budget progress
       const updatedMetrics = await this.repository.getDashboardSummary();
       this.metrics = updatedMetrics;
+      await this.loadBudgets();
     } catch (err) {
       console.error('Failed to create transaction:', err);
     }
@@ -227,6 +293,7 @@ class FinanceStore {
       ]);
       this.metrics = updatedMetrics;
       this.accounts = accounts;
+      await this.loadBudgets();
     } catch (err) {
       console.error('Failed to batch import transactions:', err);
       throw err;

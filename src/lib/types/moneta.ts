@@ -96,3 +96,18 @@ export interface ConnectionConfig {
   serverUrl: string;
   apiToken: string;
 }
+
+export interface EnvelopeBudget {
+  id: string | number;
+  name: string;
+  category_name: string;
+  allocated_amount: number;
+  spent_amount: number;
+  remaining_amount: number;
+  spent_percent?: number;
+  period: 'monthly' | 'annual' | 'weekly';
+  category_group?: 'need' | 'want' | 'saving';
+  rollover?: boolean;
+  color_code?: string;
+  alert_level?: 'none' | 'warning' | 'critical' | 'over_budget';
+}

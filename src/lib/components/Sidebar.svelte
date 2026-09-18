@@ -12,7 +12,8 @@
     CheckCircle2,
     AlertCircle,
     LayoutDashboard,
-    Gem
+    Gem,
+    PiggyBank
   } from '@lucide/svelte';
 
   const formatCurrency = (amount: number, currency: string = 'SGD') => {
@@ -89,11 +90,11 @@
 
   <!-- Accounts List Area -->
   <div class="flex-1 overflow-y-auto px-3 py-4 space-y-5">
-    <!-- Wealth Command Center Nav -->
-    <div>
+    <!-- Top Nav: Wealth Overview & Envelope Budgets -->
+    <div class="space-y-1">
       <button
-        onclick={() => (financeStore.selectedAccountId = null)}
-        class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition-colors {financeStore.selectedAccountId === null ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200'}"
+        onclick={() => financeStore.navigateToOverview()}
+        class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition-colors {financeStore.activeView === 'command_center' && financeStore.selectedAccountId === null ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200'}"
       >
         <span class="flex items-center gap-2">
           <LayoutDashboard class="w-4 h-4 text-emerald-400" />
@@ -102,6 +103,22 @@
         {#if financeStore.metrics}
           <span class="font-mono text-zinc-300">
             {formatCurrency(financeStore.metrics.net_worth)}
+          </span>
+        {/if}
+      </button>
+
+      <button
+        onclick={() => financeStore.navigateToBudgets()}
+        class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition-colors {financeStore.activeView === 'budgets' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200'}"
+      >
+        <span class="flex items-center gap-2">
+          <PiggyBank class="w-4 h-4 text-indigo-400" />
+          Envelope Budgets
+        </span>
+        {#if financeStore.budgets.length > 0}
+          {@const remainingTotal = financeStore.budgets.reduce((s, b) => s + (b.remaining_amount || 0), 0)}
+          <span class="font-mono text-[11px] {remainingTotal >= 0 ? 'text-emerald-400' : 'text-rose-400'}">
+            {formatCurrency(remainingTotal)}
           </span>
         {/if}
       </button>

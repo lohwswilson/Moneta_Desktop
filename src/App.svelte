@@ -7,6 +7,7 @@
   import QuickAddModal from './lib/components/QuickAddModal.svelte';
   import ConnectionModal from './lib/components/ConnectionModal.svelte';
   import StatementImportModal from './lib/components/StatementImportModal.svelte';
+  import BudgetHub from './lib/components/BudgetHub.svelte';
 
   onMount(() => {
     financeStore.refreshAll();
@@ -19,7 +20,9 @@
 
   <!-- Main Content Area -->
   <section class="flex-1 flex flex-col h-screen overflow-hidden">
-    {#if financeStore.selectedAccountId === null}
+    {#if financeStore.activeView === 'budgets'}
+      <BudgetHub />
+    {:else if financeStore.selectedAccountId === null || financeStore.activeView === 'command_center'}
       <CommandCenter />
     {:else}
       <CheckbookRegister />

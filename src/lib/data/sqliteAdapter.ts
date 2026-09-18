@@ -4,6 +4,7 @@ import type {
   MonetaTransaction,
   DashboardMetrics,
   ReconcileState,
+  EnvelopeBudget,
 } from '../types/moneta';
 import initSqlJs, { type Database, type SqlJsStatic } from 'sql.js';
 import { DEFAULT_RULES } from './rulesEngine';
@@ -124,6 +125,17 @@ export class SqliteAdapter implements IMonetaRepository {
         match_pattern TEXT NOT NULL,
         category_name TEXT NOT NULL
       );
+
+      CREATE TABLE IF NOT EXISTS budgets (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        category_name TEXT NOT NULL,
+        allocated_amount REAL NOT NULL DEFAULT 0.0,
+        period TEXT DEFAULT 'monthly',
+        category_group TEXT DEFAULT 'need',
+        rollover INTEGER DEFAULT 0,
+        color_code TEXT DEFAULT '#3b82f6'
+      );
     `);
 
     // Seed default categorization rules if table is empty
@@ -140,6 +152,35 @@ export class SqliteAdapter implements IMonetaRepository {
             ':match_field': rule.match_field,
             ':match_pattern': rule.match_pattern,
             ':category_name': rule.category_name,
+          }
+        );
+      }
+    }
+
+    // Seed default Singapore envelope budgets if table is empty
+    const budgetRes = this.db.exec('SELECT COUNT(*) as count FROM budgets;');
+    const budgetCount = (budgetRes[0]?.values[0]?.[0] as number) || 0;
+    if (budgetCount === 0) {
+      const defaultBudgets = [
+        { id: 'bgt-1', name: 'Groceries & Provisions', category_name: 'Groceries', allocated_amount: 650.0, period: 'monthly', category_group: 'need', color_code: '#10b981' },
+        { id: 'bgt-2', name: 'Dining & Hawker Food', category_name: 'Dining', allocated_amount: 450.0, period: 'monthly', category_group: 'want', color_code: '#f59e0b' },
+        { id: 'bgt-3', name: 'Utilities & Telco', category_name: 'Utilities', allocated_amount: 250.0, period: 'monthly', category_group: 'need', color_code: '#3b82f6' },
+        { id: 'bgt-4', name: 'Public Transport & Taxi', category_name: 'Transportation', allocated_amount: 200.0, period: 'monthly', category_group: 'need', color_code: '#6366f1' },
+        { id: 'bgt-5', name: 'Shopping & Retail', category_name: 'Shopping', allocated_amount: 300.0, period: 'monthly', category_group: 'want', color_code: '#ec4899' },
+        { id: 'bgt-6', name: 'Entertainment & Outings', category_name: 'Entertainment', allocated_amount: 180.0, period: 'monthly', category_group: 'want', color_code: '#8b5cf6' },
+      ];
+      for (const b of defaultBudgets) {
+        this.db.run(
+          `INSERT INTO budgets (id, name, category_name, allocated_amount, period, category_group, rollover, color_code)
+           VALUES (:id, :name, :category_name, :allocated_amount, :period, :category_group, 0, :color_code);`,
+          {
+            ':id': b.id,
+            ':name': b.name,
+            ':category_name': b.category_name,
+            ':allocated_amount': b.allocated_amount,
+            ':period': b.period,
+            ':category_group': b.category_group,
+            ':color_code': b.color_code,
           }
         );
       }
@@ -625,6 +666,189 @@ export class SqliteAdapter implements IMonetaRepository {
 
     await this.persist();
     return { importedAccounts: accounts.length, importedTransactions: txCount };
+  }
+
+  /**
+   * Zero-Based Envelope Budget Hub methods
+   */
+  async getBudgets(): Promise<EnvelopeBudget[]> {
+    if (!this.db) await this.init();
+    if (!this.db) return [];
+
+    const res = this.db.exec(`
+      SELECT id, name, category_name, allocated_amount, period, category_group, rollover, color_code
+      FROM budgets
+      ORDER BY allocated_amount DESC;
+    `);
+
+    if (!res || res.length === 0 || !res[0].values) {
+      return [];
+    }
+
+    const currentMonthPrefix = new Date().toISOString().substring(0, 7); // 'YYYY-MM'
+
+    return res[0].values.map((row) => {
+      const id = String(row[0]);
+      const name = String(row[1]);
+      const categoryName = String(row[2]);
+      const allocated = Number(row[3]) || 0;
+      const period = (row[4] as 'monthly' | 'annual' | 'weekly') || 'monthly';
+      const categoryGroup = (row[5] as 'need' | 'want' | 'saving') || 'need';
+      const rollover = Boolean(row[6]);
+      const colorCode = String(row[7] || '#3b82f6');
+
+      let spent = 0;
+      try {
+        // Direct category spending in current month
+        const txSpendRes = this.db?.exec(
+          `SELECT COALESCE(SUM(ABS(amount)), 0) FROM transactions 
+           WHERE LOWER(category_name) = LOWER(:cat) 
+             AND amount < 0 
+             AND strftime('%Y-%m', date) = :month;`,
+          { ':cat': categoryName, ':month': currentMonthPrefix }
+        );
+        const directSpent = Number(txSpendRes?.[0]?.values?.[0]?.[0]) || 0;
+
+        // Split item spending in current month
+        const splitSpendRes = this.db?.exec(
+          `SELECT COALESCE(SUM(ABS(s.amount)), 0) FROM transaction_splits s
+           JOIN transactions t ON s.transaction_id = t.id
+           WHERE LOWER(s.category_name) = LOWER(:cat) 
+             AND s.amount < 0 
+             AND strftime('%Y-%m', t.date) = :month;`,
+          { ':cat': categoryName, ':month': currentMonthPrefix }
+        );
+        const splitSpent = Number(splitSpendRes?.[0]?.values?.[0]?.[0]) || 0;
+
+        spent = directSpent + splitSpent;
+      } catch (err) {
+        console.error('Error computing category spending:', err);
+      }
+
+      const remaining = allocated - spent;
+      const pct = allocated > 0 ? Math.round((spent / allocated) * 100) : 0;
+      let alertLevel: 'none' | 'warning' | 'critical' | 'over_budget' = 'none';
+      if (pct >= 100) alertLevel = 'over_budget';
+      else if (pct >= 85) alertLevel = 'critical';
+      else if (pct >= 70) alertLevel = 'warning';
+
+      return {
+        id,
+        name,
+        category_name: categoryName,
+        allocated_amount: allocated,
+        spent_amount: spent,
+        remaining_amount: remaining,
+        spent_percent: pct,
+        period,
+        category_group: categoryGroup,
+        rollover,
+        color_code: colorCode,
+        alert_level: alertLevel,
+      };
+    });
+  }
+
+  async createBudget(payload: Partial<EnvelopeBudget>): Promise<EnvelopeBudget> {
+    if (!this.db) await this.init();
+    if (!this.db) throw new Error('Database not initialized');
+
+    const id = payload.id ? String(payload.id) : `bgt-${Date.now()}`;
+    const name = payload.name || 'New Budget';
+    const categoryName = payload.category_name || name;
+    const allocated = Number(payload.allocated_amount || 0);
+    const period = payload.period || 'monthly';
+    const categoryGroup = payload.category_group || 'need';
+    const rollover = payload.rollover ? 1 : 0;
+    const colorCode = payload.color_code || '#3b82f6';
+
+    this.db.run(
+      `INSERT INTO budgets (id, name, category_name, allocated_amount, period, category_group, rollover, color_code)
+       VALUES (:id, :name, :category_name, :allocated_amount, :period, :category_group, :rollover, :color_code);`,
+      {
+        ':id': id,
+        ':name': name,
+        ':category_name': categoryName,
+        ':allocated_amount': allocated,
+        ':period': period,
+        ':category_group': categoryGroup,
+        ':rollover': rollover,
+        ':color_code': colorCode,
+      }
+    );
+
+    await this.persist();
+    return {
+      id,
+      name,
+      category_name: categoryName,
+      allocated_amount: allocated,
+      spent_amount: 0,
+      remaining_amount: allocated,
+      spent_percent: 0,
+      period,
+      category_group: categoryGroup,
+      rollover: Boolean(rollover),
+      color_code: colorCode,
+      alert_level: 'none',
+    };
+  }
+
+  async updateBudget(id: string | number, payload: Partial<EnvelopeBudget>): Promise<EnvelopeBudget> {
+    if (!this.db) await this.init();
+    if (!this.db) throw new Error('Database not initialized');
+
+    const strId = String(id);
+    const sets: string[] = [];
+    const params: Record<string, any> = { ':id': strId };
+
+    if (payload.name !== undefined) {
+      sets.push('name = :name');
+      params[':name'] = payload.name;
+    }
+    if (payload.category_name !== undefined) {
+      sets.push('category_name = :cat');
+      params[':cat'] = payload.category_name;
+    }
+    if (payload.allocated_amount !== undefined) {
+      sets.push('allocated_amount = :amt');
+      params[':amt'] = Number(payload.allocated_amount);
+    }
+    if (payload.period !== undefined) {
+      sets.push('period = :period');
+      params[':period'] = payload.period;
+    }
+    if (payload.category_group !== undefined) {
+      sets.push('category_group = :group');
+      params[':group'] = payload.category_group;
+    }
+    if (payload.rollover !== undefined) {
+      sets.push('rollover = :rollover');
+      params[':rollover'] = payload.rollover ? 1 : 0;
+    }
+    if (payload.color_code !== undefined) {
+      sets.push('color_code = :color');
+      params[':color'] = payload.color_code;
+    }
+
+    if (sets.length > 0) {
+      this.db.run(`UPDATE budgets SET ${sets.join(', ')} WHERE id = :id;`, params);
+      await this.persist();
+    }
+
+    const all = await this.getBudgets();
+    const updated = all.find((b) => String(b.id) === strId);
+    if (!updated) throw new Error(`Budget ${id} not found`);
+    return updated;
+  }
+
+  async deleteBudget(id: string | number): Promise<boolean> {
+    if (!this.db) await this.init();
+    if (!this.db) return false;
+
+    this.db.run('DELETE FROM budgets WHERE id = :id;', { ':id': String(id) });
+    await this.persist();
+    return true;
   }
 
   /**
