@@ -6,6 +6,7 @@
   import CheckbookRegister from './lib/components/CheckbookRegister.svelte';
   import QuickAddModal from './lib/components/QuickAddModal.svelte';
   import ConnectionModal from './lib/components/ConnectionModal.svelte';
+  import StatementImportModal from './lib/components/StatementImportModal.svelte';
 
   onMount(() => {
     financeStore.refreshAll();
@@ -28,4 +29,5 @@
   <!-- Global Modals -->
   <QuickAddModal />
   <ConnectionModal />
+  <StatementImportModal />
 </main>

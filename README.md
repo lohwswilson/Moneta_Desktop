@@ -16,6 +16,9 @@ Built with **Tauri v2**, **Svelte 5 (Runes-Native)**, **TypeScript**, **Tailwind
 - ⚡ **Tauri v2 + Svelte 5:** Instant native launch, minimal RAM (~35 MB), compiled down to native macOS (`.dmg`) and Windows (`.msi`).
 - 💎 **Wealth Command Center:** Real-time Net Worth, Liquid Cash reserve, Investment totals, Total Liabilities, and 4% FIRE milestone target.
 - 📋 **Quicken-Style Interactive Ledger:** Checkbook registers with 1-click `Clr` toggles (`unreconciled` → `cleared` → `reconciled`), live running balances, and status filtering.
+- ✂️ **Split Transactions:** Multi-category split allocations with real-time balance remainder checks, interactive auto-fill, `[SPLIT (N)]` register badges, and expandable nested breakdown rows.
+- 📥 **Bank Statement Import Wizard:** Drag-and-drop CSV and Quicken QIF statement parser with Singapore bank recognition (DBS, OCBC, UOB, StanChart), automatic duplicate detection, and batch import.
+- 🪄 **Singapore Rules Engine:** Automated categorization with 33 out-of-the-box merchant rules (FairPrice, Grab, Singtel, Bacha Coffee, SP Services, Netflix, etc.).
 - 🔄 **Pluggable Data Engine:** Seamlessly connects to live Odoo 18 instances via REST API with Personal Access Token (PAT), or runs completely standalone on local SQLite.
 - 🚀 **1-Click Odoo Migration:** One-click data migration tool to export accounts, categories, and historical registers from Odoo directly into local SQLite.
 

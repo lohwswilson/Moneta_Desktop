@@ -6,6 +6,7 @@ import type {
   ReconcileState,
 } from '../types/moneta';
 import initSqlJs, { type Database, type SqlJsStatic } from 'sql.js';
+import { DEFAULT_RULES } from './rulesEngine';
 
 const DB_INDEXEDDB_NAME = 'moneta_sqlite_db';
 const STORE_NAME = 'sqlite_storage';
@@ -107,7 +108,42 @@ export class SqliteAdapter implements IMonetaRepository {
         memo TEXT,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP
       );
+
+      CREATE TABLE IF NOT EXISTS transaction_splits (
+        id TEXT PRIMARY KEY,
+        transaction_id TEXT NOT NULL,
+        category_name TEXT NOT NULL,
+        amount REAL NOT NULL,
+        memo TEXT
+      );
+
+      CREATE TABLE IF NOT EXISTS categorization_rules (
+        id TEXT PRIMARY KEY,
+        priority INTEGER DEFAULT 10,
+        match_field TEXT NOT NULL,
+        match_pattern TEXT NOT NULL,
+        category_name TEXT NOT NULL
+      );
     `);
+
+    // Seed default categorization rules if table is empty
+    const ruleRes = this.db.exec('SELECT COUNT(*) as count FROM categorization_rules;');
+    const ruleCount = ruleRes[0]?.values[0]?.[0] as number;
+    if (ruleCount === 0) {
+      for (const rule of DEFAULT_RULES) {
+        this.db.run(
+          `INSERT INTO categorization_rules (id, priority, match_field, match_pattern, category_name)
+           VALUES (:id, :priority, :match_field, :match_pattern, :category_name);`,
+          {
+            ':id': rule.id,
+            ':priority': rule.priority,
+            ':match_field': rule.match_field,
+            ':match_pattern': rule.match_pattern,
+            ':category_name': rule.category_name,
+          }
+        );
+      }
+    }
 
     // Check if empty, seed default accounts if brand new
     const res = this.db.exec('SELECT COUNT(*) as count FROM accounts;');
@@ -130,9 +166,14 @@ export class SqliteAdapter implements IMonetaRepository {
 
       INSERT INTO transactions (id, account_id, date, payee_name, category_name, amount, transaction_type, reconciliation_state, running_balance, memo)
       VALUES
-        ('sq-tx-1', 'sq-acc-1', date('now', '-1 day'), 'FairPrice Supermarket', 'Groceries', -85.50, 'expense', 'cleared', 12500.0, 'Weekly household groceries'),
+        ('sq-tx-1', 'sq-acc-1', date('now', '-1 day'), 'FairPrice Supermarket', 'Split', -85.50, 'expense', 'cleared', 12500.0, 'Weekly household groceries'),
         ('sq-tx-2', 'sq-acc-1', date('now', '-3 day'), 'Salary Payroll Transfer', 'Income & Salary', 6500.00, 'income', 'reconciled', 12585.5, 'Monthly salary deposit'),
         ('sq-tx-3', 'sq-acc-1', date('now', '-5 day'), 'SP Utilities Services', 'Utilities', -145.20, 'expense', 'unreconciled', 6085.5, 'Water and power bill');
+
+      INSERT INTO transaction_splits (id, transaction_id, category_name, amount, memo)
+      VALUES
+        ('sp-1', 'sq-tx-1', 'Groceries', -65.50, 'Food & pantry essentials'),
+        ('sp-2', 'sq-tx-1', 'Household Supplies', -20.00, 'Detergent and paper towels');
     `);
 
     this.persist();
@@ -260,6 +301,38 @@ export class SqliteAdapter implements IMonetaRepository {
     }
     stmt.free();
 
+    // Attach splits if any exist
+    if (transactions.length > 0) {
+      const ids = transactions.map((t) => `'${t.id}'`).join(',');
+      const splitsRes = this.db.exec(`
+        SELECT id, transaction_id, category_name, amount, memo
+        FROM transaction_splits
+        WHERE transaction_id IN (${ids});
+      `);
+      if (splitsRes[0]) {
+        const cols = splitsRes[0].columns;
+        const splitsMap: Record<string, any[]> = {};
+        for (const val of splitsRes[0].values) {
+          const sObj: any = {};
+          cols.forEach((col, idx) => (sObj[col] = val[idx]));
+          if (!splitsMap[sObj.transaction_id]) {
+            splitsMap[sObj.transaction_id] = [];
+          }
+          splitsMap[sObj.transaction_id].push({
+            id: sObj.id,
+            category_name: sObj.category_name,
+            amount: sObj.amount,
+            memo: sObj.memo,
+          });
+        }
+        for (const t of transactions) {
+          if (splitsMap[String(t.id)]) {
+            t.splits = splitsMap[String(t.id)];
+          }
+        }
+      }
+    }
+
     return transactions;
   }
 
@@ -305,7 +378,7 @@ export class SqliteAdapter implements IMonetaRepository {
     const accountId = String(payload.account_id);
     const date = payload.date || new Date().toISOString().split('T')[0];
     const payee = payload.payee_name || 'Expense';
-    const category = payload.category_name || 'General';
+    const category = payload.category_name || (payload.splits && payload.splits.length > 0 ? 'Split' : 'General');
     const amount = Number(payload.amount || 0);
     const txType = amount >= 0 ? 'income' : 'expense';
     const state = payload.reconciliation_state || 'unreconciled';
@@ -332,6 +405,23 @@ export class SqliteAdapter implements IMonetaRepository {
       ':memo': memo,
     });
 
+    // Insert splits if provided
+    if (payload.splits && payload.splits.length > 0) {
+      for (const sp of payload.splits) {
+        const splitId = sp.id || `sp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+        this.db.run(`
+          INSERT INTO transaction_splits (id, transaction_id, category_name, amount, memo)
+          VALUES (:id, :txId, :cat, :amt, :memo);
+        `, {
+          ':id': splitId,
+          ':txId': id,
+          ':cat': sp.category_name,
+          ':amt': sp.amount,
+          ':memo': sp.memo || '',
+        });
+      }
+    }
+
     // Update account balance
     this.db.run(`UPDATE accounts SET current_balance = :bal WHERE id = :accId;`, {
       ':bal': newBalance,
@@ -351,7 +441,90 @@ export class SqliteAdapter implements IMonetaRepository {
       reconciliation_state: state as ReconcileState,
       running_balance: newBalance,
       memo,
+      splits: payload.splits,
     };
+  }
+
+  async batchCreateTransactions(
+    accountId: string | number,
+    transactions: Partial<MonetaTransaction>[]
+  ): Promise<MonetaTransaction[]> {
+    await this.init();
+    if (!this.db) throw new Error('Database not initialized');
+
+    const created: MonetaTransaction[] = [];
+    const accIdStr = String(accountId);
+
+    const curBalRes = this.db.exec(`SELECT current_balance FROM accounts WHERE id = '${accIdStr}';`);
+    let currentBalance = (curBalRes[0]?.values[0]?.[0] as number) || 0;
+
+    for (let i = 0; i < transactions.length; i++) {
+      const payload = transactions[i];
+      const id = payload.id || `sq-tx-${Date.now()}-${i}`;
+      const date = payload.date || new Date().toISOString().split('T')[0];
+      const payee = payload.payee_name || 'Transaction';
+      const category = payload.category_name || 'General';
+      const amount = Number(payload.amount || 0);
+      const txType = amount >= 0 ? 'income' : 'expense';
+      const state = payload.reconciliation_state || 'unreconciled';
+      const memo = payload.memo || '';
+
+      currentBalance += amount;
+
+      this.db.run(`
+        INSERT INTO transactions (id, account_id, date, payee_name, category_name, amount, transaction_type, reconciliation_state, running_balance, memo)
+        VALUES (:id, :accId, :date, :payee, :cat, :amt, :type, :state, :bal, :memo);
+      `, {
+        ':id': id,
+        ':accId': accIdStr,
+        ':date': date,
+        ':payee': payee,
+        ':cat': category,
+        ':amt': amount,
+        ':type': txType,
+        ':state': state,
+        ':bal': currentBalance,
+        ':memo': memo,
+      });
+
+      if (payload.splits && payload.splits.length > 0) {
+        for (const sp of payload.splits) {
+          const splitId = sp.id || `sp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+          this.db.run(`
+            INSERT INTO transaction_splits (id, transaction_id, category_name, amount, memo)
+            VALUES (:id, :txId, :cat, :amt, :memo);
+          `, {
+            ':id': splitId,
+            ':txId': id,
+            ':cat': sp.category_name,
+            ':amt': sp.amount,
+            ':memo': sp.memo || '',
+          });
+        }
+      }
+
+      created.push({
+        id,
+        account_id: accIdStr,
+        date,
+        payee_name: payee,
+        category_name: category,
+        amount,
+        transaction_type: txType,
+        reconciliation_state: state as ReconcileState,
+        running_balance: currentBalance,
+        memo,
+        splits: payload.splits,
+      });
+    }
+
+    this.db.run(`UPDATE accounts SET current_balance = :bal WHERE id = :accId;`, {
+      ':bal': currentBalance,
+      ':accId': accIdStr,
+    });
+
+    await this.persist();
+    return created;
   }
 
   /**

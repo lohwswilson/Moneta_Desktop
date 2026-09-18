@@ -42,17 +42,19 @@ This roadmap defines the multi-phase engineering plan to achieve full feature pa
 
 ---
 
-### Phase 2: Advanced Banking & Transaction Management (Target: Q4 2026)
+### Phase 2: Advanced Banking & Transaction Management (Completed & Active)
 *Parity with Odoo `account.py`, `transaction.py`, `transaction_rule.py`, `payee.py`*
 
-- [ ] **Split Transactions:** Support splitting a single expense or deposit across multiple categories and tax deductibles.
-- [ ] **Bank Statement Reconciliation Wizard:**
-  - Import bank statements (CSV, OFX, QIF formats).
-  - Side-by-side transaction matching against the ledger.
-  - Auto-match by date, amount, and payee with 1-click reconcile.
-- [ ] **Automated Categorization Rules Engine:**
-  - If payee contains keyword $\rightarrow$ auto-assign category and tags.
-  - Regex and string matching with priority order.
+- [x] **Split Transactions:** Support splitting a single expense or deposit across multiple categories with live balance calculation, interactive remainder auto-fill, `[SPLIT (N)]` register badges, and expandable nested breakdown.
+- [x] **Bank Statement Import Wizard:**
+  - Import bank statements supporting CSV (comma/semicolon/tab) and Quicken QIF formats.
+  - Built-in recognition for Singapore banks (DBS/POSB, OCBC, UOB, StanChart).
+  - Intelligent duplicate detection preventing duplicate ledger imports.
+  - Interactive preview table with mass select/deselect and category override.
+- [x] **Automated Categorization Rules Engine:**
+  - Priority-based substring matching on payees and memos.
+  - 33 out-of-the-box Singapore merchant rules (FairPrice, Grab, Singtel, Bacha Coffee, SP Services, Netflix, etc.).
+  - Real-time prediction pre-filling in QuickAdd and Import Wizard.
 - [ ] **Payee Intelligence & Directory:**
   - Auto-complete payees with historical category memory.
   - Total historical spend per merchant and average transaction size.

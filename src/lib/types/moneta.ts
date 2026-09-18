@@ -52,6 +52,22 @@ export interface MonetaTransaction {
   tags?: string[];
   transfer_account_id?: string | number;
   created_at?: string;
+  splits?: TransactionSplit[];
+}
+
+export interface TransactionSplit {
+  id?: string;
+  category_name: string;
+  amount: number;
+  memo?: string;
+}
+
+export interface CategorizationRule {
+  id: string;
+  priority: number;
+  match_field: 'payee' | 'memo';
+  match_pattern: string;
+  category_name: string;
 }
 
 export interface DashboardMetrics {

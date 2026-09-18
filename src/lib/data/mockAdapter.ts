@@ -92,12 +92,16 @@ let mockTransactions: MonetaTransaction[] = [
     account_name: 'DBS High Interest Checking',
     date: '2026-09-17',
     payee_name: 'FairPrice Finest Supermarket',
-    category_name: 'Groceries',
+    category_name: 'Split',
     amount: -128.45,
     transaction_type: 'expense',
     reconciliation_state: 'cleared',
     running_balance: 14850.5,
-    memo: 'Weekly family organic groceries',
+    memo: 'Weekly family groceries & supplies',
+    splits: [
+      { id: 'sp-1', category_name: 'Groceries', amount: -98.45, memo: 'Food & produce' },
+      { id: 'sp-2', category_name: 'Household Supplies', amount: -30.00, memo: 'Kitchen essentials' },
+    ],
   },
   {
     id: 'tx-2',
@@ -234,13 +238,39 @@ export class MockAdapter implements IMonetaRepository {
       account_id: payload.account_id || 'acc-1',
       date: payload.date || new Date().toISOString().split('T')[0],
       payee_name: payload.payee_name || 'Expense',
-      category_name: payload.category_name || 'General',
+      category_name: payload.category_name || (payload.splits && payload.splits.length > 0 ? 'Split' : 'General'),
       amount: Number(payload.amount || 0),
       transaction_type: (payload.amount || 0) >= 0 ? 'income' : 'expense',
       reconciliation_state: payload.reconciliation_state || 'unreconciled',
       memo: payload.memo || '',
+      splits: payload.splits,
     };
     mockTransactions.unshift(newTx);
     return newTx;
+  }
+
+  async batchCreateTransactions(
+    accountId: string | number,
+    transactions: Partial<MonetaTransaction>[]
+  ): Promise<MonetaTransaction[]> {
+    const created: MonetaTransaction[] = [];
+    for (let i = 0; i < transactions.length; i++) {
+      const p = transactions[i];
+      const tx: MonetaTransaction = {
+        id: `tx-${Date.now()}-${i}`,
+        account_id: accountId,
+        date: p.date || new Date().toISOString().split('T')[0],
+        payee_name: p.payee_name || 'Transaction',
+        category_name: p.category_name || 'General',
+        amount: Number(p.amount || 0),
+        transaction_type: (p.amount || 0) >= 0 ? 'income' : 'expense',
+        reconciliation_state: p.reconciliation_state || 'unreconciled',
+        memo: p.memo || '',
+        splits: p.splits,
+      };
+      mockTransactions.unshift(tx);
+      created.push(tx);
+    }
+    return created;
   }
 }

@@ -33,6 +33,7 @@ class FinanceStore {
 
   isQuickAddOpen = $state<boolean>(false);
   isSettingsOpen = $state<boolean>(false);
+  isImportModalOpen = $state<boolean>(false);
 
   public sqliteAdapter: SqliteAdapter = new SqliteAdapter();
   private repository: IMonetaRepository = new MockAdapter();
@@ -193,6 +194,44 @@ class FinanceStore {
       this.metrics = updatedMetrics;
     } catch (err) {
       console.error('Failed to create transaction:', err);
+    }
+  }
+
+  async batchImportTransactions(
+    accountId: string | number,
+    rows: Partial<MonetaTransaction>[]
+  ) {
+    if (rows.length === 0) return;
+    this.isLoading = true;
+    try {
+      if (this.repository.batchCreateTransactions) {
+        const created = await this.repository.batchCreateTransactions(accountId, rows);
+        if (String(this.selectedAccountId) === String(accountId)) {
+          this.transactions = [...created, ...this.transactions];
+        }
+      } else {
+        for (const row of rows) {
+          await this.repository.createTransaction({
+            ...row,
+            account_id: accountId,
+          });
+        }
+        if (String(this.selectedAccountId) === String(accountId)) {
+          await this.loadRegister(accountId);
+        }
+      }
+
+      const [updatedMetrics, accounts] = await Promise.all([
+        this.repository.getDashboardSummary(),
+        this.repository.getAccounts(),
+      ]);
+      this.metrics = updatedMetrics;
+      this.accounts = accounts;
+    } catch (err) {
+      console.error('Failed to batch import transactions:', err);
+      throw err;
+    } finally {
+      this.isLoading = false;
     }
   }
 
