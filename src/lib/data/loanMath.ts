@@ -90,6 +90,33 @@ export function computeAnnuityPayment(
   return (principal * (r * growth)) / (growth - 1);
 }
 
+/**
+ * Resolves a scenario's term in months from its two stored fields.
+ *
+ * `loan_term_months` is **authoritative when set**; otherwise the term derives
+ * from `loan_term_years`. The two are **never summed**.
+ *
+ * That is the whole point of this function. Three call sites previously
+ * disagreed about what `loan_term_months` meant: both adapters summed it with
+ * `years × 12` (treating it as a remainder), while `LoanHub` read it raw
+ * (treating it as the total). The create form writes the *total* into
+ * `loan_term_months` while also sending years — so the adapters double-counted,
+ * and a 25-year loan became 600 months: the payment came out 34% too low and
+ * total interest 118% too high. Meanwhile any scenario seeded with months
+ * unset produced an empty schedule, because the hub read the raw zero.
+ *
+ * Mirrors `loan.py::_compute_term_months`, where months derive from years.
+ * **Every call site must use this** rather than reading either field directly.
+ */
+export function resolveTermMonths(scenario: {
+  loan_term_months?: number | null;
+  loan_term_years?: number | null;
+}): number {
+  const explicit = Number(scenario.loan_term_months) || 0;
+  if (explicit > 0) return explicit;
+  return (Number(scenario.loan_term_years) || 0) * 12;
+}
+
 export interface ScheduleOptions {
   principal: number;
   /** Annual rate as a percentage, e.g. 5.5 for 5.5%. */

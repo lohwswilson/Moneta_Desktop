@@ -1,7 +1,7 @@
 <script lang="ts">
   import { financeStore } from '../stores/financeStore.svelte';
   import type { LoanScenario } from '../types/moneta';
-  import { simulatePrepayment } from '../data/loanMath';
+  import { simulatePrepayment, resolveTermMonths } from '../data/loanMath';
   import {
     Landmark,
     Plus,
@@ -85,7 +85,9 @@
     return simulatePrepayment({
       principal: s.principal_amount,
       annualRatePct: s.annual_interest_rate,
-      termMonths: s.loan_term_months,
+      // Resolved through the shared helper, not read raw: a scenario seeded
+      // with `loan_term_months: 0` previously produced an empty schedule.
+      termMonths: resolveTermMonths(s),
       startDate: s.start_date,
       extraMonthly: extra,
       lumpSum: lump,

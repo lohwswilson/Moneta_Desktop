@@ -6,6 +6,7 @@ import {
   addMonths,
   currencyRound,
   toDateOnlyString,
+  resolveTermMonths,
 } from '../src/lib/data/loanMath.ts';
 
 let pass = 0;
@@ -250,6 +251,47 @@ console.log('\n11. Degenerate inputs');
   check('empty schedule is inert', [z.totalInterest, z.totalPaid, z.months], [0, 0, 0]);
   near('annuity of zero principal', computeAnnuityPayment(0, 6, 360), 0, 0.0001);
   near('annuity at zero rate', computeAnnuityPayment(12000, 0, 12), 1000, 0.0001);
+}
+
+// ---------------------------------------------------------------------------
+console.log('\n12. Term resolution — the 300-vs-600 defect');
+// ---------------------------------------------------------------------------
+{
+  // `loan_term_months` is authoritative when set; years is the fallback. The
+  // two are NEVER summed. Three call sites previously disagreed about this:
+  // both adapters summed them, LoanHub read months raw.
+
+  // The shape the create form writes: the TOTAL in months, years also sent.
+  check('form-style: years + total months', resolveTermMonths({ loan_term_years: 25, loan_term_months: 300 }), 300);
+  // The shape the seed shipped: years only, months unset.
+  check('seeded: years, months = 0', resolveTermMonths({ loan_term_years: 25, loan_term_months: 0 }), 300);
+  check('seeded: years, months undefined', resolveTermMonths({ loan_term_years: 25 }), 300);
+  check('months only', resolveTermMonths({ loan_term_months: 300 }), 300);
+  check('short term with extra months', resolveTermMonths({ loan_term_years: 2, loan_term_months: 30 }), 30);
+  check('no term information at all', resolveTermMonths({}), 0);
+
+  // The defect, side by side. The old expression both adapters used:
+  check('  old: 25*12 + 300 (what adapters computed)', 25 * 12 + 300, 600);
+  check('  new: resolveTermMonths gives 300, not 600', resolveTermMonths({ loan_term_years: 25, loan_term_months: 300 }), 300);
+
+  // End to end — every stored shape must schedule the same 300 payments.
+  for (const [label, shape] of [
+    ['seeded', { loan_term_years: 25, loan_term_months: 0 }],
+    ['form-style', { loan_term_years: 25, loan_term_months: 300 }],
+    ['months-only', { loan_term_months: 300 }],
+    ['years-only', { loan_term_years: 25 }],
+  ] as const) {
+    const sched = buildSchedule({ ...BASE, termMonths: resolveTermMonths(shape) });
+    check(`${label.padEnd(12)} → 300 payments`, sched.lines.length, 300);
+  }
+
+  // And the resulting payment must be the true 25-year figure, not the
+  // half-sized 50-year one the double-count produced.
+  const correct = buildSchedule({ ...BASE, termMonths: resolveTermMonths({ loan_term_years: 25, loan_term_months: 300 }) });
+  const doubled = buildSchedule({ ...BASE, termMonths: 600 });
+  // 300k @ 6% over 300 months (25 years), not the 360-month BASE term.
+  near('correct payment for 300k/6% over 300 months', correct.scheduledPayment, 1932.9, 0.5);
+  check('double-counted term yields a smaller payment', doubled.scheduledPayment < correct.scheduledPayment, true);
 }
 
 console.log(`\n${'='.repeat(55)}\n${pass} passed, ${fail} failed\n${'='.repeat(55)}`);

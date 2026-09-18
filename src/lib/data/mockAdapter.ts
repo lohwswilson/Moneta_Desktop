@@ -33,7 +33,7 @@ import {
   computeRentTotals,
   generateRentSchedule,
 } from './propertyMath';
-import { simulatePrepayment, detectRateChanges } from './loanMath';
+import { simulatePrepayment, detectRateChanges, resolveTermMonths } from './loanMath';
 import type { RateObservation } from './loanMath';
 
 let mockAccounts: MonetaAccount[] = [
@@ -1356,8 +1356,11 @@ export class MockAdapter implements IMonetaRepository {
   }
 
   private deriveLoanScenario(s: LoanScenario): LoanScenario {
-    const termMonths =
-      (Number(s.loan_term_years) || 0) * 12 + (Number(s.loan_term_months) || 0);
+    // One definition of the term, shared with the SQLite adapter and the hub —
+    // see `resolveTermMonths`. Summing years*12 + months double-counted, because
+    // the create form writes the total into loan_term_months while also sending
+    // years: a 25-year loan became 600 months.
+    const termMonths = resolveTermMonths(s);
     const rateChanges = mockLoanRateChanges.filter((rc) => String(rc.scenario_id) === String(s.id));
     const sim = simulatePrepayment({
       principal: s.principal_amount,
@@ -2370,7 +2373,7 @@ let mockLoanScenarios: LoanScenario[] = [
     principal_amount: 285000,
     annual_interest_rate: 2.6,
     loan_term_years: 25,
-    loan_term_months: 0,
+    loan_term_months: 300,
     start_date: '2024-06-01',
     extra_monthly_payment: 0,
     lump_sum_payment: 0,
