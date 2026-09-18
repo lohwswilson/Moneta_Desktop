@@ -55,9 +55,10 @@ This roadmap defines the multi-phase engineering plan to achieve full feature pa
   - Priority-based substring matching on payees and memos.
   - 33 out-of-the-box Singapore merchant rules (FairPrice, Grab, Singtel, Bacha Coffee, SP Services, Netflix, etc.).
   - Real-time prediction pre-filling in QuickAdd and Import Wizard.
-- [ ] **Payee Intelligence & Directory:**
-  - Auto-complete payees with historical category memory.
-  - Total historical spend per merchant and average transaction size.
+- [x] **Payee Intelligence & Directory:**
+  - Auto-complete payees with historical category memory in QuickAdd transaction capture.
+  - Dedicated Payee Intelligence Hub with cadence detection (`weekly`, `biweekly`, `monthly`, `quarterly`, `yearly`, `irregular`), historical spend analytics, average transaction ticket size, and category memory overrides.
+  - Pluggable across Odoo 18 REST endpoints (`/api/v1/mobile/payees/*`) and offline SQLite WASM aggregation engine.
 - [x] **Multi-Currency Engine:**
   - Built-in FX conversion table (USD, MYR, SGD parity rates).
   - Automatic base currency normalization across live Odoo API and offline SQLite.

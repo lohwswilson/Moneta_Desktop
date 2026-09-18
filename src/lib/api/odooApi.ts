@@ -9,6 +9,7 @@ import type {
   RecurringBill,
   DetectedSubscription,
   CashflowForecast,
+  PayeeIntelligence,
 } from '../types/moneta';
 
 export const OdooApi = {
@@ -209,5 +210,30 @@ export const OdooApi = {
       },
     });
     return response.data?.result?.forecast;
+  },
+
+  /**
+   * Fetch all payees and merchant intelligence
+   */
+  async getPayees(): Promise<PayeeIntelligence[]> {
+    const response = await getApiClient().post('/api/v1/mobile/payees/list', {
+      jsonrpc: '2.0',
+      params: {},
+    });
+    return response.data?.result?.payees || [];
+  },
+
+  /**
+   * Update payee metadata
+   */
+  async updatePayee(id: string | number, payload: Partial<PayeeIntelligence>): Promise<boolean> {
+    const response = await getApiClient().post('/api/v1/mobile/payees/update', {
+      jsonrpc: '2.0',
+      params: {
+        payee_id: id,
+        ...payload,
+      },
+    });
+    return response.data?.result?.success || false;
   },
 };

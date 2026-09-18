@@ -10,6 +10,7 @@
   import BudgetHub from './lib/components/BudgetHub.svelte';
   import RecurringBillsHub from './lib/components/RecurringBillsHub.svelte';
   import CashFlowHub from './lib/components/CashFlowHub.svelte';
+  import PayeeDirectoryHub from './lib/components/PayeeDirectoryHub.svelte';
 
   onMount(() => {
     financeStore.refreshAll();
@@ -28,6 +29,8 @@
       <RecurringBillsHub />
     {:else if financeStore.activeView === 'cashflow'}
       <CashFlowHub />
+    {:else if financeStore.activeView === 'payees'}
+      <PayeeDirectoryHub />
     {:else if financeStore.selectedAccountId === null || financeStore.activeView === 'command_center'}
       <CommandCenter />
     {:else}

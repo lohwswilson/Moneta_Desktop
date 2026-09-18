@@ -8,6 +8,7 @@ import type {
   RecurringBill,
   DetectedSubscription,
   CashflowForecast,
+  PayeeIntelligence,
 } from '../types/moneta';
 
 export interface IMonetaRepository {
@@ -37,4 +38,6 @@ export interface IMonetaRepository {
   markBillPaid?(id: string | number, accountId?: string | number, date?: string): Promise<{ success: boolean; transaction?: MonetaTransaction }>;
   detectSubscriptions?(): Promise<DetectedSubscription[]>;
   getCashflowForecast?(days?: number, accountId?: string | number): Promise<CashflowForecast>;
+  getPayees?(): Promise<PayeeIntelligence[]>;
+  updatePayee?(id: string | number, payload: Partial<PayeeIntelligence>): Promise<boolean>;
 }

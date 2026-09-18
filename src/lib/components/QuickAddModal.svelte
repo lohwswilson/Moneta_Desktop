@@ -13,12 +13,15 @@
     AlertCircle,
   } from '@lucide/svelte';
 
+  import type { PayeeIntelligence } from '../types/moneta';
+
   let date = $state(new Date().toISOString().split('T')[0]);
   let payeeName = $state('');
   let categoryName = $state('');
   let amountStr = $state('');
   let isExpense = $state(true);
   let memo = $state('');
+  let isPayeeDropdownOpen = $state(false);
 
   // Split transaction states
   let isSplit = $state(false);
@@ -41,13 +44,46 @@
     !isSplit || (splits.length >= 2 && Math.abs(splitRemainder) < 0.01 && totalNumericAmount > 0)
   );
 
-  // Auto-predict category when payee changes (only if category hasn't been manually set)
+  // Autocomplete matching payees
+  let matchingPayees = $derived.by(() => {
+    const q = payeeName.trim().toLowerCase();
+    if (!q) return [];
+    return financeStore.payees
+      .filter((p) => p.name.toLowerCase().includes(q))
+      .slice(0, 6);
+  });
+
+  const selectPayeeSuggestion = (payee: PayeeIntelligence) => {
+    payeeName = payee.name;
+    if (!userEditedCategory) {
+      if (payee.default_category_name) {
+        categoryName = payee.default_category_name;
+      } else if (payee.suggested_category_name) {
+        categoryName = payee.suggested_category_name;
+      }
+    }
+    if ((!amountStr || amountStr === '0') && payee.avg_amount > 0) {
+      amountStr = payee.avg_amount.toFixed(2);
+    }
+    isPayeeDropdownOpen = false;
+  };
+
+  // Auto-predict category when payee changes with Payee memory & rules engine fallback
   let userEditedCategory = $state(false);
   $effect(() => {
     if (!isSplit && !userEditedCategory && payeeName.trim()) {
-      const predicted = predictCategory(payeeName, memo);
-      if (predicted !== 'General') {
-        categoryName = predicted;
+      const match = financeStore.payees.find(
+        (p) => p.name.toLowerCase() === payeeName.trim().toLowerCase()
+      );
+      if (match?.default_category_name) {
+        categoryName = match.default_category_name;
+      } else if (match?.suggested_category_name) {
+        categoryName = match.suggested_category_name;
+      } else {
+        const predicted = predictCategory(payeeName, memo);
+        if (predicted !== 'General') {
+          categoryName = predicted;
+        }
       }
     }
   });
@@ -200,16 +236,52 @@
               class="w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-xs text-zinc-100 focus:outline-none focus:border-emerald-500"
             />
           </div>
-          <div>
+          <div class="relative">
             <label class="block text-[11px] uppercase font-semibold text-zinc-400 mb-1" for="tx-payee">Payee / Merchant</label>
-            <input
-              id="tx-payee"
-              type="text"
-              required
-              placeholder="e.g. FairPrice, Grab"
-              bind:value={payeeName}
-              class="w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-xs text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-emerald-500"
-            />
+            <div class="relative">
+              <input
+                id="tx-payee"
+                type="text"
+                required
+                placeholder="e.g. FairPrice, Grab"
+                bind:value={payeeName}
+                onfocus={() => (isPayeeDropdownOpen = true)}
+                onblur={() => setTimeout(() => (isPayeeDropdownOpen = false), 200)}
+                class="w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-xs text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-emerald-500"
+              />
+              {#if matchingPayees.length > 0 && isPayeeDropdownOpen}
+                <div class="absolute left-0 right-0 top-full mt-1 bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl z-50 overflow-hidden divide-y divide-zinc-800/60 max-h-52 overflow-y-auto">
+                  {#each matchingPayees as p}
+                    <button
+                      type="button"
+                      onmousedown={() => selectPayeeSuggestion(p)}
+                      class="w-full px-3 py-2 text-left hover:bg-zinc-800/80 flex items-center justify-between gap-2 transition-colors group cursor-pointer"
+                    >
+                      <div class="min-w-0 flex-1">
+                        <div class="text-xs font-semibold text-zinc-200 group-hover:text-emerald-400 truncate">
+                          {p.name}
+                        </div>
+                        <div class="text-[10px] text-zinc-500 flex items-center gap-1.5 mt-0.5">
+                          {#if p.default_category_name || p.suggested_category_name}
+                            <span class="text-indigo-400 font-medium">{p.default_category_name || p.suggested_category_name}</span>
+                            <span>•</span>
+                          {/if}
+                          <span>{p.transaction_count} txs</span>
+                        </div>
+                      </div>
+                      {#if p.avg_amount > 0}
+                        <div class="text-right shrink-0">
+                          <div class="text-[10px] text-zinc-500 uppercase">Avg</div>
+                          <div class="text-xs font-mono font-medium text-zinc-300">
+                            ${p.avg_amount.toFixed(2)}
+                          </div>
+                        </div>
+                      {/if}
+                    </button>
+                  {/each}
+                </div>
+              {/if}
+            </div>
           </div>
         </div>
 

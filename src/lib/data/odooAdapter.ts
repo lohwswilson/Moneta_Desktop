@@ -10,6 +10,7 @@ import type {
   RecurringBill,
   DetectedSubscription,
   CashflowForecast,
+  PayeeIntelligence,
 } from '../types/moneta';
 
 export class OdooAdapter implements IMonetaRepository {
@@ -81,5 +82,13 @@ export class OdooAdapter implements IMonetaRepository {
 
   async getCashflowForecast(days: number = 90, accountId?: string | number): Promise<CashflowForecast> {
     return OdooApi.getCashflowProjection(days, accountId);
+  }
+
+  async getPayees(): Promise<PayeeIntelligence[]> {
+    return OdooApi.getPayees();
+  }
+
+  async updatePayee(id: string | number, payload: Partial<PayeeIntelligence>): Promise<boolean> {
+    return OdooApi.updatePayee(id, payload);
   }
 }

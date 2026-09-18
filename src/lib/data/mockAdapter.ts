@@ -9,6 +9,7 @@ import type {
   RecurringBill,
   DetectedSubscription,
   CashflowForecast,
+  PayeeIntelligence,
 } from '../types/moneta';
 
 let mockAccounts: MonetaAccount[] = [
@@ -662,7 +663,153 @@ export class MockAdapter implements IMonetaRepository {
       },
     };
   }
+
+  async getPayees(): Promise<PayeeIntelligence[]> {
+    return [...mockPayees];
+  }
+
+  async updatePayee(id: string | number, payload: Partial<PayeeIntelligence>): Promise<boolean> {
+    const idx = mockPayees.findIndex((p) => String(p.id) === String(id));
+    if (idx !== -1) {
+      mockPayees[idx] = { ...mockPayees[idx], ...payload };
+      return true;
+    }
+    return false;
+  }
 }
+
+let mockPayees: PayeeIntelligence[] = [
+  {
+    id: 'payee-1',
+    name: 'FairPrice Finest',
+    default_category_name: 'Groceries',
+    suggested_category_name: 'Groceries',
+    total_spend: 1420.50,
+    transaction_count: 18,
+    avg_amount: 78.92,
+    last_transaction_date: '2026-09-14',
+    detected_cadence: 'biweekly',
+    website: 'https://fairprice.com.sg',
+    notes: 'Primary supermarket for groceries',
+  },
+  {
+    id: 'payee-2',
+    name: 'Grab Singapore',
+    default_category_name: 'Transportation',
+    suggested_category_name: 'Transportation',
+    total_spend: 685.20,
+    transaction_count: 24,
+    avg_amount: 28.55,
+    last_transaction_date: '2026-09-17',
+    detected_cadence: 'weekly',
+    website: 'https://grab.com/sg',
+    notes: 'Rides and GrabFood deliveries',
+  },
+  {
+    id: 'payee-3',
+    name: 'Bacha Coffee',
+    default_category_name: 'Dining',
+    suggested_category_name: 'Dining',
+    total_spend: 240.00,
+    transaction_count: 4,
+    avg_amount: 60.00,
+    last_transaction_date: '2026-09-08',
+    detected_cadence: 'monthly',
+    website: 'https://bachacoffee.com',
+    notes: 'Coffee beans and gifts',
+  },
+  {
+    id: 'payee-4',
+    name: 'SP Services Ltd',
+    default_category_name: 'Utilities',
+    suggested_category_name: 'Utilities',
+    total_spend: 871.20,
+    transaction_count: 6,
+    avg_amount: 145.20,
+    last_transaction_date: '2026-09-02',
+    detected_cadence: 'monthly',
+    website: 'https://spgroup.com.sg',
+    notes: 'Home electricity & water utilities',
+  },
+  {
+    id: 'payee-5',
+    name: 'Singtel',
+    default_category_name: 'Utilities',
+    suggested_category_name: 'Utilities',
+    total_spend: 479.40,
+    transaction_count: 6,
+    avg_amount: 79.90,
+    last_transaction_date: '2026-09-05',
+    detected_cadence: 'monthly',
+    website: 'https://singtel.com',
+    notes: 'Home fibre broadband',
+  },
+  {
+    id: 'payee-6',
+    name: 'Netflix',
+    default_category_name: 'Entertainment',
+    suggested_category_name: 'Entertainment',
+    total_spend: 155.88,
+    transaction_count: 6,
+    avg_amount: 25.98,
+    last_transaction_date: '2026-09-11',
+    detected_cadence: 'monthly',
+    website: 'https://netflix.com',
+    notes: 'Family 4K subscription',
+  },
+  {
+    id: 'payee-7',
+    name: 'Pure Fitness',
+    default_category_name: 'Fitness & Health',
+    suggested_category_name: 'Fitness & Health',
+    total_spend: 1170.00,
+    transaction_count: 6,
+    avg_amount: 195.00,
+    last_transaction_date: '2026-09-18',
+    detected_cadence: 'monthly',
+    website: 'https://pure-fitness.com',
+    notes: 'Gym membership',
+  },
+  {
+    id: 'payee-8',
+    name: 'Din Tai Fung',
+    default_category_name: 'Dining',
+    suggested_category_name: 'Dining',
+    total_spend: 540.00,
+    transaction_count: 5,
+    avg_amount: 108.00,
+    last_transaction_date: '2026-09-10',
+    detected_cadence: 'monthly',
+    website: 'https://dintaifung.com.sg',
+    notes: 'Family dinners',
+  },
+  {
+    id: 'payee-9',
+    name: 'Shopee Singapore',
+    default_category_name: 'Shopping',
+    suggested_category_name: 'Shopping',
+    total_spend: 920.40,
+    transaction_count: 14,
+    avg_amount: 65.74,
+    last_transaction_date: '2026-09-12',
+    detected_cadence: 'biweekly',
+    website: 'https://shopee.sg',
+    notes: 'Online marketplace',
+  },
+  {
+    id: 'payee-10',
+    name: 'Great Eastern Life',
+    default_category_name: 'Insurance',
+    suggested_category_name: 'Insurance',
+    total_spend: 1280.00,
+    transaction_count: 4,
+    avg_amount: 320.00,
+    last_transaction_date: '2026-08-15',
+    detected_cadence: 'quarterly',
+    website: 'https://greateasternlife.com',
+    notes: 'Term life and health rider',
+  },
+];
 
 let mockBills: RecurringBill[] = [
   {

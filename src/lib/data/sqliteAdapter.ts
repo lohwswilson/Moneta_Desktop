@@ -9,6 +9,7 @@ import type {
   RecurringBill,
   DetectedSubscription,
   CashflowForecast,
+  PayeeIntelligence,
 } from '../types/moneta';
 import initSqlJs, { type Database, type SqlJsStatic } from 'sql.js';
 import { DEFAULT_RULES } from './rulesEngine';
@@ -166,6 +167,17 @@ export class SqliteAdapter implements IMonetaRepository {
         auto_pay INTEGER DEFAULT 0,
         active INTEGER DEFAULT 1,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS payees (
+        id TEXT PRIMARY KEY,
+        name TEXT UNIQUE NOT NULL,
+        default_category_name TEXT,
+        suggested_category_name TEXT,
+        detected_cadence TEXT DEFAULT 'none',
+        website TEXT,
+        notes TEXT,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP
       );
     `);
 
@@ -1566,6 +1578,210 @@ export class SqliteAdapter implements IMonetaRepository {
         links,
       },
     };
+  }
+
+  /**
+   * Aggregate payees from transactions table and merge with custom payee metadata
+   */
+  async getPayees(): Promise<PayeeIntelligence[]> {
+    await this.init();
+    if (!this.db) return [];
+
+    // 1. Aggregate statistics grouped by payee_name
+    const txStmt = `
+      SELECT
+        TRIM(payee_name) as p_name,
+        COUNT(*) as tx_count,
+        SUM(ABS(amount)) as total_spend,
+        AVG(ABS(amount)) as avg_amount,
+        MAX(date) as last_date
+      FROM transactions
+      WHERE payee_name IS NOT NULL AND TRIM(payee_name) != ''
+      GROUP BY LOWER(TRIM(payee_name))
+      ORDER BY total_spend DESC;
+    `;
+    const txRes = this.db.exec(txStmt);
+
+    // 2. Query category frequencies per payee to determine most-used category
+    const catStmt = `
+      SELECT
+        LOWER(TRIM(payee_name)) as norm_name,
+        category_name,
+        COUNT(*) as cat_count
+      FROM transactions
+      WHERE payee_name IS NOT NULL AND TRIM(payee_name) != '' AND category_name IS NOT NULL AND TRIM(category_name) != ''
+      GROUP BY LOWER(TRIM(payee_name)), category_name
+      ORDER BY LOWER(TRIM(payee_name)), cat_count DESC;
+    `;
+    const catRes = this.db.exec(catStmt);
+    const topCategoryMap: Record<string, string> = {};
+    if (catRes.length > 0 && catRes[0].values) {
+      for (const row of catRes[0].values) {
+        const norm = String(row[0]).toLowerCase();
+        const cat = String(row[1]);
+        if (!topCategoryMap[norm]) {
+          topCategoryMap[norm] = cat;
+        }
+      }
+    }
+
+    // 3. Cadence detection from dates
+    const dateStmt = `
+      SELECT LOWER(TRIM(payee_name)) as norm_name, date
+      FROM transactions
+      WHERE payee_name IS NOT NULL AND TRIM(payee_name) != ''
+      ORDER BY LOWER(TRIM(payee_name)), date ASC;
+    `;
+    const dateRes = this.db.exec(dateStmt);
+    const datesMap: Record<string, string[]> = {};
+    if (dateRes.length > 0 && dateRes[0].values) {
+      for (const row of dateRes[0].values) {
+        const norm = String(row[0]).toLowerCase();
+        const d = String(row[1]);
+        if (!datesMap[norm]) datesMap[norm] = [];
+        datesMap[norm].push(d);
+      }
+    }
+
+    const cadenceMap: Record<string, 'none' | 'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'yearly'> = {};
+    for (const [norm, dateList] of Object.entries(datesMap)) {
+      if (dateList.length < 3) {
+        cadenceMap[norm] = 'none';
+        continue;
+      }
+      const intervals: number[] = [];
+      for (let i = 1; i < dateList.length; i++) {
+        const t1 = new Date(dateList[i - 1]).getTime();
+        const t2 = new Date(dateList[i]).getTime();
+        const days = Math.round((t2 - t1) / 86400000);
+        if (days > 0) intervals.push(days);
+      }
+      if (intervals.length < 2) {
+        cadenceMap[norm] = 'none';
+        continue;
+      }
+      const avgInterval = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+      if (avgInterval >= 5 && avgInterval <= 9) cadenceMap[norm] = 'weekly';
+      else if (avgInterval >= 12 && avgInterval <= 16) cadenceMap[norm] = 'biweekly';
+      else if (avgInterval >= 26 && avgInterval <= 35) cadenceMap[norm] = 'monthly';
+      else if (avgInterval >= 80 && avgInterval <= 100) cadenceMap[norm] = 'quarterly';
+      else if (avgInterval >= 350 && avgInterval <= 380) cadenceMap[norm] = 'yearly';
+      else cadenceMap[norm] = 'none';
+    }
+
+    // 4. Query payees table for overrides
+    const metaStmt = `SELECT id, name, default_category_name, suggested_category_name, detected_cadence, website, notes FROM payees;`;
+    const metaRes = this.db.exec(metaStmt);
+    const metaMap: Record<string, any> = {};
+    if (metaRes.length > 0 && metaRes[0].values) {
+      for (const row of metaRes[0].values) {
+        const [id, name, defCat, sugCat, cadence, website, notes] = row;
+        metaMap[String(name).toLowerCase()] = {
+          id: String(id),
+          name: String(name),
+          default_category_name: defCat ? String(defCat) : undefined,
+          suggested_category_name: sugCat ? String(sugCat) : undefined,
+          detected_cadence: cadence ? String(cadence) : undefined,
+          website: website ? String(website) : undefined,
+          notes: notes ? String(notes) : undefined,
+        };
+      }
+    }
+
+    const payees: PayeeIntelligence[] = [];
+    const seenNorms = new Set<string>();
+
+    if (txRes.length > 0 && txRes[0].values) {
+      for (const row of txRes[0].values) {
+        const pName = String(row[0]);
+        const norm = pName.toLowerCase();
+        seenNorms.add(norm);
+
+        const txCount = Number(row[1]) || 0;
+        const totalSpend = Number(row[2]) || 0;
+        const avgAmt = Number(row[3]) || 0;
+        const lastDate = row[4] ? String(row[4]) : undefined;
+
+        const meta = metaMap[norm];
+        const topCat = topCategoryMap[norm];
+        const detectedCadence = meta?.detected_cadence || cadenceMap[norm] || 'none';
+
+        payees.push({
+          id: meta?.id || `payee-${norm.replace(/[^a-z0-9]/g, '-')}`,
+          name: meta?.name || pName,
+          default_category_name: meta?.default_category_name || topCat,
+          suggested_category_name: meta?.suggested_category_name || topCat,
+          total_spend: Math.round(totalSpend * 100) / 100,
+          transaction_count: txCount,
+          avg_amount: Math.round(avgAmt * 100) / 100,
+          last_transaction_date: lastDate,
+          detected_cadence: detectedCadence as any,
+          website: meta?.website,
+          notes: meta?.notes,
+        });
+      }
+    }
+
+    // Include payees from payees table that have no transactions yet
+    for (const [norm, meta] of Object.entries(metaMap)) {
+      if (!seenNorms.has(norm)) {
+        payees.push({
+          id: meta.id,
+          name: meta.name,
+          default_category_name: meta.default_category_name,
+          suggested_category_name: meta.suggested_category_name,
+          total_spend: 0,
+          transaction_count: 0,
+          avg_amount: 0,
+          detected_cadence: meta.detected_cadence || 'none',
+          website: meta.website,
+          notes: meta.notes,
+        });
+      }
+    }
+
+    return payees.sort((a, b) => b.total_spend - a.total_spend);
+  }
+
+  /**
+   * Update or create payee metadata (default category, cadence, notes) in SQLite
+   */
+  async updatePayee(id: string | number, payload: Partial<PayeeIntelligence>): Promise<boolean> {
+    await this.init();
+    if (!this.db) return false;
+
+    const existing = this.db.exec(`SELECT id, name FROM payees WHERE id = :id OR LOWER(name) = LOWER(:name);`, {
+      ':id': String(id),
+      ':name': payload.name || '',
+    });
+
+    const existingId = existing[0]?.values[0]?.[0] as string | undefined;
+    const finalId = existingId || String(id);
+    const payeeName = payload.name || (existing[0]?.values[0]?.[1] as string) || `Payee-${id}`;
+
+    this.db.run(
+      `INSERT INTO payees (id, name, default_category_name, suggested_category_name, detected_cadence, website, notes, updated_at)
+       VALUES (:id, :name, :default_category_name, :suggested_category_name, :detected_cadence, :website, :notes, CURRENT_TIMESTAMP)
+       ON CONFLICT(name) DO UPDATE SET
+         default_category_name = COALESCE(:default_category_name, default_category_name),
+         suggested_category_name = COALESCE(:suggested_category_name, suggested_category_name),
+         detected_cadence = COALESCE(:detected_cadence, detected_cadence),
+         website = COALESCE(:website, website),
+         notes = COALESCE(:notes, notes),
+         updated_at = CURRENT_TIMESTAMP;`,
+      {
+        ':id': finalId,
+        ':name': payeeName,
+        ':default_category_name': payload.default_category_name !== undefined ? payload.default_category_name : null,
+        ':suggested_category_name': payload.suggested_category_name !== undefined ? payload.suggested_category_name : null,
+        ':detected_cadence': payload.detected_cadence !== undefined ? payload.detected_cadence : null,
+        ':website': payload.website !== undefined ? payload.website : null,
+        ':notes': payload.notes !== undefined ? payload.notes : null,
+      }
+    );
+
+    await this.persist();
+    return true;
   }
 
   /**

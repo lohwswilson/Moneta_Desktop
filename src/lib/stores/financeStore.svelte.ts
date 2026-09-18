@@ -9,6 +9,7 @@ import type {
   RecurringBill,
   DetectedSubscription,
   CashflowForecast,
+  PayeeIntelligence,
 } from '../types/moneta';
 import type { IMonetaRepository } from '../data/repository';
 import { OdooAdapter } from '../data/odooAdapter';
@@ -32,13 +33,14 @@ class FinanceStore {
   metrics = $state<DashboardMetrics | null>(null);
   accounts = $state<MonetaAccount[]>([]);
   selectedAccountId = $state<string | number | null>(null);
-  activeView = $state<'command_center' | 'register' | 'budgets' | 'bills' | 'cashflow'>('command_center');
+  activeView = $state<'command_center' | 'register' | 'budgets' | 'bills' | 'cashflow' | 'payees'>('command_center');
   transactions = $state<MonetaTransaction[]>([]);
   budgets = $state<EnvelopeBudget[]>([]);
   bills = $state<RecurringBill[]>([]);
   detectedSubscriptions = $state<DetectedSubscription[]>([]);
   cashflowForecast = $state<CashflowForecast | null>(null);
   cashflowHorizon = $state<30 | 90 | 180 | 365>(90);
+  payees = $state<PayeeIntelligence[]>([]);
   settings = $state<OdooSettingsPayload | null>(null);
   filterState = $state<'all' | 'unreconciled' | 'cleared' | 'reconciled'>('all');
   isLoading = $state<boolean>(false);
@@ -154,6 +156,7 @@ class FinanceStore {
       await this.loadBudgets();
       await this.loadBills();
       await this.loadCashflow();
+      await this.loadPayees();
 
       if (!this.selectedAccountId && accounts.length > 0) {
         this.selectedAccountId = accounts[0].id;
@@ -374,6 +377,43 @@ class FinanceStore {
     }
   }
 
+  async navigateToPayees() {
+    this.selectedAccountId = null;
+    this.activeView = 'payees';
+    await this.loadPayees();
+  }
+
+  async loadPayees() {
+    try {
+      if (this.repository.getPayees) {
+        this.payees = await this.repository.getPayees();
+      } else {
+        this.payees = [];
+      }
+    } catch (err) {
+      console.error('Failed to load payees:', err);
+    }
+  }
+
+  async updatePayee(id: string | number, payload: Partial<PayeeIntelligence>): Promise<boolean> {
+    this.isLoading = true;
+    try {
+      let success = false;
+      if (this.repository.updatePayee) {
+        success = await this.repository.updatePayee(id, payload);
+      }
+      if (success) {
+        await this.loadPayees();
+      }
+      return success;
+    } catch (err) {
+      console.error('Failed to update payee:', err);
+      return false;
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
   async loadRegister(accountId: string | number) {
     this.isLoading = true;
     try {
@@ -429,6 +469,7 @@ class FinanceStore {
       const updatedMetrics = await this.repository.getDashboardSummary();
       this.metrics = updatedMetrics;
       await this.loadBudgets();
+      await this.loadPayees();
     } catch (err) {
       console.error('Failed to create transaction:', err);
     }
@@ -465,6 +506,7 @@ class FinanceStore {
       this.metrics = updatedMetrics;
       this.accounts = accounts;
       await this.loadBudgets();
+      await this.loadPayees();
     } catch (err) {
       console.error('Failed to batch import transactions:', err);
       throw err;

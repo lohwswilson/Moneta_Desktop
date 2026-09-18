@@ -206,5 +206,20 @@ export interface CashflowForecast {
   };
 }
 
+export interface PayeeIntelligence {
+  id: string | number;
+  name: string;
+  default_category_name?: string;
+  suggested_category_name?: string;
+  total_spend: number;
+  transaction_count: number;
+  avg_amount: number;
+  last_transaction_date?: string;
+  detected_cadence?: 'none' | 'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'yearly';
+  website?: string;
+  notes?: string;
+}
+
+
 
 

@@ -15,7 +15,8 @@
     Gem,
     PiggyBank,
     CalendarClock,
-    Workflow
+    Workflow,
+    Store
   } from '@lucide/svelte';
 
   const formatCurrency = (amount: number, currency: string = 'SGD') => {
@@ -152,6 +153,21 @@
           {@const net = financeStore.cashflowForecast.summary.net_projected_cashflow}
           <span class="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded {net >= 0 ? 'bg-emerald-950/60 text-emerald-400 border border-emerald-800/60' : 'bg-rose-950/60 text-rose-400 border border-rose-800/60'}">
             {net >= 0 ? '+' : ''}{formatCurrency(net)}
+          </span>
+        {/if}
+      </button>
+
+      <button
+        onclick={() => financeStore.navigateToPayees()}
+        class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition-colors {financeStore.activeView === 'payees' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200'}"
+      >
+        <span class="flex items-center gap-2">
+          <Store class="w-4 h-4 text-pink-400" />
+          Payees & Directory
+        </span>
+        {#if financeStore.payees.length > 0}
+          <span class="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-pink-950/60 text-pink-400 border border-pink-800/60">
+            {financeStore.payees.length}
           </span>
         {/if}
       </button>
