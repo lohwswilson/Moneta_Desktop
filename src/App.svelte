@@ -16,42 +16,49 @@
   import PropertyHub from './lib/components/PropertyHub.svelte';
   import LoanHub from './lib/components/LoanHub.svelte';
   import LandlordHub from './lib/components/LandlordHub.svelte';
+  import TopMenuBar from './lib/components/TopMenuBar.svelte';
 
   onMount(() => {
     financeStore.refreshAll();
   });
 </script>
 
-<main class="flex h-screen w-screen bg-zinc-950 text-zinc-100 overflow-hidden font-sans antialiased">
-  <!-- Left Sidebar Navigation & Accounts -->
-  <Sidebar />
+<main class="flex flex-col h-screen w-screen bg-zinc-950 text-zinc-100 overflow-hidden font-sans antialiased">
+  <!-- Top Domain Navigation Menu Bar -->
+  <TopMenuBar />
 
-  <!-- Main Content Area -->
-  <section class="flex-1 flex flex-col h-screen overflow-hidden">
-    {#if financeStore.activeView === 'budgets'}
-      <BudgetHub />
-    {:else if financeStore.activeView === 'bills'}
-      <RecurringBillsHub />
-    {:else if financeStore.activeView === 'cashflow'}
-      <CashFlowHub />
-    {:else if financeStore.activeView === 'payees'}
-      <PayeeDirectoryHub />
-    {:else if financeStore.activeView === 'goals'}
-      <GoalsHub />
-    {:else if financeStore.activeView === 'portfolio'}
-      <PortfolioHub />
-    {:else if financeStore.activeView === 'property'}
-      <PropertyHub />
-    {:else if financeStore.activeView === 'loans'}
-      <LoanHub />
-    {:else if financeStore.activeView === 'landlord'}
-      <LandlordHub />
-    {:else if financeStore.selectedAccountId === null || financeStore.activeView === 'command_center'}
-      <CommandCenter />
-    {:else}
-      <CheckbookRegister />
-    {/if}
-  </section>
+  <!-- Workspace Body: Left Accounts Sidebar + Main Content Area -->
+  <div class="flex-1 flex overflow-hidden">
+    <!-- Left Sidebar Navigation & Accounts -->
+    <Sidebar />
+
+    <!-- Main Content Area -->
+    <section class="flex-1 flex flex-col h-full overflow-hidden">
+      {#if financeStore.activeView === 'budgets'}
+        <BudgetHub />
+      {:else if financeStore.activeView === 'bills'}
+        <RecurringBillsHub />
+      {:else if financeStore.activeView === 'cashflow'}
+        <CashFlowHub />
+      {:else if financeStore.activeView === 'payees'}
+        <PayeeDirectoryHub />
+      {:else if financeStore.activeView === 'goals'}
+        <GoalsHub />
+      {:else if financeStore.activeView === 'portfolio'}
+        <PortfolioHub />
+      {:else if financeStore.activeView === 'property'}
+        <PropertyHub />
+      {:else if financeStore.activeView === 'loans'}
+        <LoanHub />
+      {:else if financeStore.activeView === 'landlord'}
+        <LandlordHub />
+      {:else if financeStore.selectedAccountId === null || financeStore.activeView === 'command_center'}
+        <CommandCenter />
+      {:else}
+        <CheckbookRegister />
+      {/if}
+    </section>
+  </div>
 
   <!-- Global Modals -->
   <QuickAddModal />
