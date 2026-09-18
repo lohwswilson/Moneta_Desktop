@@ -35,18 +35,70 @@ The active driver is switched on the fly without page reloads:
 
 ## 2. Odoo 18 REST Controller Endpoints
 
-When connected to Odoo, Moneta Desktop interfaces with [`moneta_finance/controllers/api_mobile.py`](file:///opt/PW/PW_ADDONS.18.0/moneta_finance/controllers/api_mobile.py):
+All 46 endpoints live in `moneta_finance/controllers/api_mobile.py`. The authoritative list of what the client calls is [`src/lib/api/odooApi.ts`](../src/lib/api/odooApi.ts) — **route parity between the two is a verification step** (`AGENTS.md` §5 step 4), because a client call with no server route fails only in Live Odoo mode.
 
-| Endpoint | Method | Purpose | Payload Parameters |
-| :--- | :--- | :--- | :--- |
-| `/api/v1/mobile/ping` | `POST` | Connection test & user identity | None |
-| `/api/v1/mobile/dashboard/summary` | `POST` | Consolidated metrics | `period` (optional) |
-| `/api/v1/mobile/accounts/list` | `POST` | Fetch all active accounts | `include_inactive` (boolean) |
-| `/api/v1/mobile/transactions/list` | `POST` | Account register rows | `account_id`, `limit`, `offset` |
-| `/api/v1/mobile/transactions/reconcile` | `POST` | Toggle reconciliation state | `transaction_id`, `reconciliation_state` |
-| `/api/v1/mobile/transactions/create` | `POST` | Create new transaction | `account_id`, `date`, `payee_name`, `amount`, `memo` |
+### Core
 
-All requests follow Odoo 18 JSON-RPC specification:
+| Endpoint | Purpose | Key parameters |
+| :--- | :--- | :--- |
+| `/api/v1/mobile/ping` | Connection test & user identity | — |
+| `/api/v1/mobile/dashboard/summary` | Consolidated wealth & FIRE metrics | — |
+| `/api/v1/mobile/accounts/list` | All accounts, including tangible properties | — |
+| `/api/v1/mobile/settings` | Base currency, FX rates, categorization rules | — |
+
+### Transactions
+
+| Endpoint | Purpose | Key parameters |
+| :--- | :--- | :--- |
+| `/api/v1/mobile/transactions/register` | Account register rows | `account_id`, `limit` |
+| `/api/v1/mobile/transactions/create` | Create a transaction | `account_id`, `date`, `payee_name`, `amount`, `memo` |
+| `/api/v1/mobile/transactions/update` | Edit an existing transaction | `id`, plus any changed fields |
+| `/api/v1/mobile/transactions/delete` | Delete a transaction | `id` |
+| `/api/v1/mobile/transactions/reconcile` | Cycle reconciliation state | `transaction_id`, `reconciliation_state` |
+
+> Note the register endpoint is `register`, **not** `list`. An earlier revision of this document recorded `transactions/list`, which has never existed on the server — the same error that once shipped in the client and 404'd the register in Live Odoo mode.
+
+### Bills, budgets & subscriptions
+
+| Endpoint | Purpose | Key parameters |
+| :--- | :--- | :--- |
+| `/api/v1/mobile/budgets/list` | Envelope budgets | — |
+| `/api/v1/mobile/bills/upcoming` | Bills due within N days | `days` |
+| `/api/v1/mobile/bills/create` · `update` · `delete` | Recurring bill CRUD | bill fields · `bill_id` |
+| `/api/v1/mobile/bills/mark_paid` | Post the expense and advance the due date | `bill_id`, `account_id`, `date` |
+| `/api/v1/mobile/subscriptions/detect` | Infer recurring charges from history | — |
+
+### Goals, investments, property, loans
+
+| Endpoint | Purpose | Key parameters |
+| :--- | :--- | :--- |
+| `/api/v1/mobile/goals/list` · `create` · `update` · `delete` | Financial goal CRUD | goal fields · `goal_id` |
+| `/api/v1/mobile/goals/fund` | Deposit into or withdraw from a goal | `goal_id`, `amount`, `action_type` |
+| `/api/v1/mobile/investments/holdings` | Portfolio positions | `account_id` (optional) |
+| `/api/v1/mobile/investments/lots` | Open tax lots | `symbol`, `account_id`, `state` |
+| `/api/v1/mobile/investments/disposals` | Realized capital-gains schedule | `year` |
+| `/api/v1/mobile/investments/trade` | Execute a buy or sell | account, symbol, action, quantity, price, strategy |
+| `/api/v1/mobile/investments/summary` | Totals, TWR/MWR, allocation | `account_id` (optional) |
+| `/api/v1/mobile/property/list` · `create` · `update` · `delete` | Property CRUD | property fields · `property_id` |
+| `/api/v1/mobile/property/valuation` | Record an appraisal | `property_id`, `valuation_date`, `appraised_value` |
+| `/api/v1/mobile/tenants/list` · `create` · `update` · `delete` | Tenant & lease CRUD | tenant fields · `tenant_id` |
+| `/api/v1/mobile/tenants/generate_rent` | Generate the rent schedule (idempotent) | `tenant_id` |
+| `/api/v1/mobile/rent/list` | Rent roll | `tenant_id` (optional) |
+| `/api/v1/mobile/rent/mark_paid` | Settle a rent payment | `payment_id` |
+| `/api/v1/mobile/loans/list` · `create` · `update` · `delete` | Loan scenario CRUD | scenario fields · `scenario_id` |
+| `/api/v1/mobile/loans/infer_rates` | Infer rate changes from interest payments | `scenario_id` |
+
+### Payees
+
+| Endpoint | Purpose | Key parameters |
+| :--- | :--- | :--- |
+| `/api/v1/mobile/payees/list` | Merchant intelligence | — |
+| `/api/v1/mobile/payees/update` | Update payee metadata | `payee_id`, plus changed fields |
+
+> **One server route has no client caller:** `/api/v1/mobile/action/undo`, which exposes the Odoo action-history undo engine. It is intentionally unused — there is no Desktop UI for it yet.
+
+All requests follow the Odoo 18 JSON-RPC envelope:
+
 ```json
 {
   "jsonrpc": "2.0",

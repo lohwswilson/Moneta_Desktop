@@ -40,7 +40,22 @@ if (this.repository.getGoals) {
 
 ### Navigation
 
-Views are driven by `financeStore.activeView`, rendered in `App.svelte`:
+Moneta Desktop has two navigation surfaces, both driven by `financeStore.activeView`, rendered in `App.svelte`.
+
+**`TopMenuBar.svelte`** groups the eleven views into **domain centers** and derives the active center from `activeView`:
+
+| Domain center | Contains |
+| :--- | :--- |
+| Overview | Command Center |
+| Spending | Register, Payee Directory |
+| Planning | Budgets, Bills, Cash Flow, Goals |
+| Investing | Portfolio |
+| Property & Debt | Property, Loans, Landlord |
+| Regional | CPF / EPF packs (Phase 6) |
+
+Center dropdowns carry contextual actions — capture a transaction, import a statement, record a trade, download a SQLite backup — alongside the view links.
+
+**`Sidebar.svelte`** carries the account list (grouped cash, investments, assets, credit, loans), quick actions for Record and Import, and a direct hub link per view.
 
 | `activeView` | Component | Sidebar label |
 | :--- | :--- | :--- |
@@ -52,6 +67,9 @@ Views are driven by `financeStore.activeView`, rendered in `App.svelte`:
 | `payees` | `PayeeDirectoryHub.svelte` | Payees & Directory |
 | `goals` | `GoalsHub.svelte` | Financial Goals |
 | `portfolio` | `PortfolioHub.svelte` | Portfolio — see [`10_STOCK_PORTFOLIO_AND_TAX_LOTS.md`](10_STOCK_PORTFOLIO_AND_TAX_LOTS.md) |
+| `property` | `PropertyHub.svelte` | Property & Equity — see [`11_PROPERTY_MORTGAGES_AND_RENTAL.md`](11_PROPERTY_MORTGAGES_AND_RENTAL.md) |
+| `loans` | `LoanHub.svelte` | Loans & Payoff — see [`11_PROPERTY_MORTGAGES_AND_RENTAL.md`](11_PROPERTY_MORTGAGES_AND_RENTAL.md) |
+| `landlord` | `LandlordHub.svelte` | Landlord & Rent Roll — see [`11_PROPERTY_MORTGAGES_AND_RENTAL.md`](11_PROPERTY_MORTGAGES_AND_RENTAL.md) |
 
 ---
 

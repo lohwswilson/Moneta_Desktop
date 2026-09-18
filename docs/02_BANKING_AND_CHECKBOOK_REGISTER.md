@@ -111,3 +111,24 @@ Split transactions allow a single receipt or bank charge to be allocated across 
   - `Cleared (C)`: Review cleared transactions awaiting statement reconciliation.
   - `Reconciled (R)`: Review locked historical records.
 - **Instant Search**: Type into the search input to filter simultaneously across payee names, category names, and memo strings.
+
+---
+
+## 6. Editing & Deleting Transactions
+
+Clicking a register **row** opens a detail edit modal for that transaction.
+
+**Editable fields:** date, payee, category, amount, memo, and reconciliation state — the same set the capture modal collects, pre-populated from the existing record.
+
+**Saving** issues `transactions/update` with the transaction id plus only the changed fields. The register reloads after the write, so running balances and cleared totals are recomputed from the ledger rather than patched in place — a balance corrected by hand would otherwise disagree with the rows that sum to it.
+
+**Deleting** issues `transactions/delete` and is confirmed before it runs. It is irreversible: the ledger row is removed, not voided or soft-deleted, so a deleted transaction no longer contributes to any balance, report, or reconciliation total.
+
+| Action | Endpoint | Notes |
+| :--- | :--- | :--- |
+| Save edits | `/api/v1/mobile/transactions/update` | Partial — sends only changed fields |
+| Delete | `/api/v1/mobile/transactions/delete` | Irreversible; confirmed first |
+
+Both endpoints are implemented in all three adapters (`sqliteAdapter`, `mockAdapter`, `odooAdapter`), so the modal behaves identically offline, in the sandbox, and against Live Odoo.
+
+> **A note on deleting vs voiding.** The reconciliation model supports a `'void'` state (see §3), which preserves the row and excludes it from balances — the accounting-correct way to reverse a posted entry. Deletion removes the row entirely. If auditability ever matters for a given account, voiding is the safer operation; deletion is offered because a mis-keyed entry is better removed than left in the ledger as a permanent artefact.
