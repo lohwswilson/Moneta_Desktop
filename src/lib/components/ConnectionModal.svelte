@@ -75,14 +75,14 @@
             Data Source Architecture
           </label>
           <div class="grid grid-cols-3 gap-1.5 p-1 bg-zinc-950 rounded-lg border border-zinc-800">
-            <!-- Odoo 18 -->
+            <!-- Moneta Cloud -->
             <button
               type="button"
               onclick={() => (mode = 'odoo')}
               class="py-2 px-2 rounded-md text-xs font-semibold flex items-center justify-center gap-1.5 transition-all {mode === 'odoo' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-400 hover:text-zinc-200'}"
             >
               <Server class="w-3.5 h-3.5 text-emerald-400" />
-              <span>Odoo 18</span>
+              <span>Moneta Cloud</span>
             </button>
 
             <!-- Local SQLite -->
@@ -111,7 +111,7 @@
           <!-- Server URL -->
           <div>
             <label class="block text-[11px] uppercase font-semibold text-zinc-400 mb-1" for="conn-server-url">
-              Odoo Server URL
+              Moneta Cloud URL
             </label>
             <input
               id="conn-server-url"
@@ -136,13 +136,13 @@
               <input
                 id="conn-api-token"
                 type="password"
-                placeholder="Enter your Odoo Bearer PAT"
+                placeholder="Enter your Moneta Cloud Bearer PAT"
                 bind:value={apiToken}
                 class="w-full pl-9 pr-3 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-xs font-mono text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-emerald-500"
               />
             </div>
             <p class="text-[11px] text-zinc-500 mt-1">
-              Generated in Odoo under User Preferences → API Keys (Scope: <code class="text-zinc-400">rpc</code>).
+              Generated in Moneta Cloud under User Preferences → API Keys (Scope: <code class="text-zinc-400">rpc</code>).
             </p>
           </div>
 
@@ -193,14 +193,14 @@
             </p>
           </div>
 
-          <!-- 1-Click Migration from Odoo into SQLite -->
+          <!-- 1-Click Migration from Moneta Cloud into SQLite -->
           <div class="p-4 rounded-xl bg-gradient-to-br from-zinc-950 to-zinc-900/60 border border-zinc-800 space-y-3">
             <div class="flex items-center gap-2">
               <ArrowRightLeft class="w-4 h-4 text-emerald-400" />
-              <div class="text-xs font-bold text-zinc-200">Migrate Live Odoo into Local SQLite</div>
+              <div class="text-xs font-bold text-zinc-200">Migrate Moneta Cloud into Local SQLite</div>
             </div>
             <p class="text-[11px] text-zinc-400">
-              Transfer all your real accounts, categories, and transactions from your Odoo server directly into this local SQLite database.
+              Transfer all your real accounts, categories, and transactions from Moneta Cloud directly into this local SQLite database.
             </p>
 
             <div class="grid grid-cols-2 gap-2 text-xs">
@@ -212,7 +212,7 @@
               />
               <input
                 type="password"
-                placeholder="Odoo Bearer PAT"
+                placeholder="Moneta Cloud Bearer PAT"
                 bind:value={apiToken}
                 class="px-2.5 py-1.5 bg-zinc-950 border border-zinc-800 rounded text-xs font-mono text-zinc-200 focus:outline-none focus:border-emerald-500"
               />
@@ -225,7 +225,7 @@
               class="w-full py-2 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs flex items-center justify-center gap-2 disabled:opacity-50 transition-colors"
             >
               <RefreshCw class="w-3.5 h-3.5 {isMigrating ? 'animate-spin' : ''}" />
-              <span>{isMigrating ? 'Migrating Odoo records into SQLite...' : 'Start Migration to SQLite'}</span>
+              <span>{isMigrating ? 'Migrating Moneta Cloud records into SQLite...' : 'Start Migration to SQLite'}</span>
             </button>
 
             {#if migrationResult}

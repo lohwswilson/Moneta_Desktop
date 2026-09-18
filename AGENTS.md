@@ -27,6 +27,21 @@ This document defines the canonical architecture rules, coding standards, and op
    If a figure is derived from stored data and Odoo also computes it, implement that derivation **once** in a shared module and call it from every adapter. Never reimplement it per adapter. Two independent derivations drift, and the same record then reads differently on two screens — the failure mode the Odoo roadmap names in its scheduled-occurrence contract (Track 2.25). Current example: `goalMath.ts::computeGoalMetrics()`, which mirrors `goal.py::_compute_goal_progress` and is shared by the SQLite and Mock adapters.
 8. **Wire Names, Not ORM Names**:
    The Odoo mobile API translates field names. The ORM field is `transaction_date`; the JSON key is `date`. A client type must match the **wire** name — see [`docs/07`](docs/07_ROADMAP_AND_FEATURE_PARITY.md) for the layer table. "Correcting" a client field to match the ORM breaks it.
+9. **Two-Sided Feature Delivery (Full Parity)**:
+   Every feature ships on **both** sides — `Moneta_Desktop` and the `moneta_finance` Odoo module — implementing the same behaviour and deriving the same figures. A Desktop-only feature is **incomplete**, because subscribers log into the Odoo backend directly and must find a complete system there (see [ADR 0001](docs/adr/0001-subscription-tiers-and-cloud-sync.md)).
+
+   This is a deliberate, accepted cost: each feature has two implementations to keep in step. [`docs/07`](docs/07_ROADMAP_AND_FEATURE_PARITY.md) tracks the state of each.
+
+   **Cross-system parity contract.** Where a Desktop shared module mirrors an Odoo computation, its docstring names the Odoo function — that citation is a **maintenance contract, not a comment**. Changing one obliges you to change the other. Existing pairs:
+
+   | Desktop module | Odoo counterpart |
+   | :--- | :--- |
+   | `goalMath.ts` | `goal.py::_compute_goal_progress` |
+   | `portfolioMath.ts` | `investment.py`, `tax_lot.py` (`_modified_dietz`, `_xirr`) |
+   | `loanMath.ts` | `loan.py` (amortization, `action_generate_schedule`, `action_infer_rate_changes`) |
+   | `propertyMath.ts` | `property.py::_compute_equity`, `rental_property.py::_compute_rental_metrics` |
+
+   A figure that can silently disagree — amortization, tax lots, goal progress, rental yield — is the highest-risk kind, because a wrong number still renders. These are the pairs that most need the assertions in `scripts/`.
 
 ---
 
@@ -77,7 +92,8 @@ This document defines the canonical architecture rules, coding standards, and op
 │   │   │   └── importers/
 │   │   │       └── bankStatementParser.ts # CSV & QIF statement parser
 │   │   └── components/
-│   │       ├── Sidebar.svelte       # Navigation & color-coded accounts
+│   │       ├── TopMenuBar.svelte    # Domain-center navigation bar
+│   │       ├── Sidebar.svelte       # Accounts, quick actions & hub navigation
 │   │       ├── CommandCenter.svelte # Net worth & FIRE progress hero
 │   │       ├── CheckbookRegister.svelte # Ledger table & 1-click Clr toggle
 │   │       ├── BudgetHub.svelte     # Zero-based envelope budgets
@@ -107,7 +123,29 @@ When modifying or extending the SQLite database:
 
 ---
 
-## 4. Verification & Testing Workflow
+## 4. Feature Delivery Checklist
+
+Invariant 9 requires every feature on both sides. Work the list top to bottom — the Odoo side first, because the client is typed against its wire contract.
+
+| # | Step | Where |
+| :--: | :--- | :--- |
+| 1 | **Models** — fields, computed values, constraints | `moneta_finance/models/` |
+| 2 | **Endpoints + serializer** | `moneta_finance/controllers/api_mobile.py` |
+| 3 | **Views** — list/form, when subscriber-visible | `moneta_finance/views/` |
+| 4 | **Types, repository methods, all three adapters** | `src/lib/types/`, `src/lib/data/` |
+| 5 | **Shared math module**, if anything is derived — Rule 7 | `src/lib/data/*Math.ts` |
+| 6 | **Store state, component, navigation** | `src/lib/stores/`, `src/lib/components/` |
+| 7 | **Math assertions**, if step 5 applied | `scripts/verify_*.ts` |
+| 8 | **Route parity** | both repos |
+| 9 | **Doc pass** | `docs/` |
+
+**Step 4 catches the most common miss.** Every new repository method must be implemented in `sqliteAdapter.ts`, `mockAdapter.ts` *and* `odooAdapter.ts`. The interface declares methods optional (`?`) so a missing implementation degrades to an empty list rather than failing loudly — which means an adapter left behind looks like "no data", not "not implemented".
+
+**Steps 8 and 9 are the two that have actually bitten.** Step 8 exists because a client refactor once renamed a call without the server following, and the register 404'd in Live Odoo mode only. Step 9 exists because four consecutive features shipped without documentation, each time surfacing later as drift.
+
+---
+
+## 5. Verification & Testing Workflow
 
 Before committing any code changes:
 
@@ -124,13 +162,21 @@ node --experimental-strip-types scripts/verify_portfolio_math.ts
 node --experimental-strip-types scripts/verify_loan_math.ts
 node --experimental-strip-types scripts/verify_property_math.ts
 
-# 4. Confirm every client route exists on the server
-#    (client calls are in src/lib/api/odooApi.ts; routes in the Odoo
-#     module's controllers/api_mobile.py)
+# 4. Route parity — every client call must have a server route.
+#    Client calls:   src/lib/api/odooApi.ts
+#    Server routes:  moneta_finance/controllers/api_mobile.py
 grep -o "mobile/[a-z_/]*" src/lib/api/odooApi.ts | sort -u
 
-# 5. Check git status
+# 5. Doc references — every component and endpoint must appear in docs/
+for f in src/lib/components/*.svelte; do n=$(basename "$f"); \
+  grep -rq "$n" docs/ README.md AGENTS.md ARCHITECTURE.md || echo "UNDOCUMENTED: $n"; done
+
+# 6. Check git status
 git status
 ```
 
-A client endpoint with no matching server route fails only at runtime, and only in Live Odoo mode — offline and Mock modes will not surface it. Step 4 exists because exactly that regression shipped once.
+**Why step 4 matters:** a client endpoint with no matching server route fails only at runtime, and only in Live Odoo mode — offline and Mock modes will not surface it. Exactly that regression shipped once.
+
+**Why step 5 matters:** a component nobody can find is a component nobody maintains. The check is cheap and mechanical.
+
+**A gap worth knowing about:** there is currently no automated check that `npm run start` actually launches, and no test exercising the UI. Compilation and assertions cover *logic*; they cannot catch a view that renders blank, a modal that will not close, or a layout that breaks. Run the app before declaring a UI change done.

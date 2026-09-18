@@ -1045,12 +1045,12 @@ class FinanceStore {
       const odoo = new OdooAdapter();
       const test = await odoo.testConnection();
       if (!test.success) {
-        return { success: false, message: `Odoo connection failed: ${test.message}` };
+        return { success: false, message: `Moneta Cloud connection failed: ${test.message}` };
       }
 
       const odooAccounts = await odoo.getAccounts();
       if (odooAccounts.length === 0) {
-        return { success: false, message: 'No accounts found in Odoo.' };
+        return { success: false, message: 'No accounts found in Moneta Cloud.' };
       }
 
       const result = await this.sqliteAdapter.importFromOdooData(

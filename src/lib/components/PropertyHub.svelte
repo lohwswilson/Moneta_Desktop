@@ -397,7 +397,7 @@
         <Info class="w-3.5 h-3.5 text-zinc-500 mt-0.5 shrink-0" />
         <p class="text-[11px] text-zinc-500 leading-relaxed">
           Equity, LTV and the rental metrics are computed by the shared property math, mirroring the
-          Odoo property module. Equity is clamped at zero by that math — an underwater property reads
+          Moneta Cloud property module. Equity is clamped at zero by that math — an underwater property reads
           as &dollar;0 equity, with the debt still visible in the LTV and the linked account.
         </p>
       </div>

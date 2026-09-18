@@ -442,7 +442,7 @@
             >
               <Database class="w-4 h-4 text-purple-400" />
               <div>
-                <div class="font-medium text-zinc-100">Odoo 18 Migration</div>
+                <div class="font-medium text-zinc-100">Moneta Cloud Migration</div>
                 <div class="text-[10px] text-zinc-400">1-click sync accounts & ledger</div>
               </div>
             </button>
@@ -471,7 +471,7 @@
     >
       {#if financeStore.config.mode === 'odoo'}
         <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-        <span class="text-emerald-400 font-semibold">Odoo Live</span>
+        <span class="text-emerald-400 font-semibold">Moneta Cloud</span>
       {:else if financeStore.config.mode === 'sqlite'}
         <span class="w-1.5 h-1.5 rounded-full bg-sky-400"></span>
         <span class="text-sky-400 font-semibold">SQLite WASM</span>

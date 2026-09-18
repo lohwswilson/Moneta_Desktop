@@ -29,17 +29,23 @@ This ADR records the platform decision and — importantly — the **narrowed ro
 | **Multi-database is Odoo's design centre** | Odoo's own SaaS is many databases on shared infrastructure |
 | **Accounting reuse** | Subscription invoicing, revenue recognition, dunning and tax handling come from Odoo Accounting rather than being rebuilt |
 
-### 2. Odoo's role is narrowed: data store and billing only
+### 2. Odoo's role: sync store, billing, and full feature parity
 
-**All product features are implemented in Moneta Desktop.** Odoo is responsible for exactly two things:
+Odoo is responsible for three things:
 
 1. **Sync store** — the canonical copy of subscriber data, so Desktop and Mobile agree
 2. **Licensing and billing** — subscriptions, entitlement, invoicing (see ADR 0003)
+3. **Full feature parity** — every feature is implemented in the `moneta_finance` module as well as in Desktop
 
-Odoo does **not** compute product features. This is a deliberate simplification with two consequences worth recording:
+> **Amended 2026-09-19.** This ADR originally narrowed Odoo to a data store, reasoning that all features live in Desktop so the cross-system parity burden could be dropped. **That was changed.** Subscribers log into the Odoo backend directly and must find a complete system there, so full parity is required — recorded as AGENTS.md invariant 9.
 
-- **The cross-system parity burden largely disappears.** Desktop is the authority on derived figures; Odoo stores them. The `moneta_finance` computations remain useful for the Odoo web UI and for future server-side services (bank feeds, reports), but keeping them numerically identical to Desktop is no longer a product requirement. Rule 7 still governs *within* Desktop — one derivation, one place — but it no longer spans two systems.
-- **The Odoo web UI becomes an optional power-user view, not a second product.** Subscribers who log in see Odoo's chrome, which reads as "Odoo" rather than "Moneta". Desktop and Mobile are the brand.
+The cost is accepted deliberately, and should be understood rather than discovered:
+
+- **Every feature now has two implementations to keep in step.** This is the maintenance burden the original text claimed to remove. It is reinstated, not avoided.
+- **Figures that can silently disagree are the real risk.** Amortization, tax lots, goal progress and rental yield all render a wrong number without erroring, in either codebase. AGENTS.md invariant 9 names each Desktop shared module's Odoo counterpart as a **maintenance contract** — changing one obliges changing the other — and the `scripts/verify_*.ts` suites pin the Desktop side of each pair.
+- **The Odoo web UI is a first-class subscriber surface**, not an optional power-user view. Its presentation still reads as Odoo rather than Moneta — Desktop and Mobile remain the brand — but the *functionality* there must be complete.
+
+Desktop remains the reference implementation for new work: build there first, then mirror into Odoo. That ordering keeps the wire contract (which the client is typed against) settled before the server side is written.
 
 ### 3. Many subscriber databases on shared instances — never per-tenant provisioning
 

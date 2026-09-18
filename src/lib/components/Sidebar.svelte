@@ -267,7 +267,7 @@
         <span class="w-2 h-2 rounded-full {financeStore.isConnected ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}"></span>
         <div class="truncate">
           <div class="text-xs font-semibold text-zinc-200 truncate">
-            {financeStore.connectedUser || 'Odoo 18 Live'}
+            {financeStore.connectedUser || 'Moneta Cloud'}
           </div>
           <div class="text-[10px] text-zinc-500 truncate">{financeStore.config.serverUrl.replace(/^https?:\/\//, '')}</div>
         </div>
