@@ -162,14 +162,14 @@
           </button>
         {/if}
 
-        <!-- Assets & Property -->
+        <!-- Properties -->
         {#if assetAccounts.length > 0}
           <button
             onclick={() => financeStore.toggleSidebar()}
-            title="Assets & Properties: {formatCurrency(assetTotal)} ({assetAccounts.length} accounts)"
+            title="Properties: {formatCurrency(assetTotal)} ({assetAccounts.length} accounts)"
             class="relative p-2 rounded-lg text-zinc-400 hover:text-amber-400 hover:bg-zinc-900 transition-colors cursor-pointer"
           >
-            <Gem class="w-4 h-4" />
+            <Building2 class="w-4 h-4" />
             <span class="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-amber-950 border border-amber-700 text-[9px] font-mono text-amber-300 flex items-center justify-center">
               {assetAccounts.length}
             </span>
@@ -377,7 +377,7 @@
           </div>
         {/if}
 
-        <!-- Group 3: Assets & Properties -->
+        <!-- Group 3: Properties -->
         {#if assetAccounts.length > 0}
           <div>
             <button
@@ -392,7 +392,7 @@
                   <ChevronDown class="w-3 h-3 text-zinc-500 group-hover:text-zinc-300 transition-transform" />
                 {/if}
                 <span class="w-2 h-2 rounded-full bg-amber-400"></span>
-                <span>Assets & Properties ({assetAccounts.length})</span>
+                <span>Properties ({assetAccounts.length})</span>
               </span>
               <span class="font-mono text-amber-400/90 font-medium normal-case">
                 {formatCurrency(assetTotal)}
@@ -408,7 +408,7 @@
                   >
                     <div class="truncate text-left pr-2">
                       <div class="truncate">{acc.name}</div>
-                      <div class="text-[10px] text-zinc-500">{acc.institution_name || 'Tangible Asset'}</div>
+                      <div class="text-[10px] text-zinc-500">{acc.institution_name || 'Property'}</div>
                     </div>
                     <div class="font-mono text-right whitespace-nowrap text-amber-400">
                       {formatCurrency(acc.current_balance, acc.currency_code)}
