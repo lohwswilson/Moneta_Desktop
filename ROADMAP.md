@@ -58,19 +58,21 @@ This roadmap defines the multi-phase engineering plan to achieve full feature pa
 - [ ] **Payee Intelligence & Directory:**
   - Auto-complete payees with historical category memory.
   - Total historical spend per merchant and average transaction size.
-- [ ] **Multi-Currency Engine:**
-  - Built-in FX conversion table.
-  - Automatic base currency normalization (e.g. USD brokerage converted to SGD net worth).
+- [x] **Multi-Currency Engine:**
+  - Built-in FX conversion table (USD, MYR, SGD parity rates).
+  - Automatic base currency normalization across live Odoo API and offline SQLite.
 
 ---
 
-### Phase 3: Planning, Envelope Budgets & Cash Flow (Target: Q1 2027)
+### Phase 3: Planning, Envelope Budgets & Cash Flow (In Progress)
 *Parity with Odoo `budget.py`, `recurring.py`, `cashflow_calendar.py`, `subscription_detector.py`*
 
-- [ ] **Zero-Based Envelope Budgeting (YNAB Paradigm):**
+- [x] **Zero-Based Envelope Budgeting (YNAB Paradigm):**
   - Monthly income allocation to category envelopes.
-  - Real-time "Ready to Assign" calculation.
-  - Month-to-month rollover balances (positive surplus rolls forward; negative debt flagged).
+  - Real-time "Safe to Spend" and remaining allowance calculations.
+  - Category breakdown by Needs, Wants, and Savings with visual burn pace indicator.
+  - Interactive "Can I Spend?" Affordability Calculator modal with real-time envelope overdraft warning and donor reallocation suggestions.
+  - Pluggable across Live Odoo 18 Server (`/api/v1/mobile/budgets/list`) and Standalone SQLite with live transaction spending aggregation.
 - [ ] **Recurring Bills & Subscription Detector:**
   - 14-Day recurring bill countdown calendar.
   - Automated detection of recurring charges (Netflix, Spotify, utilities, gym).
