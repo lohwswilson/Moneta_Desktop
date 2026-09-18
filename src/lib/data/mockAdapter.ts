@@ -11,8 +11,14 @@ import type {
   CashflowForecast,
   PayeeIntelligence,
   FinancialGoal,
+  PortfolioHolding,
+  TaxLot,
+  TaxLotDisposal,
+  PortfolioSummary,
+  TaxLotStrategy,
 } from '../types/moneta';
 import { computeGoalMetrics, toDateOnlyString, todayDateOnly } from './goalMath';
+import { computeLotMetrics, disposeTaxLots, computeModifiedDietz, computeXIRR } from './portfolioMath';
 
 let mockAccounts: MonetaAccount[] = [
   {
@@ -747,7 +753,468 @@ export class MockAdapter implements IMonetaRepository {
     mockGoals[idx] = updated;
     return updated;
   }
+
+  async getPortfolioHoldings(accountId?: string | number): Promise<PortfolioHolding[]> {
+    let list = mockHoldings;
+    if (accountId) {
+      list = list.filter((h) => String(h.account_id) === String(accountId));
+    }
+    const totalVal = list.reduce((sum, h) => sum + h.current_market_value, 0);
+    return list.map((h) => ({
+      ...h,
+      weight_in_portfolio: totalVal > 0 ? Math.round((h.current_market_value / totalVal) * 1000) / 10 : 0,
+    }));
+  }
+
+  async getTaxLots(symbol?: string, accountId?: string | number, state?: string): Promise<TaxLot[]> {
+    let list = mockTaxLots;
+    if (symbol) {
+      list = list.filter((l) => l.symbol.toLowerCase() === symbol.trim().toLowerCase());
+    }
+    if (accountId) {
+      list = list.filter((l) => String(l.account_id) === String(accountId));
+    }
+    if (state) {
+      list = list.filter((l) => l.state === state);
+    }
+    return list.map((l) => {
+      const hld = mockHoldings.find((h) => h.symbol === l.symbol);
+      const curPrice = hld ? hld.current_price : l.purchase_price;
+      return computeLotMetrics(l, curPrice) as TaxLot;
+    });
+  }
+
+  async getTaxLotDisposals(year?: number): Promise<TaxLotDisposal[]> {
+    let list = mockTaxLotDisposals;
+    if (year) {
+      list = list.filter((d) => d.disposal_date.startsWith(String(year)));
+    }
+    return [...list];
+  }
+
+  async executeInvestmentTrade(payload: {
+    accountId: string | number;
+    symbol: string;
+    action: 'buy' | 'sell';
+    quantity: number;
+    price: number;
+    tradeDate?: string;
+    commission?: number;
+    strategy?: TaxLotStrategy;
+    selectedLotId?: string | number;
+    memo?: string;
+  }): Promise<{ success: boolean; transactionId?: number }> {
+    const symbol = payload.symbol.trim().toUpperCase();
+    const accId = String(payload.accountId);
+    const qty = Math.abs(Number(payload.quantity) || 0);
+    const price = Math.abs(Number(payload.price) || 0);
+    const tradeDate = payload.tradeDate || new Date().toISOString().split('T')[0];
+    const commission = Math.abs(Number(payload.commission) || 0);
+
+    if (payload.action === 'buy') {
+      const newLot: TaxLot = {
+        id: `mock-lot-${Date.now()}`,
+        account_id: accId,
+        account_name: mockAccounts.find((a) => String(a.id) === accId)?.name || 'Brokerage Account',
+        symbol,
+        purchase_date: tradeDate,
+        initial_quantity: qty,
+        remaining_quantity: qty,
+        purchase_price: price,
+        commission_paid: commission,
+        total_cost_basis: Math.round(qty * price * 100) / 100,
+        current_market_value: Math.round(qty * price * 100) / 100,
+        unrealized_gain: 0,
+        unrealized_gain_percent: 0,
+        holding_days: 0,
+        term_type: 'short_term',
+        state: 'open',
+      };
+      mockTaxLots.unshift(newLot);
+
+      const hld = mockHoldings.find((h) => h.symbol === symbol && String(h.account_id) === accId);
+      if (hld) {
+        const curQty = hld.total_quantity;
+        const curAvg = hld.average_cost;
+        const newQty = curQty + qty;
+        const newAvg = ((curQty * curAvg) + (qty * price)) / newQty;
+        hld.total_quantity = newQty;
+        hld.average_cost = Math.round(newAvg * 10000) / 10000;
+        hld.total_cost_basis = Math.round(newQty * newAvg * 100) / 100;
+        hld.current_market_value = Math.round(newQty * hld.current_price * 100) / 100;
+        hld.unrealized_gain = Math.round((hld.current_market_value - hld.total_cost_basis) * 100) / 100;
+        hld.unrealized_gain_percent = hld.total_cost_basis > 0 ? Math.round(((hld.current_market_value - hld.total_cost_basis) / hld.total_cost_basis) * 10000) / 100 : 0;
+      } else {
+        mockHoldings.unshift({
+          id: `mock-hld-${Date.now()}`,
+          account_id: accId,
+          account_name: mockAccounts.find((a) => String(a.id) === accId)?.name || 'Brokerage Account',
+          security_id: `sec-${symbol.toLowerCase()}`,
+          symbol,
+          name: symbol,
+          security_type: 'stock',
+          currency: 'USD',
+          total_quantity: qty,
+          average_cost: price,
+          current_price: price,
+          total_cost_basis: Math.round(qty * price * 100) / 100,
+          current_market_value: Math.round(qty * price * 100) / 100,
+          unrealized_gain: 0,
+          unrealized_gain_percent: 0,
+          weight_in_portfolio: 0,
+          last_quote_date: tradeDate,
+        });
+      }
+    } else {
+      const openLots = mockTaxLots.filter((l) => l.symbol === symbol && String(l.account_id) === accId && l.remaining_quantity > 0);
+      const selectedIds = payload.selectedLotId ? [payload.selectedLotId] : undefined;
+      const { disposals, updatedLots } = disposeTaxLots(
+        openLots,
+        qty,
+        price,
+        tradeDate,
+        payload.strategy || 'FIFO',
+        selectedIds
+      );
+
+      for (const ul of updatedLots) {
+        const idx = mockTaxLots.findIndex((l) => l.id === ul.id);
+        if (idx !== -1) mockTaxLots[idx] = ul;
+      }
+
+      for (const d of disposals) {
+        mockTaxLotDisposals.unshift(d);
+      }
+
+      const hld = mockHoldings.find((h) => h.symbol === symbol && String(h.account_id) === accId);
+      if (hld) {
+        hld.total_quantity = Math.max(0, hld.total_quantity - qty);
+        hld.total_cost_basis = Math.round(hld.total_quantity * hld.average_cost * 100) / 100;
+        hld.current_market_value = Math.round(hld.total_quantity * hld.current_price * 100) / 100;
+        hld.unrealized_gain = Math.round((hld.current_market_value - hld.total_cost_basis) * 100) / 100;
+      }
+    }
+
+    return { success: true };
+  }
+
+  async getPortfolioSummary(accountId?: string | number): Promise<PortfolioSummary> {
+    const holdings = await this.getPortfolioHoldings(accountId);
+    const totVal = holdings.reduce((sum, h) => sum + h.current_market_value, 0);
+    const totCost = holdings.reduce((sum, h) => sum + h.total_cost_basis, 0);
+    const totUnrealized = Math.round((totVal - totCost) * 100) / 100;
+    const totUnrealizedPct = totCost > 0 ? Math.round(((totVal - totCost) / totCost) * 10000) / 100 : 0.0;
+
+    const currentYear = new Date().getFullYear();
+    const disposals = await this.getTaxLotDisposals(currentYear);
+    const totRealizedYtd = Math.round(disposals.reduce((sum, d) => sum + d.realized_gain, 0) * 100) / 100;
+
+    const openLots = await this.getTaxLots(undefined, accountId, 'open');
+
+    const assetMap: Record<string, number> = {};
+    for (const h of holdings) {
+      const secType = h.security_type || 'stock';
+      assetMap[secType] = (assetMap[secType] || 0) + h.current_market_value;
+    }
+
+    const colorMap: Record<string, string> = {
+      stock: '#10b981',
+      etf: '#3b82f6',
+      crypto: '#f59e0b',
+      mutual_fund: '#8b5cf6',
+      bond: '#06b6d4',
+    };
+
+    const allocation = Object.entries(assetMap).map(([type, val]) => ({
+      category: type === 'stock' ? 'Equities' : type.toUpperCase(),
+      value: Math.round(val * 100) / 100,
+      percentage: totVal > 0 ? Math.round((val / totVal) * 1000) / 10 : 0,
+      color: colorMap[type] || '#71717a',
+    }));
+
+    const cashflows: Array<{ date: string; amount: number }> = [];
+    for (const lot of openLots) {
+      cashflows.push({ date: lot.purchase_date, amount: lot.total_cost_basis });
+    }
+    for (const d of disposals) {
+      cashflows.push({ date: d.disposal_date, amount: -d.proceeds });
+    }
+
+    const twr = computeModifiedDietz(cashflows, totVal);
+    const xirrCfs = [
+      ...cashflows.map((c) => ({ date: c.date, amount: -c.amount })),
+      { date: new Date().toISOString().split('T')[0], amount: totVal },
+    ];
+    const xirr = computeXIRR(xirrCfs);
+
+    return {
+      total_portfolio_value: Math.round(totVal * 100) / 100,
+      total_cost_basis: Math.round(totCost * 100) / 100,
+      total_unrealized_gain: totUnrealized,
+      total_unrealized_gain_percent: totUnrealizedPct,
+      total_realized_gain_ytd: totRealizedYtd,
+      holdings_count: holdings.length,
+      open_lots_count: openLots.length,
+      time_weighted_return: twr !== null ? Math.round(twr * 10000) / 100 : undefined,
+      money_weighted_return: xirr !== null ? Math.round(xirr * 10000) / 100 : undefined,
+      asset_allocation: allocation,
+    };
+  }
 }
+
+let mockHoldings: PortfolioHolding[] = [
+  {
+    id: 'hld-nvda',
+    account_id: 'acc-3',
+    account_name: 'Interactive Brokers (IBKR LLC)',
+    security_id: 'sec-nvda',
+    symbol: 'NVDA',
+    name: 'NVIDIA Corporation',
+    security_type: 'stock',
+    currency: 'USD',
+    total_quantity: 50.0,
+    average_cost: 161.83,
+    current_price: 182.50,
+    total_cost_basis: 8091.50,
+    current_market_value: 9125.00,
+    unrealized_gain: 1033.50,
+    unrealized_gain_percent: 12.77,
+    weight_in_portfolio: 35.8,
+    day_change: 2.80,
+    day_change_percent: 1.56,
+    last_quote_date: '2026-09-18',
+  },
+  {
+    id: 'hld-msft',
+    account_id: 'acc-3',
+    account_name: 'Interactive Brokers (IBKR LLC)',
+    security_id: 'sec-msft',
+    symbol: 'MSFT',
+    name: 'Microsoft Corporation',
+    security_type: 'stock',
+    currency: 'USD',
+    total_quantity: 10.0,
+    average_cost: 426.41,
+    current_price: 452.00,
+    total_cost_basis: 4264.10,
+    current_market_value: 4520.00,
+    unrealized_gain: 255.90,
+    unrealized_gain_percent: 6.00,
+    weight_in_portfolio: 17.7,
+    day_change: -1.20,
+    day_change_percent: -0.26,
+    last_quote_date: '2026-09-18',
+  },
+  {
+    id: 'hld-avgo',
+    account_id: 'acc-3',
+    account_name: 'Interactive Brokers (IBKR LLC)',
+    security_id: 'sec-avgo',
+    symbol: 'AVGO',
+    name: 'Broadcom Inc.',
+    security_type: 'stock',
+    currency: 'USD',
+    total_quantity: 15.0,
+    average_cost: 155.00,
+    current_price: 172.40,
+    total_cost_basis: 2325.00,
+    current_market_value: 2586.00,
+    unrealized_gain: 261.00,
+    unrealized_gain_percent: 11.23,
+    weight_in_portfolio: 10.1,
+    day_change: 3.10,
+    day_change_percent: 1.83,
+    last_quote_date: '2026-09-18',
+  },
+  {
+    id: 'hld-d05',
+    account_id: 'acc-4',
+    account_name: 'CDP / DBS Vickers',
+    security_id: 'sec-d05',
+    symbol: 'D05.SI',
+    name: 'DBS Group Holdings Ltd',
+    security_type: 'stock',
+    currency: 'SGD',
+    total_quantity: 200.0,
+    average_cost: 34.20,
+    current_price: 38.60,
+    total_cost_basis: 6840.00,
+    current_market_value: 7720.00,
+    unrealized_gain: 880.00,
+    unrealized_gain_percent: 12.87,
+    weight_in_portfolio: 30.3,
+    day_change: 0.40,
+    day_change_percent: 1.05,
+    last_quote_date: '2026-09-18',
+  },
+  {
+    id: 'hld-es3',
+    account_id: 'acc-5',
+    account_name: 'Tiger Brokers Singapore',
+    security_id: 'sec-es3',
+    symbol: 'ES3.SI',
+    name: 'SPDR Straits Times Index ETF',
+    security_type: 'etf',
+    currency: 'SGD',
+    total_quantity: 500.0,
+    average_cost: 3.10,
+    current_price: 3.35,
+    total_cost_basis: 1550.00,
+    current_market_value: 1675.00,
+    unrealized_gain: 125.00,
+    unrealized_gain_percent: 8.06,
+    weight_in_portfolio: 6.6,
+    day_change: 0.02,
+    day_change_percent: 0.60,
+    last_quote_date: '2026-09-18',
+  },
+];
+
+let mockTaxLots: TaxLot[] = [
+  {
+    id: 'lot-nvda-1',
+    holding_id: 'hld-nvda',
+    account_id: 'acc-3',
+    account_name: 'Interactive Brokers (IBKR LLC)',
+    symbol: 'NVDA',
+    purchase_date: '2025-01-15',
+    initial_quantity: 30.0,
+    remaining_quantity: 30.0,
+    purchase_price: 155.00,
+    commission_paid: 1.00,
+    total_cost_basis: 4650.00,
+    current_market_value: 5475.00,
+    unrealized_gain: 825.00,
+    unrealized_gain_percent: 17.74,
+    holding_days: 611,
+    term_type: 'long_term',
+    state: 'open',
+  },
+  {
+    id: 'lot-nvda-2',
+    holding_id: 'hld-nvda',
+    account_id: 'acc-3',
+    account_name: 'Interactive Brokers (IBKR LLC)',
+    symbol: 'NVDA',
+    purchase_date: '2025-08-20',
+    initial_quantity: 20.0,
+    remaining_quantity: 20.0,
+    purchase_price: 172.075,
+    commission_paid: 1.00,
+    total_cost_basis: 3441.50,
+    current_market_value: 3650.00,
+    unrealized_gain: 208.50,
+    unrealized_gain_percent: 6.06,
+    holding_days: 394,
+    term_type: 'long_term',
+    state: 'open',
+  },
+  {
+    id: 'lot-msft-1',
+    holding_id: 'hld-msft',
+    account_id: 'acc-3',
+    account_name: 'Interactive Brokers (IBKR LLC)',
+    symbol: 'MSFT',
+    purchase_date: '2025-06-10',
+    initial_quantity: 10.0,
+    remaining_quantity: 10.0,
+    purchase_price: 426.41,
+    commission_paid: 1.00,
+    total_cost_basis: 4264.10,
+    current_market_value: 4520.00,
+    unrealized_gain: 255.90,
+    unrealized_gain_percent: 6.00,
+    holding_days: 465,
+    term_type: 'long_term',
+    state: 'open',
+  },
+  {
+    id: 'lot-avgo-1',
+    holding_id: 'hld-avgo',
+    account_id: 'acc-3',
+    account_name: 'Interactive Brokers (IBKR LLC)',
+    symbol: 'AVGO',
+    purchase_date: '2026-03-12',
+    initial_quantity: 15.0,
+    remaining_quantity: 15.0,
+    purchase_price: 155.00,
+    commission_paid: 1.00,
+    total_cost_basis: 2325.00,
+    current_market_value: 2586.00,
+    unrealized_gain: 261.00,
+    unrealized_gain_percent: 11.23,
+    holding_days: 190,
+    term_type: 'short_term',
+    state: 'open',
+  },
+  {
+    id: 'lot-d05-1',
+    holding_id: 'hld-d05',
+    account_id: 'acc-4',
+    account_name: 'CDP / DBS Vickers',
+    symbol: 'D05.SI',
+    purchase_date: '2025-02-14',
+    initial_quantity: 200.0,
+    remaining_quantity: 200.0,
+    purchase_price: 34.20,
+    commission_paid: 10.00,
+    total_cost_basis: 6840.00,
+    current_market_value: 7720.00,
+    unrealized_gain: 880.00,
+    unrealized_gain_percent: 12.87,
+    holding_days: 581,
+    term_type: 'long_term',
+    state: 'open',
+  },
+  {
+    id: 'lot-es3-1',
+    holding_id: 'hld-es3',
+    account_id: 'acc-5',
+    account_name: 'Tiger Brokers Singapore',
+    symbol: 'ES3.SI',
+    purchase_date: '2025-11-05',
+    initial_quantity: 500.0,
+    remaining_quantity: 500.0,
+    purchase_price: 3.10,
+    commission_paid: 2.50,
+    total_cost_basis: 1550.00,
+    current_market_value: 1675.00,
+    unrealized_gain: 125.00,
+    unrealized_gain_percent: 8.06,
+    holding_days: 317,
+    term_type: 'short_term',
+    state: 'open',
+  },
+];
+
+let mockTaxLotDisposals: TaxLotDisposal[] = [
+  {
+    id: 'disp-nvda-1',
+    lot_id: 'lot-nvda-prior',
+    symbol: 'NVDA',
+    account_id: 'acc-3',
+    disposal_date: '2026-07-15',
+    quantity_sold: 10.0,
+    cost_basis_sold: 1550.00,
+    proceeds: 1900.00,
+    realized_gain: 350.00,
+    term_type: 'long_term',
+    disposal_strategy: 'FIFO',
+  },
+  {
+    id: 'disp-aapl-1',
+    lot_id: 'lot-aapl-prior',
+    symbol: 'AAPL',
+    account_id: 'acc-3',
+    disposal_date: '2026-04-10',
+    quantity_sold: 20.0,
+    cost_basis_sold: 3800.00,
+    proceeds: 4500.00,
+    realized_gain: 700.00,
+    term_type: 'long_term',
+    disposal_strategy: 'HIFO',
+  },
+];
 
 let mockPayees: PayeeIntelligence[] = [
   {

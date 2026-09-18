@@ -12,10 +12,16 @@ import type {
   PayeeIntelligence,
   FinancialGoal,
   GoalStatus,
+  PortfolioHolding,
+  TaxLot,
+  TaxLotDisposal,
+  PortfolioSummary,
+  TaxLotStrategy,
 } from '../types/moneta';
 import initSqlJs, { type Database, type SqlJsStatic } from 'sql.js';
 import { DEFAULT_RULES } from './rulesEngine';
 import { computeGoalMetrics, toDateOnlyString, todayDateOnly } from './goalMath';
+import { computeLotMetrics, disposeTaxLots, computeModifiedDietz, computeXIRR } from './portfolioMath';
 
 const DB_INDEXEDDB_NAME = 'moneta_sqlite_db';
 const STORE_NAME = 'sqlite_storage';
@@ -198,6 +204,57 @@ export class SqliteAdapter implements IMonetaRepository {
         status TEXT DEFAULT 'in_progress',
         created_at TEXT DEFAULT CURRENT_TIMESTAMP
       );
+
+      CREATE TABLE IF NOT EXISTS securities (
+        id TEXT PRIMARY KEY,
+        symbol TEXT UNIQUE NOT NULL,
+        name TEXT NOT NULL,
+        security_type TEXT DEFAULT 'stock',
+        currency_code TEXT DEFAULT 'USD',
+        current_price REAL DEFAULT 0.0,
+        last_quote_date TEXT,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS holdings (
+        id TEXT PRIMARY KEY,
+        account_id TEXT NOT NULL,
+        security_id TEXT NOT NULL,
+        symbol TEXT NOT NULL,
+        quantity REAL DEFAULT 0.0,
+        average_cost REAL DEFAULT 0.0,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(account_id, security_id)
+      );
+
+      CREATE TABLE IF NOT EXISTS security_lots (
+        id TEXT PRIMARY KEY,
+        account_id TEXT NOT NULL,
+        security_id TEXT NOT NULL,
+        symbol TEXT NOT NULL,
+        purchase_date TEXT NOT NULL,
+        initial_quantity REAL NOT NULL,
+        remaining_quantity REAL NOT NULL,
+        purchase_price REAL NOT NULL,
+        commission_paid REAL DEFAULT 0.0,
+        state TEXT DEFAULT 'open',
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS lot_disposals (
+        id TEXT PRIMARY KEY,
+        lot_id TEXT NOT NULL,
+        account_id TEXT NOT NULL,
+        symbol TEXT NOT NULL,
+        disposal_date TEXT NOT NULL,
+        quantity_sold REAL NOT NULL,
+        cost_basis_sold REAL NOT NULL,
+        proceeds REAL NOT NULL,
+        realized_gain REAL NOT NULL,
+        term_type TEXT NOT NULL,
+        disposal_strategy TEXT DEFAULT 'FIFO',
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      );
     `);
 
     // Seed default settings and rates if empty
@@ -295,6 +352,35 @@ export class SqliteAdapter implements IMonetaRepository {
       DELETE FROM transactions WHERE account_id LIKE 'sq-acc-%' OR id LIKE 'sq-tx-%';
       DELETE FROM accounts WHERE id LIKE 'sq-acc-%';
     `);
+
+    // Seed default securities and investment tax-lots if table is empty
+    const secRes = this.db.exec('SELECT COUNT(*) as count FROM securities;');
+    const secCount = (secRes[0]?.values[0]?.[0] as number) || 0;
+    if (secCount === 0) {
+      const accRes = this.db.exec("SELECT id FROM accounts WHERE account_type IN ('brokerage', 'retirement', 'crypto') LIMIT 1;");
+      const brokerAccId = (accRes[0]?.values[0]?.[0] as string) || 'acc-3';
+
+      this.db.run(`
+        INSERT OR IGNORE INTO securities (id, symbol, name, security_type, currency_code, current_price, last_quote_date)
+        VALUES
+          ('sec-nvda', 'NVDA', 'NVIDIA Corporation', 'stock', 'USD', 180.00, '2026-09-18'),
+          ('sec-msft', 'MSFT', 'Microsoft Corporation', 'stock', 'USD', 450.00, '2026-09-18'),
+          ('sec-avgo', 'AVGO', 'Broadcom Inc.', 'stock', 'USD', 170.00, '2026-09-18'),
+          ('sec-d05', 'D05.SI', 'DBS Group Holdings Ltd', 'stock', 'SGD', 38.50, '2026-09-18'),
+          ('sec-z74', 'Z74.SI', 'Singtel Ltd', 'stock', 'SGD', 3.20, '2026-09-18');
+
+        INSERT OR IGNORE INTO security_lots (id, account_id, security_id, symbol, purchase_date, initial_quantity, remaining_quantity, purchase_price, commission_paid, state)
+        VALUES
+          ('lot-nvda-1', :acc, 'sec-nvda', 'NVDA', '2025-01-15', 50.0, 50.0, 161.83, 1.00, 'open'),
+          ('lot-msft-1', :acc, 'sec-msft', 'MSFT', '2025-06-10', 10.0, 10.0, 426.41, 1.00, 'open');
+
+        INSERT OR IGNORE INTO holdings (id, account_id, security_id, symbol, quantity, average_cost)
+        VALUES
+          ('hld-nvda', :acc, 'sec-nvda', 'NVDA', 50.0, 161.83),
+          ('hld-msft', :acc, 'sec-msft', 'MSFT', 10.0, 426.41);
+      `, { ':acc': brokerAccId });
+    }
+
     this.persist();
   }
 
@@ -1959,6 +2045,392 @@ export class SqliteAdapter implements IMonetaRepository {
 
     const goals = await this.getGoals();
     return goals.find((g) => g.id === String(id)) || ({} as FinancialGoal);
+  }
+
+  /**
+   * Phase 4: Stock Portfolio & Tax-Lot Accounting Methods
+   */
+
+  async getPortfolioHoldings(accountId?: string | number): Promise<PortfolioHolding[]> {
+    await this.init();
+    if (!this.db) return [];
+
+    let query = `
+      SELECT
+        h.id,
+        h.account_id,
+        COALESCE(a.name, 'Brokerage Account') as account_name,
+        h.security_id,
+        h.symbol,
+        COALESCE(s.name, h.symbol) as name,
+        COALESCE(s.security_type, 'stock') as security_type,
+        COALESCE(s.currency_code, 'USD') as currency,
+        h.quantity,
+        h.average_cost,
+        COALESCE(s.current_price, h.average_cost) as current_price,
+        s.last_quote_date
+      FROM holdings h
+      LEFT JOIN securities s ON h.security_id = s.id OR h.symbol = s.symbol
+      LEFT JOIN accounts a ON h.account_id = a.id
+    `;
+    const params: Record<string, any> = {};
+    if (accountId) {
+      query += ` WHERE h.account_id = :acc`;
+      params[':acc'] = String(accountId);
+    }
+    query += ` ORDER BY h.symbol ASC;`;
+
+    const res = this.db.exec(query, params);
+    if (!res.length || !res[0].values) return [];
+
+    const rawHoldings = res[0].values.map((row) => {
+      const qty = Number(row[8]) || 0;
+      const avgCost = Number(row[9]) || 0;
+      const curPrice = Number(row[10]) || avgCost;
+      const costBasis = Math.round(qty * avgCost * 100) / 100;
+      const mktVal = Math.round(qty * curPrice * 100) / 100;
+      const unrealized = Math.round((mktVal - costBasis) * 100) / 100;
+      const unrealizedPct = costBasis > 0 ? Math.round(((mktVal - costBasis) / costBasis) * 10000) / 100 : 0.0;
+
+      return {
+        id: String(row[0]),
+        account_id: String(row[1]),
+        account_name: String(row[2]),
+        security_id: String(row[3]),
+        symbol: String(row[4]),
+        name: String(row[5]),
+        security_type: (row[6] as any) || 'stock',
+        currency: String(row[7]),
+        total_quantity: qty,
+        average_cost: avgCost,
+        current_price: curPrice,
+        total_cost_basis: costBasis,
+        current_market_value: mktVal,
+        unrealized_gain: unrealized,
+        unrealized_gain_percent: unrealizedPct,
+        weight_in_portfolio: 0,
+        last_quote_date: row[11] ? String(row[11]) : undefined,
+      };
+    });
+
+    const totalVal = rawHoldings.reduce((sum, h) => sum + h.current_market_value, 0);
+    return rawHoldings.map((h) => ({
+      ...h,
+      weight_in_portfolio: totalVal > 0 ? Math.round((h.current_market_value / totalVal) * 1000) / 10 : 0,
+    }));
+  }
+
+  async getTaxLots(symbol?: string, accountId?: string | number, state?: string): Promise<TaxLot[]> {
+    await this.init();
+    if (!this.db) return [];
+
+    let query = `
+      SELECT
+        l.id,
+        l.account_id,
+        COALESCE(a.name, 'Brokerage Account') as account_name,
+        l.security_id,
+        l.symbol,
+        l.purchase_date,
+        l.initial_quantity,
+        l.remaining_quantity,
+        l.purchase_price,
+        l.commission_paid,
+        l.state,
+        COALESCE(s.current_price, l.purchase_price) as current_price
+      FROM security_lots l
+      LEFT JOIN securities s ON l.security_id = s.id OR l.symbol = s.symbol
+      LEFT JOIN accounts a ON l.account_id = a.id
+      WHERE 1=1
+    `;
+    const params: Record<string, any> = {};
+    if (symbol) {
+      query += ` AND LOWER(l.symbol) = LOWER(:sym)`;
+      params[':sym'] = symbol.trim().toLowerCase();
+    }
+    if (accountId) {
+      query += ` AND l.account_id = :acc`;
+      params[':acc'] = String(accountId);
+    }
+    if (state) {
+      query += ` AND l.state = :st`;
+      params[':st'] = state;
+    }
+    query += ` ORDER BY l.purchase_date ASC, l.id ASC;`;
+
+    const res = this.db.exec(query, params);
+    if (!res.length || !res[0].values) return [];
+
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    return res[0].values.map((row) => {
+      const curPrice = Number(row[11]) || Number(row[8]) || 0;
+      const rawLot: Partial<TaxLot> = {
+        id: String(row[0]),
+        account_id: String(row[1]),
+        account_name: String(row[2]),
+        symbol: String(row[4]),
+        purchase_date: String(row[5]),
+        initial_quantity: Number(row[6]) || 0,
+        remaining_quantity: Number(row[7]) || 0,
+        purchase_price: Number(row[8]) || 0,
+        commission_paid: Number(row[9]) || 0,
+        state: (row[10] as any) || 'open',
+      };
+      return computeLotMetrics(rawLot, curPrice, todayStr) as TaxLot;
+    });
+  }
+
+  async getTaxLotDisposals(year?: number): Promise<TaxLotDisposal[]> {
+    await this.init();
+    if (!this.db) return [];
+
+    let query = `
+      SELECT
+        id, lot_id, account_id, symbol, disposal_date,
+        quantity_sold, cost_basis_sold, proceeds, realized_gain, term_type, disposal_strategy
+      FROM lot_disposals
+    `;
+    const params: Record<string, any> = {};
+    if (year) {
+      query += ` WHERE disposal_date >= :yStart AND disposal_date <= :yEnd`;
+      params[':yStart'] = `${year}-01-01`;
+      params[':yEnd'] = `${year}-12-31`;
+    }
+    query += ` ORDER BY disposal_date DESC, id DESC;`;
+
+    const res = this.db.exec(query, params);
+    if (!res.length || !res[0].values) return [];
+
+    return res[0].values.map((r) => ({
+      id: String(r[0]),
+      lot_id: String(r[1]),
+      account_id: String(r[2]),
+      symbol: String(r[3]),
+      disposal_date: String(r[4]),
+      quantity_sold: Number(r[5]) || 0,
+      cost_basis_sold: Number(r[6]) || 0,
+      proceeds: Number(r[7]) || 0,
+      realized_gain: Number(r[8]) || 0,
+      term_type: (r[9] as any) || 'short_term',
+      disposal_strategy: (r[10] as any) || 'FIFO',
+    }));
+  }
+
+  async executeInvestmentTrade(payload: {
+    accountId: string | number;
+    symbol: string;
+    action: 'buy' | 'sell';
+    quantity: number;
+    price: number;
+    tradeDate?: string;
+    commission?: number;
+    strategy?: TaxLotStrategy;
+    selectedLotId?: string | number;
+    memo?: string;
+  }): Promise<{ success: boolean; transactionId?: number }> {
+    await this.init();
+    if (!this.db) return { success: false };
+
+    const symbol = payload.symbol.trim().toUpperCase();
+    const accId = String(payload.accountId);
+    const qty = Math.abs(Number(payload.quantity) || 0);
+    const price = Math.abs(Number(payload.price) || 0);
+    const tradeDate = payload.tradeDate || new Date().toISOString().split('T')[0];
+    const commission = Math.abs(Number(payload.commission) || 0);
+
+    const secRes = this.db.exec(`SELECT id FROM securities WHERE symbol = :sym;`, { ':sym': symbol });
+    let secId = secRes[0]?.values[0]?.[0] as string | undefined;
+    if (!secId) {
+      secId = `sec-${symbol.toLowerCase()}`;
+      this.db.run(`
+        INSERT INTO securities (id, symbol, name, security_type, currency_code, current_price, last_quote_date)
+        VALUES (:id, :sym, :name, 'stock', 'USD', :price, :dt);
+      `, {
+        ':id': secId,
+        ':sym': symbol,
+        ':name': symbol,
+        ':price': price,
+        ':dt': tradeDate,
+      });
+    } else {
+      this.db.run(`UPDATE securities SET current_price = :price, last_quote_date = :dt WHERE id = :id;`, {
+        ':price': price,
+        ':dt': tradeDate,
+        ':id': secId,
+      });
+    }
+
+    if (payload.action === 'buy') {
+      const lotId = `lot-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+      this.db.run(`
+        INSERT INTO security_lots (id, account_id, security_id, symbol, purchase_date, initial_quantity, remaining_quantity, purchase_price, commission_paid, state)
+        VALUES (:id, :acc, :sec, :sym, :date, :qty, :qty, :price, :comm, 'open');
+      `, {
+        ':id': lotId,
+        ':acc': accId,
+        ':sec': secId,
+        ':sym': symbol,
+        ':date': tradeDate,
+        ':qty': qty,
+        ':price': price,
+        ':comm': commission,
+      });
+
+      const hldRes = this.db.exec(`SELECT quantity, average_cost FROM holdings WHERE account_id = :acc AND symbol = :sym;`, {
+        ':acc': accId,
+        ':sym': symbol,
+      });
+
+      if (hldRes.length && hldRes[0].values?.length) {
+        const curQty = Number(hldRes[0].values[0][0]) || 0;
+        const curAvg = Number(hldRes[0].values[0][1]) || 0;
+        const newQty = curQty + qty;
+        const newAvg = newQty > 0 ? ((curQty * curAvg) + (qty * price)) / newQty : price;
+        this.db.run(`
+          UPDATE holdings SET quantity = :qty, average_cost = :avg, updated_at = CURRENT_TIMESTAMP
+          WHERE account_id = :acc AND symbol = :sym;
+        `, {
+          ':qty': newQty,
+          ':avg': Math.round(newAvg * 10000) / 10000,
+          ':acc': accId,
+          ':sym': symbol,
+        });
+      } else {
+        const hldId = `hld-${accId}-${symbol.toLowerCase()}`;
+        this.db.run(`
+          INSERT INTO holdings (id, account_id, security_id, symbol, quantity, average_cost)
+          VALUES (:id, :acc, :sec, :sym, :qty, :avg);
+        `, {
+          ':id': hldId,
+          ':acc': accId,
+          ':sec': secId,
+          ':sym': symbol,
+          ':qty': qty,
+          ':avg': price,
+        });
+      }
+    } else {
+      const openLots = await this.getTaxLots(symbol, accId, 'open');
+      const selectedIds = payload.selectedLotId ? [payload.selectedLotId] : undefined;
+      const { disposals, updatedLots } = disposeTaxLots(
+        openLots,
+        qty,
+        price,
+        tradeDate,
+        payload.strategy || 'FIFO',
+        selectedIds
+      );
+
+      for (const ul of updatedLots) {
+        this.db.run(`
+          UPDATE security_lots SET remaining_quantity = :rem, state = :st WHERE id = :id;
+        `, {
+          ':rem': ul.remaining_quantity,
+          ':st': ul.state,
+          ':id': ul.id,
+        });
+      }
+
+      for (const d of disposals) {
+        this.db.run(`
+          INSERT INTO lot_disposals (id, lot_id, account_id, symbol, disposal_date, quantity_sold, cost_basis_sold, proceeds, realized_gain, term_type, disposal_strategy)
+          VALUES (:id, :lot_id, :acc, :sym, :date, :qty, :cost, :proc, :gain, :term, :strat);
+        `, {
+          ':id': d.id,
+          ':lot_id': d.lot_id,
+          ':acc': d.account_id,
+          ':sym': d.symbol,
+          ':date': d.disposal_date,
+          ':qty': d.quantity_sold,
+          ':cost': d.cost_basis_sold,
+          ':proc': d.proceeds,
+          ':gain': d.realized_gain,
+          ':term': d.term_type,
+          ':strat': d.disposal_strategy,
+        });
+      }
+
+      const hldRes = this.db.exec(`SELECT quantity FROM holdings WHERE account_id = :acc AND symbol = :sym;`, {
+        ':acc': accId,
+        ':sym': symbol,
+      });
+      if (hldRes.length && hldRes[0].values?.length) {
+        const curQty = Number(hldRes[0].values[0][0]) || 0;
+        const newQty = Math.max(0, curQty - qty);
+        this.db.run(`UPDATE holdings SET quantity = :qty, updated_at = CURRENT_TIMESTAMP WHERE account_id = :acc AND symbol = :sym;`, {
+          ':qty': newQty,
+          ':acc': accId,
+          ':sym': symbol,
+        });
+      }
+    }
+
+    await this.persist();
+    return { success: true };
+  }
+
+  async getPortfolioSummary(accountId?: string | number): Promise<PortfolioSummary> {
+    const holdings = await this.getPortfolioHoldings(accountId);
+    const totVal = holdings.reduce((sum, h) => sum + h.current_market_value, 0);
+    const totCost = holdings.reduce((sum, h) => sum + h.total_cost_basis, 0);
+    const totUnrealized = Math.round((totVal - totCost) * 100) / 100;
+    const totUnrealizedPct = totCost > 0 ? Math.round(((totVal - totCost) / totCost) * 10000) / 100 : 0.0;
+
+    const currentYear = new Date().getFullYear();
+    const disposals = await this.getTaxLotDisposals(currentYear);
+    const totRealizedYtd = Math.round(disposals.reduce((sum, d) => sum + d.realized_gain, 0) * 100) / 100;
+
+    const openLots = await this.getTaxLots(undefined, accountId, 'open');
+
+    const assetMap: Record<string, number> = {};
+    for (const h of holdings) {
+      const secType = h.security_type || 'stock';
+      assetMap[secType] = (assetMap[secType] || 0) + h.current_market_value;
+    }
+
+    const colorMap: Record<string, string> = {
+      stock: '#10b981',
+      etf: '#3b82f6',
+      crypto: '#f59e0b',
+      mutual_fund: '#8b5cf6',
+      bond: '#06b6d4',
+    };
+
+    const allocation = Object.entries(assetMap).map(([type, val]) => ({
+      category: type === 'stock' ? 'Equities' : type.toUpperCase(),
+      value: Math.round(val * 100) / 100,
+      percentage: totVal > 0 ? Math.round((val / totVal) * 1000) / 10 : 0,
+      color: colorMap[type] || '#71717a',
+    }));
+
+    const cashflows: Array<{ date: string; amount: number }> = [];
+    for (const lot of openLots) {
+      cashflows.push({ date: lot.purchase_date, amount: lot.total_cost_basis });
+    }
+    for (const d of disposals) {
+      cashflows.push({ date: d.disposal_date, amount: -d.proceeds });
+    }
+
+    const twr = computeModifiedDietz(cashflows, totVal);
+    const xirrCfs = [
+      ...cashflows.map((c) => ({ date: c.date, amount: -c.amount })),
+      { date: new Date().toISOString().split('T')[0], amount: totVal },
+    ];
+    const xirr = computeXIRR(xirrCfs);
+
+    return {
+      total_portfolio_value: Math.round(totVal * 100) / 100,
+      total_cost_basis: Math.round(totCost * 100) / 100,
+      total_unrealized_gain: totUnrealized,
+      total_unrealized_gain_percent: totUnrealizedPct,
+      total_realized_gain_ytd: totRealizedYtd,
+      holdings_count: holdings.length,
+      open_lots_count: openLots.length,
+      time_weighted_return: twr !== null ? Math.round(twr * 10000) / 100 : undefined,
+      money_weighted_return: xirr !== null ? Math.round(xirr * 10000) / 100 : undefined,
+      asset_allocation: allocation,
+    };
   }
 
   /**

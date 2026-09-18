@@ -10,6 +10,11 @@ import type {
   CashflowForecast,
   PayeeIntelligence,
   FinancialGoal,
+  PortfolioHolding,
+  TaxLot,
+  TaxLotDisposal,
+  PortfolioSummary,
+  TaxLotStrategy,
 } from '../types/moneta';
 
 export interface IMonetaRepository {
@@ -50,4 +55,21 @@ export interface IMonetaRepository {
     amount: number,
     actionType: 'deposit' | 'withdraw'
   ): Promise<FinancialGoal>;
+  getPortfolioHoldings?(accountId?: string | number): Promise<PortfolioHolding[]>;
+  getTaxLots?(symbol?: string, accountId?: string | number, state?: string): Promise<TaxLot[]>;
+  getTaxLotDisposals?(year?: number): Promise<TaxLotDisposal[]>;
+  executeInvestmentTrade?(payload: {
+    accountId: string | number;
+    symbol: string;
+    action: 'buy' | 'sell';
+    quantity: number;
+    price: number;
+    tradeDate?: string;
+    commission?: number;
+    strategy?: TaxLotStrategy;
+    selectedLotId?: string | number;
+    memo?: string;
+  }): Promise<{ success: boolean; transactionId?: number }>;
+  getPortfolioSummary?(accountId?: string | number): Promise<PortfolioSummary>;
 }
+

@@ -12,6 +12,7 @@
   import CashFlowHub from './lib/components/CashFlowHub.svelte';
   import PayeeDirectoryHub from './lib/components/PayeeDirectoryHub.svelte';
   import GoalsHub from './lib/components/GoalsHub.svelte';
+  import PortfolioHub from './lib/components/PortfolioHub.svelte';
 
   onMount(() => {
     financeStore.refreshAll();
@@ -34,6 +35,8 @@
       <PayeeDirectoryHub />
     {:else if financeStore.activeView === 'goals'}
       <GoalsHub />
+    {:else if financeStore.activeView === 'portfolio'}
+      <PortfolioHub />
     {:else if financeStore.selectedAccountId === null || financeStore.activeView === 'command_center'}
       <CommandCenter />
     {:else}

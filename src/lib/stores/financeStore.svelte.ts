@@ -11,6 +11,11 @@ import type {
   CashflowForecast,
   PayeeIntelligence,
   FinancialGoal,
+  PortfolioHolding,
+  TaxLot,
+  TaxLotDisposal,
+  PortfolioSummary,
+  TaxLotStrategy,
 } from '../types/moneta';
 import type { IMonetaRepository } from '../data/repository';
 import { OdooAdapter } from '../data/odooAdapter';
@@ -34,7 +39,7 @@ class FinanceStore {
   metrics = $state<DashboardMetrics | null>(null);
   accounts = $state<MonetaAccount[]>([]);
   selectedAccountId = $state<string | number | null>(null);
-  activeView = $state<'command_center' | 'register' | 'budgets' | 'bills' | 'cashflow' | 'payees' | 'goals'>('command_center');
+  activeView = $state<'command_center' | 'register' | 'budgets' | 'bills' | 'cashflow' | 'payees' | 'goals' | 'portfolio'>('command_center');
   transactions = $state<MonetaTransaction[]>([]);
   budgets = $state<EnvelopeBudget[]>([]);
   bills = $state<RecurringBill[]>([]);
@@ -43,6 +48,13 @@ class FinanceStore {
   cashflowHorizon = $state<30 | 90 | 180 | 365>(90);
   payees = $state<PayeeIntelligence[]>([]);
   goals = $state<FinancialGoal[]>([]);
+  holdings = $state<PortfolioHolding[]>([]);
+  taxLots = $state<TaxLot[]>([]);
+  taxLotDisposals = $state<TaxLotDisposal[]>([]);
+  portfolioSummary = $state<PortfolioSummary | null>(null);
+  selectedPortfolioAccountId = $state<string | number | null>(null);
+  isTradeModalOpen = $state<boolean>(false);
+  tradingHolding = $state<PortfolioHolding | null>(null);
   settings = $state<OdooSettingsPayload | null>(null);
   filterState = $state<'all' | 'unreconciled' | 'cleared' | 'reconciled'>('all');
   isLoading = $state<boolean>(false);
@@ -164,6 +176,7 @@ class FinanceStore {
       await this.loadCashflow();
       await this.loadPayees();
       await this.loadGoals();
+      await this.loadPortfolio();
 
       if (!this.selectedAccountId && accounts.length > 0) {
         this.selectedAccountId = accounts[0].id;
@@ -490,6 +503,86 @@ class FinanceStore {
     } catch (err) {
       console.error('Failed to delete goal:', err);
       return false;
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  async navigateToPortfolio() {
+    this.selectedAccountId = null;
+    this.activeView = 'portfolio';
+    await this.loadPortfolio();
+  }
+
+  async loadPortfolio(accountId?: string | number) {
+    try {
+      if (this.repository.getPortfolioHoldings) {
+        const targetAcc = accountId !== undefined ? accountId : (this.selectedPortfolioAccountId || undefined);
+        const [holdings, lots, disposals, summary] = await Promise.all([
+          this.repository.getPortfolioHoldings(targetAcc),
+          this.repository.getTaxLots ? this.repository.getTaxLots(undefined, targetAcc) : Promise.resolve([]),
+          this.repository.getTaxLotDisposals ? this.repository.getTaxLotDisposals() : Promise.resolve([]),
+          this.repository.getPortfolioSummary ? this.repository.getPortfolioSummary(targetAcc) : Promise.resolve(null),
+        ]);
+        this.holdings = holdings;
+        this.taxLots = lots;
+        this.taxLotDisposals = disposals;
+        this.portfolioSummary = summary;
+      } else {
+        this.holdings = [];
+        this.taxLots = [];
+        this.taxLotDisposals = [];
+        this.portfolioSummary = null;
+      }
+    } catch (err) {
+      console.error('Failed to load portfolio:', err);
+    }
+  }
+
+  openTradeModal(holding?: PortfolioHolding) {
+    this.tradingHolding = holding || null;
+    this.isTradeModalOpen = true;
+  }
+
+  closeTradeModal() {
+    this.isTradeModalOpen = false;
+    this.tradingHolding = null;
+  }
+
+  async executeTrade(tradePayload: {
+    accountId: string | number;
+    symbol: string;
+    action: 'buy' | 'sell';
+    quantity: number;
+    price: number;
+    tradeDate?: string;
+    commission?: number;
+    strategy?: TaxLotStrategy;
+    selectedLotId?: string | number;
+    memo?: string;
+  }): Promise<{ success: boolean; message?: string }> {
+    this.isLoading = true;
+    try {
+      if (!this.repository.executeInvestmentTrade) {
+        throw new Error('Trade execution not supported by current repository adapter');
+      }
+      const res = await this.repository.executeInvestmentTrade(tradePayload);
+      if (res.success) {
+        await this.loadPortfolio(tradePayload.accountId);
+        const [updatedMetrics, accounts] = await Promise.all([
+          this.repository.getDashboardSummary(),
+          this.repository.getAccounts(),
+        ]);
+        this.metrics = updatedMetrics;
+        this.accounts = accounts;
+        this.closeTradeModal();
+        return { success: true };
+      } else {
+        return { success: false, message: 'Trade execution failed' };
+      }
+    } catch (err: any) {
+      console.error('Failed to execute trade:', err);
+      return { success: false, message: err?.message || 'Trade execution failed' };
     } finally {
       this.isLoading = false;
     }

@@ -242,6 +242,84 @@ export interface FinancialGoal {
   status: GoalStatus;
 }
 
+export type SecurityType = 'stock' | 'etf' | 'crypto' | 'mutual_fund' | 'bond';
+export type TaxLotStrategy = 'FIFO' | 'LIFO' | 'HIFO' | 'SpecID';
+export type TaxLotTermType = 'short_term' | 'long_term';
+
+export interface PortfolioHolding {
+  id: string | number;
+  account_id: string | number;
+  account_name: string;
+  security_id: string | number;
+  symbol: string;
+  name: string;
+  security_type: SecurityType;
+  currency: string;
+  total_quantity: number;
+  average_cost: number;
+  current_price: number;
+  total_cost_basis: number;
+  current_market_value: number;
+  unrealized_gain: number;
+  unrealized_gain_percent: number;
+  weight_in_portfolio: number;
+  day_change?: number;
+  day_change_percent?: number;
+  last_quote_date?: string;
+}
+
+export interface TaxLot {
+  id: string | number;
+  holding_id?: string | number;
+  account_id: string | number;
+  account_name?: string;
+  symbol: string;
+  purchase_date: string;
+  initial_quantity: number;
+  remaining_quantity: number;
+  purchase_price: number;
+  commission_paid?: number;
+  total_cost_basis: number;
+  current_market_value: number;
+  unrealized_gain: number;
+  unrealized_gain_percent: number;
+  holding_days: number;
+  term_type: TaxLotTermType; // short_term (< 365 days) vs long_term (>= 365 days)
+  state: 'open' | 'closed';
+}
+
+export interface TaxLotDisposal {
+  id: string | number;
+  lot_id: string | number;
+  symbol: string;
+  account_id: string | number;
+  disposal_date: string;
+  quantity_sold: number;
+  cost_basis_sold: number;
+  proceeds: number;
+  realized_gain: number;
+  term_type: TaxLotTermType;
+  disposal_strategy: TaxLotStrategy;
+}
+
+export interface PortfolioSummary {
+  total_portfolio_value: number;
+  total_cost_basis: number;
+  total_unrealized_gain: number;
+  total_unrealized_gain_percent: number;
+  total_realized_gain_ytd: number;
+  holdings_count: number;
+  open_lots_count: number;
+  time_weighted_return?: number;
+  money_weighted_return?: number;
+  asset_allocation: Array<{
+    category: string;
+    value: number;
+    percentage: number;
+    color: string;
+  }>;
+}
+
 
 
 

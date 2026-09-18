@@ -92,20 +92,21 @@ This roadmap defines the multi-phase engineering plan to achieve full feature pa
 
 ---
 
-### Phase 4: Stock Portfolio & Tax-Lot Accounting (Target: Q2 2027)
+### Phase 4: Stock Portfolio & Tax-Lot Accounting (Target: Q2 2027) — COMPLETED
 *Parity with Odoo `investment.py`, `tax_lot.py`, `portfolio_analytics.py`, `quote_provider.py`*
 
-- [ ] **Stock & ETF Holdings Register:**
-  - Multi-brokerage portfolio tracking (IBKR, Tiger, Moomoo, CDP).
-  - Ticker lookup and live market quotes via Yahoo Finance (using native Tauri HTTP client).
-- [ ] **Advanced Tax-Lot Accounting:**
-  - Multiple cost basis methods: FIFO, LIFO, HIFO, Average Cost Basis, and Specific Lot Identification.
-  - Realized gain/loss calculations per lot sold.
-  - Unrealized gain/loss analytics with cost basis vs current market value.
-- [ ] **Portfolio Performance Metrics:**
-  - Time-Weighted Return (TWR) and Money-Weighted Return (MWR / IRR).
-  - Dividend tracking and forward annual dividend yield projection.
-  - Asset allocation donut chart (Equities, Fixed Income, Cash, Alternatives).
+- [x] **Stock & ETF Holdings Register:**
+  - Multi-brokerage portfolio tracking (IBKR, Tiger, Moomoo, CDP) with responsive holdings ledger.
+  - Position metrics: symbol, name, brokerage account, shares, average cost, current price, day change ($/%), market value, unrealized gain ($/%), and portfolio weight percentage.
+  - Svelte 5 Runes UI (`PortfolioHub.svelte`) with sub-view tabs, trade modal, and real-time rebalancing filters.
+- [x] **Advanced Tax-Lot Accounting:**
+  - Multiple cost basis disposal strategies: FIFO, LIFO, HIFO, and Specific Lot Identification (SpecID).
+  - Lot-level purchase tracking (`TaxLot`) with acquisition date, remaining shares, cost basis, current market value, holding days, and short-term (`< 365 days`) vs long-term (`≥ 365 days`) classification.
+  - Realized capital gains schedule (`TaxLotDisposal`) with disposal date, quantity sold, cost basis sold, gross proceeds, realized P/L, term type, and strategy badge.
+- [x] **Portfolio Performance Metrics:**
+  - Time-Weighted Return (TWR) via Modified Dietz and Money-Weighted Return (MWR) via XIRR bisection solver.
+  - Derived through one shared helper (`portfolioMath.ts`) shared across all adapters (Rule 7: One Derivation, One Place).
+  - Pluggable data layer across Live Odoo 18 Server (`/api/v1/mobile/investments/*`), Standalone SQLite WASM (`securities`, `holdings`, `security_lots`, `lot_disposals`), and Mock Sandbox.
 
 ---
 

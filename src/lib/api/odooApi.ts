@@ -11,6 +11,11 @@ import type {
   CashflowForecast,
   PayeeIntelligence,
   FinancialGoal,
+  PortfolioHolding,
+  TaxLot,
+  TaxLotDisposal,
+  PortfolioSummary,
+  TaxLotStrategy,
 } from '../types/moneta';
 
 export const OdooApi = {
@@ -303,4 +308,94 @@ export const OdooApi = {
     });
     return response.data?.result?.goal;
   },
+
+  /**
+   * Fetch active portfolio holdings
+   */
+  async getPortfolioHoldings(accountId?: string | number): Promise<PortfolioHolding[]> {
+    const response = await getApiClient().post('/api/v1/mobile/investments/holdings', {
+      jsonrpc: '2.0',
+      params: { account_id: accountId },
+    });
+    return response.data?.result?.holdings || [];
+  },
+
+  /**
+   * Fetch tax lots for holdings
+   */
+  async getTaxLots(symbol?: string, accountId?: string | number, state?: string): Promise<TaxLot[]> {
+    const response = await getApiClient().post('/api/v1/mobile/investments/lots', {
+      jsonrpc: '2.0',
+      params: { symbol, account_id: accountId, state },
+    });
+    return response.data?.result?.lots || [];
+  },
+
+  /**
+   * Fetch realized capital gains (tax lot disposals)
+   */
+  async getTaxLotDisposals(year?: number): Promise<TaxLotDisposal[]> {
+    const response = await getApiClient().post('/api/v1/mobile/investments/disposals', {
+      jsonrpc: '2.0',
+      params: { year },
+    });
+    return response.data?.result?.disposals || [];
+  },
+
+  /**
+   * Execute an investment trade (Buy or Sell) with tax-lot creation or allocation
+   */
+  async executeInvestmentTrade(payload: {
+    accountId: string | number;
+    symbol: string;
+    action: 'buy' | 'sell';
+    quantity: number;
+    price: number;
+    tradeDate?: string;
+    commission?: number;
+    strategy?: TaxLotStrategy;
+    selectedLotId?: string | number;
+    memo?: string;
+  }): Promise<{ success: boolean; transactionId?: number }> {
+    const response = await getApiClient().post('/api/v1/mobile/investments/trade', {
+      jsonrpc: '2.0',
+      params: {
+        account_id: payload.accountId,
+        symbol: payload.symbol,
+        action: payload.action,
+        quantity: payload.quantity,
+        price: payload.price,
+        trade_date: payload.tradeDate,
+        commission: payload.commission,
+        strategy: payload.strategy,
+        selected_lot_id: payload.selectedLotId,
+        memo: payload.memo,
+      },
+    });
+    return {
+      success: response.data?.result?.success || false,
+      transactionId: response.data?.result?.transaction_id,
+    };
+  },
+
+  /**
+   * Fetch portfolio summary analytics
+   */
+  async getPortfolioSummary(accountId?: string | number): Promise<PortfolioSummary> {
+    const response = await getApiClient().post('/api/v1/mobile/investments/summary', {
+      jsonrpc: '2.0',
+      params: { account_id: accountId },
+    });
+    return response.data?.result?.summary || {
+      total_portfolio_value: 0,
+      total_cost_basis: 0,
+      total_unrealized_gain: 0,
+      total_unrealized_gain_percent: 0,
+      total_realized_gain_ytd: 0,
+      holdings_count: 0,
+      open_lots_count: 0,
+      asset_allocation: [],
+    };
+  },
 };
+

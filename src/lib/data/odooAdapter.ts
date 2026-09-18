@@ -12,6 +12,11 @@ import type {
   CashflowForecast,
   PayeeIntelligence,
   FinancialGoal,
+  PortfolioHolding,
+  TaxLot,
+  TaxLotDisposal,
+  PortfolioSummary,
+  TaxLotStrategy,
 } from '../types/moneta';
 
 export class OdooAdapter implements IMonetaRepository {
@@ -115,5 +120,36 @@ export class OdooAdapter implements IMonetaRepository {
     actionType: 'deposit' | 'withdraw'
   ): Promise<FinancialGoal> {
     return OdooApi.fundGoal(id, amount, actionType);
+  }
+
+  async getPortfolioHoldings(accountId?: string | number): Promise<PortfolioHolding[]> {
+    return OdooApi.getPortfolioHoldings(accountId);
+  }
+
+  async getTaxLots(symbol?: string, accountId?: string | number, state?: string): Promise<TaxLot[]> {
+    return OdooApi.getTaxLots(symbol, accountId, state);
+  }
+
+  async getTaxLotDisposals(year?: number): Promise<TaxLotDisposal[]> {
+    return OdooApi.getTaxLotDisposals(year);
+  }
+
+  async executeInvestmentTrade(payload: {
+    accountId: string | number;
+    symbol: string;
+    action: 'buy' | 'sell';
+    quantity: number;
+    price: number;
+    tradeDate?: string;
+    commission?: number;
+    strategy?: TaxLotStrategy;
+    selectedLotId?: string | number;
+    memo?: string;
+  }): Promise<{ success: boolean; transactionId?: number }> {
+    return OdooApi.executeInvestmentTrade(payload);
+  }
+
+  async getPortfolioSummary(accountId?: string | number): Promise<PortfolioSummary> {
+    return OdooApi.getPortfolioSummary(accountId);
   }
 }
