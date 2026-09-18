@@ -167,3 +167,12 @@ It operates completely **100% offline-first** using an embedded WebAssembly SQLi
 9. **[Payee Intelligence & Directory](09_PAYEE_INTELLIGENCE_AND_DIRECTORY.md)**: Merchant memory, cadence detection and spend analytics.
 10. **[Stock Portfolio & Tax-Lot Accounting](10_STOCK_PORTFOLIO_AND_TAX_LOTS.md)**: Holdings register, disposal strategies, TWR/MWR, and the two Phase 4 boundaries.
 11. **[Property, Mortgages & Rental Income](11_PROPERTY_MORTGAGES_AND_RENTAL.md)**: Property equity, the amortization engine, the rent roll, and the Phase 5 divergences.
+
+### Architecture Decision Records
+
+| ADR | Decision |
+| :--- | :--- |
+| [0001](adr/0001-subscription-tiers-and-cloud-sync.md) | Subscription tiers and cloud sync — entitlement gating, licence tokens, local-first plus sync, and the supersession of Phase 8 |
+| [0002](adr/0002-moneta-cloud-platform.md) | Moneta Cloud platform — stay on Odoo, narrowed to a sync store plus licensing and billing; shared instances, version pinning, LGPL position |
+| [0003](adr/0003-licence-and-billing-topology.md) | Licence and billing topology — one licence database, local token verification, enforcement via the sync service, ANSIS accounting linkage |
+| [0004](adr/0004-entitlement-matrix-and-lifecycle.md) | Entitlement matrix and customer lifecycle — what each tier can access, pricing, the upgrade path, and cancellation |

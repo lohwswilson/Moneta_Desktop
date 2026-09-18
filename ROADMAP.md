@@ -165,11 +165,12 @@ This roadmap defines the multi-phase engineering plan to achieve full feature pa
 
 ---
 
-### Phase 8: Cloud Sync, Multi-Device & Subscriptions (Target: Q1 2028)
-- [ ] **Supabase Cloud Sync Engine:**
-  - Seamless background synchronization between local SQLite and remote Supabase PostgreSQL.
-  - Bi-directional conflict resolution and offline mutation queue.
-- [ ] **End-to-End Encryption (E2EE):**
-  - Zero-knowledge encryption for cloud backups (user master password never touches the server).
-- [ ] **Stripe Subscription Billing:**
-  - Pro Tier unlocks automated live cloud sync across multiple desktop and mobile devices.
+### Phase 8: Cloud Sync, Multi-Device & Subscriptions — SUPERSEDED
+**See [ADR 0001](docs/adr/0001-subscription-tiers-and-cloud-sync.md).** The scope below was replaced on 2026-09-19: Supabase is dropped in favour of syncing to the existing Moneta Cloud (Odoo) backend, and E2EE is dropped deliberately because it is mutually exclusive with server-side feature enforcement.
+
+- [ ] **Cloud Sync Engine (SQLite ↔ Moneta Cloud):** Bi-directional sync against `/api/v1/mobile/*` — conflict resolution and an offline mutation queue. This was Phase 8's hard part; it relocates rather than disappears.
+- [ ] **Subscription Tiers & Licence Tokens:** Entitlement gating with a server-signed token, locally verified, carrying a 30-day offline grace window. See ADR 0001 §3–4.
+- [ ] **Licence Billing:** Subscription purchase and renewal against Moneta Cloud.
+- [x] ~~Supabase Cloud Sync Engine~~ — dropped; the Odoo backend already models every synced entity.
+- [x] ~~End-to-End Encryption~~ — dropped; incompatible with the server running premium feature logic.
+- [ ] **Moneta Mobile:** the sync client that carries the multi-device story (separate initiative).
