@@ -61,9 +61,15 @@ class FinanceStore {
   payees = $state<PayeeIntelligence[]>([]);
   goals = $state<FinancialGoal[]>([]);
 
+  // Portfolio state (Phase 4)
+  holdings = $state<PortfolioHolding[]>([]);
+  taxLots = $state<TaxLot[]>([]);
+  taxLotDisposals = $state<TaxLotDisposal[]>([]);
+  portfolioSummary = $state<PortfolioSummary | null>(null);
+
   // View routing — one discriminant, one branch per view in App.svelte
   activeView = $state<'command_center' | 'register' | 'budgets' | 'bills'
-                     | 'cashflow' | 'payees' | 'goals'>('command_center');
+                     | 'cashflow' | 'payees' | 'goals' | 'portfolio'>('command_center');
 
   // Modal visibility
   isQuickAddOpen = $state<boolean>(false);
@@ -129,11 +135,14 @@ The trade-off is that a **missing** implementation degrades silently to an empty
 
 ### Shared Derivation (Anti-Drift Rule)
 
-Derived figures that Odoo also computes are implemented **once** in a shared module and called by every adapter, rather than reimplemented per adapter. See [`src/lib/data/goalMath.ts`](file:///opt/moneta_desktop/src/lib/data/goalMath.ts), which mirrors `goal.py::_compute_goal_progress` and is used by both the SQLite and Mock adapters.
+Derived figures that Odoo also computes are implemented **once** in a shared module and called by every adapter, rather than reimplemented per adapter. Two modules follow this rule today:
+
+- [`src/lib/data/goalMath.ts`](file:///opt/moneta_desktop/src/lib/data/goalMath.ts) — mirrors `goal.py::_compute_goal_progress`
+- [`src/lib/data/portfolioMath.ts`](file:///opt/moneta_desktop/src/lib/data/portfolioMath.ts) — mirrors `investment.py` / `tax_lot.py` (`_modified_dietz`, `_xirr`)
 
 ```typescript
 // Both adapters do this — neither defines its own maths
-return { ...persisted, ...computeGoalMetrics(persisted) };
+import { computeLotMetrics, disposeTaxLots, computeModifiedDietz, computeXIRR } from './portfolioMath';
 ```
 
 The alternative — each adapter deriving its own numbers — produces a record that reads differently depending on which data source is active. The Odoo roadmap documents this failure mode in its scheduled-occurrence contract track as the largest single architectural gap in the upstream module; Moneta Desktop does not reintroduce it.

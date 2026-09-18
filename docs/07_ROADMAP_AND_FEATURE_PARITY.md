@@ -24,8 +24,10 @@ This document details the feature parity comparison between the **Odoo `moneta_f
 | **Cash Flow Forecasting** | `moneta.cashflow.calendar` projection | 30–365 day simulation, Sankey diagram, overdraft risk | **100% Parity** |
 | **Financial Goals** | `moneta.goal` sinking funds | Milestone goals with derived contribution targets | **100% Parity** |
 | **Linked Transfers** | Two-legged atomic pair-wide VOID engine | Single-leg transactions per account | *Phase 5* |
-| **Stock Market Tracking** | Hourly Yahoo Finance quote sync | Static brokerage balance | *Phase 4* |
-| **Tax-Lot Accounting** | FIFO / LIFO / HIFO / Specific ID | Not implemented | *Phase 4* |
+| **Stock Holdings Register** | `moneta.security` / `moneta.holding` | Multi-brokerage register with per-lot detail | **100% Parity** |
+| **Tax-Lot Accounting** | FIFO / LIFO / HIFO / Specific ID | Shared disposal engine, per-disposal term classification | **100% Parity** |
+| **Portfolio Metrics (TWR/MWR)** | `_modified_dietz` / `_xirr` | Modified Dietz and XIRR bisection in one shared module | **100% Parity** |
+| **Live Market Quotes** | Hourly Yahoo Finance quote sync | Prices maintained by hand, `last_quote_date` only | *Phase 4 remainder* |
 | **Property & Mortgages** | `moneta.loan`, `moneta_finance_property` | Aggregate asset values only | *Phase 5* |
 | **Regional Packs (CPF/EPF)** | `moneta_finance_singapore` / `_malaysia` | Not implemented | *Phase 6* |
 | **Monte Carlo Simulation** | 1,000-path stochastic FIRE engine | Deterministic 4% rule & runway calculation | *Phase 7* |
@@ -70,12 +72,15 @@ See [`08_PLANNING_AND_FORECASTING_HUBS.md`](08_PLANNING_AND_FORECASTING_HUBS.md)
 
 ---
 
-### Phase 4: Stock Portfolio & Tax-Lot Accounting (Target: Q2 2027)
-*Parity with Odoo `investment.py`, `tax_lot.py`, `portfolio_analytics.py`, `quote_provider.py`*
+### Phase 4: Stock Portfolio & Tax-Lot Accounting (Completed ✅)
+*Parity with Odoo `investment.py`, `tax_lot.py`, `portfolio_analytics.py`*
 
-- [ ] **Stock & ETF Holdings Register**: Multi-brokerage tracking (IBKR, Tiger, Moomoo, CDP) with ticker lookup and live quotes via Yahoo Finance over the native Tauri HTTP client.
-- [ ] **Advanced Tax-Lot Accounting**: FIFO, LIFO, HIFO, Average Cost and Specific Lot Identification, with realized gain/loss per lot sold.
-- [ ] **Portfolio Performance Metrics**: TWR and MWR/IRR, dividend tracking with forward yield projection, and an asset allocation breakdown.
+- [x] **Stock & ETF Holdings Register**: Multi-brokerage tracking (IBKR, Tiger, Moomoo, CDP) with a four-tab hub (holdings, lots, realized, allocation) and a buy/sell trade modal.
+- [x] **Advanced Tax-Lot Accounting**: FIFO, LIFO, HIFO and Specific Lot Identification, with realized gain per lot sold and short/long-term classification at the 365-day boundary.
+- [x] **Portfolio Performance Metrics**: TWR via Modified Dietz and MWR via XIRR bisection, both in the shared `portfolioMath.ts`.
+- [ ] **Live Market Quotes**: Prices are maintained by hand — no quote provider is wired yet. See [`10_STOCK_PORTFOLIO_AND_TAX_LOTS.md`](10_STOCK_PORTFOLIO_AND_TAX_LOTS.md) §1 for the two boundaries that did not ship.
+
+See [`10_STOCK_PORTFOLIO_AND_TAX_LOTS.md`](10_STOCK_PORTFOLIO_AND_TAX_LOTS.md).
 
 ---
 

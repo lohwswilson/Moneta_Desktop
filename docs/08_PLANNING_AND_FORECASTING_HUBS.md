@@ -6,7 +6,7 @@ This document covers the four **Phase 3** planning hubs in Moneta Desktop — En
 
 ## 1. Common Architecture
 
-All four hubs follow the same pluggable pattern. Each is a standalone Svelte 5 component that reads from `financeStore`, which delegates to whichever `IMonetaRepository` adapter is active:
+The **Phase 3** planning hubs share one pluggable pattern; the Phase 4 portfolio hub follows it too and is documented separately in [`10_STOCK_PORTFOLIO_AND_TAX_LOTS.md`](10_STOCK_PORTFOLIO_AND_TAX_LOTS.md). Each hub is a standalone Svelte 5 component that reads from `financeStore`, which delegates to whichever `IMonetaRepository` adapter is active:
 
 ```
 +---------------------------------------------------------------------------+
@@ -51,6 +51,7 @@ Views are driven by `financeStore.activeView`, rendered in `App.svelte`:
 | `cashflow` | `CashFlowHub.svelte` | Cash Flow & Sankey |
 | `payees` | `PayeeDirectoryHub.svelte` | Payees & Directory |
 | `goals` | `GoalsHub.svelte` | Financial Goals |
+| `portfolio` | `PortfolioHub.svelte` | Portfolio — see [`10_STOCK_PORTFOLIO_AND_TAX_LOTS.md`](10_STOCK_PORTFOLIO_AND_TAX_LOTS.md) |
 
 ---
 

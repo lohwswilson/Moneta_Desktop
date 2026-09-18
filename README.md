@@ -24,6 +24,7 @@ Built with **Tauri v2**, **Svelte 5 (Runes-Native)**, **TypeScript**, **Tailwind
 - 📈 **Cash Flow Forecaster & Sankey:** 30–365 day projected balance trajectory, a daily projected ledger with overdraft flags, and an interactive Income → Cash → Expenses Sankey.
 - 🏆 **Financial Goals Tracker:** Milestone goals and sinking funds with progress bars and the monthly contribution each one needs, computed by a single shared engine so every data source agrees.
 - 🏪 **Payee Intelligence:** Autocomplete that recalls a merchant's category and typical amount, plus cadence detection and lifetime spend analytics.
+- 📊 **Stock Portfolio & Tax-Lot Accounting:** Multi-brokerage holdings across four sub-views, with FIFO/LIFO/HIFO/Specific-ID disposal and TWR/MWR performance metrics from one shared engine.
 - 🔄 **Pluggable Data Engine:** Seamlessly connects to live Odoo 18 instances via REST API with Personal Access Token (PAT), or runs completely standalone on local SQLite.
 - 🚀 **1-Click Odoo Migration:** One-click data migration tool to export accounts, categories, and historical registers from Odoo directly into local SQLite.
 
@@ -81,7 +82,7 @@ See [`ROADMAP.md`](ROADMAP.md) for the detailed feature parity roadmap.
 | **1** | Foundation & Core Ledger | ✅ Complete |
 | **2** | Advanced Banking, Split Transactions & Statement Reconciliation | ✅ Complete |
 | **3** | Envelope Budgets, Recurring Bills, Cash Flow Sankey & Financial Goals | ✅ Complete |
-| **4** | Stock & ETF Portfolio, Live Quotes & Tax-Lot Accounting (FIFO/HIFO) | Planned |
+| **4** | Stock Portfolio, Tax-Lot Accounting (FIFO/LIFO/HIFO/SpecID) & TWR/MWR | ✅ Complete |
 | **5** | Real Estate, Mortgage Amortization & Debt Prepayment Simulator | Planned |
 | **6** | Regional Financial Packs (Singapore CPF Hub & Malaysia EPF/KWSP) | Planned |
 | **7** | Monte Carlo Wealth Simulator & Local AI Advisor | Planned |
@@ -104,6 +105,7 @@ Full documentation lives in [`docs/`](docs/index.md):
 | 07 | [Roadmap & Feature Parity](docs/07_ROADMAP_AND_FEATURE_PARITY.md) | Phase-by-phase parity audit vs Odoo |
 | 08 | [Planning & Forecasting Hubs](docs/08_PLANNING_AND_FORECASTING_HUBS.md) | Budgets, bills, cash flow, goals |
 | 09 | [Payee Intelligence & Directory](docs/09_PAYEE_INTELLIGENCE_AND_DIRECTORY.md) | Merchant memory, cadence, spend analytics |
+| 10 | [Stock Portfolio & Tax-Lot Accounting](docs/10_STOCK_PORTFOLIO_AND_TAX_LOTS.md) | Holdings, disposal strategies, TWR/MWR |
 
 ---
 
@@ -115,6 +117,9 @@ npm run build    # production bundle
 
 # Goal progress maths (relativedelta month borrowing, overfunding, edge cases)
 node --experimental-strip-types scripts/verify_goal_math.ts
+
+# Portfolio maths (lot metrics, disposal ordering, TWR/MWR convergence)
+node --experimental-strip-types scripts/verify_portfolio_math.ts
 ```
 
 ---

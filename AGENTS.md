@@ -66,6 +66,7 @@ This document defines the canonical architecture rules, coding standards, and op
 │   │   │   ├── mockAdapter.ts       # In-memory Singapore sandbox driver
 │   │   │   ├── rulesEngine.ts       # 33 Singapore merchant rules engine
 │   │   │   ├── goalMath.ts          # Shared goal-progress derivation
+│   │   │   ├── portfolioMath.ts     # Shared lot / disposal / TWR-MWR derivation
 │   │   │   └── importers/
 │   │   │       └── bankStatementParser.ts # CSV & QIF statement parser
 │   │   └── components/
@@ -77,6 +78,7 @@ This document defines the canonical architecture rules, coding standards, and op
 │   │       ├── CashFlowHub.svelte   # Projection & Sankey diagram
 │   │       ├── PayeeDirectoryHub.svelte # Merchant intelligence directory
 │   │       ├── GoalsHub.svelte      # Financial goals & sinking funds
+│   │       ├── PortfolioHub.svelte  # Holdings, tax lots, realized & allocation
 │   │       ├── QuickAddModal.svelte # Transaction capture & split allocations
 │   │       ├── StatementImportModal.svelte # Drag-and-drop statement wizard
 │   │       └── ConnectionModal.svelte # Mode switcher & Odoo migration
@@ -108,6 +110,7 @@ npm run build
 
 # 3. Run domain-maths assertions
 node --experimental-strip-types scripts/verify_goal_math.ts
+node --experimental-strip-types scripts/verify_portfolio_math.ts
 
 # 4. Confirm every client route exists on the server
 #    (client calls are in src/lib/api/odooApi.ts; routes in the Odoo

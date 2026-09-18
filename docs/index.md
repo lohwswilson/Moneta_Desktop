@@ -24,6 +24,7 @@ It operates completely **100% offline-first** using an embedded WebAssembly SQLi
 |  ├── Cash Flow Forecaster & Sankey Diagram (30-365 Day Projection)      |
 |  ├── Financial Goals Tracker (Milestones & Sinking Funds)               |
 |  ├── Payee Intelligence Directory (Cadence & Spend Analytics)           |
+|  ├── Stock Portfolio & Tax-Lot Hub (Holdings, Lots, Gains, Alloc)       |
 |  └── Connection & Migration Modal (Odoo 18 / Local SQLite / Sandbox)    |
 |                                                                         |
 |  [ Pluggable Data Repository (IMonetaRepository) ]                      |
@@ -37,6 +38,7 @@ It operates completely **100% offline-first** using an embedded WebAssembly SQLi
 |  ├── Payee Cadence & Spend Aggregation Engine (180-day clustering)      |
 |  ├── Cash Flow Projection & Sankey Graph Builder (30-365 day horizon)   |
 |  ├── Goal Progress Engine (shared, mirrors Odoo relativedelta maths)    |
+|  ├── Tax-Lot Disposal Engine (FIFO/LIFO/HIFO/SpecID) & TWR/MWR Engine   |
 |  └── Point-in-Time Running Balance Partition Engine                     |
 +-------------------------------------------------------------------------+
 ```
@@ -108,6 +110,12 @@ It operates completely **100% offline-first** using an embedded WebAssembly SQLi
 - **Cadence Detection**: `weekly`, `biweekly`, `monthly`, `quarterly`, `yearly` or `irregular`.
 - **Spend Analytics**: Lifetime spend, transaction count and average ticket size per merchant.
 
+### 12. 📊 Stock Portfolio & Tax-Lot Accounting
+- **Holdings Register**: Multi-brokerage positions across four sub-views — holdings, lots, realized gains and allocation.
+- **Tax-Lot Accounting**: FIFO, LIFO, HIFO and Specific Lot Identification with per-disposal short/long-term classification.
+- **Performance Metrics**: TWR via Modified Dietz and MWR via XIRR, both in one shared engine.
+- **Known boundary**: prices are maintained by hand (no quote provider), and a trade does not yet post to the cash ledger.
+
 ---
 
 ## 📊 Feature Comparison Matrix
@@ -126,6 +134,8 @@ It operates completely **100% offline-first** using an embedded WebAssembly SQLi
 | **Recurring Bill Countdown** | **✔ Native** | ✔ Native | ✔ Native | ✔ Native | ✔ Native |
 | **Cash Flow Sankey & Forecast** | **✔ 30–365 Days** | Partial | ✖ No | ✔ Native | ✔ Native |
 | **Financial Goals & Sinking Funds** | **✔ Native** | ✔ Native | ✔ Native | ✔ Native | ✔ Native |
+| **Stock & Tax-Lot Portfolio** | **✔ FIFO/LIFO/HIFO/SpecID** | ✔ Native | ✖ No | ✔ Native | ✔ Native |
+| **TWR / MWR Performance Metrics** | **✔ Dietz + XIRR** | ✔ Native | ✖ No | ✔ Native | ✔ Native |
 | **Direct Odoo 18 Server Sync** | **✔ Native (Bearer PAT)**| ✖ No | ✖ No | ✖ No | Host Backend |
 | **Zero Subscription Cost** | **✔ Free & Open-Source** | ✖ $70+/yr | ✖ $109/yr | ✖ $100/yr | ✔ Free Self-Hosted |
 
@@ -142,3 +152,4 @@ It operates completely **100% offline-first** using an embedded WebAssembly SQLi
 7. **[Product Roadmap & Parity Plan](07_ROADMAP_AND_FEATURE_PARITY.md)**: Phase-by-phase parity audit against Odoo `moneta_finance`.
 8. **[Planning, Budgeting & Forecasting Hubs](08_PLANNING_AND_FORECASTING_HUBS.md)**: Envelope budgets, recurring bills, cash flow forecasting and financial goals.
 9. **[Payee Intelligence & Directory](09_PAYEE_INTELLIGENCE_AND_DIRECTORY.md)**: Merchant memory, cadence detection and spend analytics.
+10. **[Stock Portfolio & Tax-Lot Accounting](10_STOCK_PORTFOLIO_AND_TAX_LOTS.md)**: Holdings register, disposal strategies, TWR/MWR, and the two Phase 4 boundaries.
