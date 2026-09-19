@@ -9,9 +9,9 @@
 
 ## Context
 
-Moneta Wealth is an offline-first personal finance application with a pluggable repository: a local SQLite store (`SqliteAdapter`), a live Odoo adapter against `moneta_wealth` (`OdooAdapter`), and a demo sandbox (`MockAdapter`). Phases 1–5 are complete — ledger, banking, planning hubs, portfolio and property/rental.
+Moneta Wealth is an offline-first personal finance application with a pluggable repository: a local SQLite store (`SqliteAdapter`), a live Odoo adapter against `moneta_wealth_odoo` (`OdooAdapter`), and a demo sandbox (`MockAdapter`). Phases 1–5 are complete — ledger, banking, planning hubs, portfolio and property/rental.
 
-**Moneta Cloud** is the existing self-hosted Odoo 18 `moneta_wealth` backend. It is not a new service: it already models every entity the Desktop app does (accounts, transactions, budgets, bills, goals, securities, lots, properties, tenants, rent payments, loans) via `/api/v1/mobile/*`.
+**Moneta Cloud** is the existing self-hosted Odoo 18 `moneta_wealth_odoo` backend. It is not a new service: it already models every entity the Desktop app does (accounts, transactions, budgets, bills, goals, securities, lots, properties, tenants, rent payments, loans) via `/api/v1/mobile/*`.
 
 The product intent is a subscription model where Moneta Cloud provides the paid tier, **Moneta Mobile** provides the multi-device story, and each subscriber has their own database.
 
@@ -203,4 +203,4 @@ Subscriber features ship with a **14–30 day trial, no card required**. For a g
 - [`AGENTS.md`](../../AGENTS.md) §1.1 — offline-first invariant
 - [`ROADMAP.md`](../../ROADMAP.md) — Phase 8 (superseded by this ADR)
 - [`11_PROPERTY_MORTGAGES_AND_RENTAL.md`](../11_PROPERTY_MORTGAGES_AND_RENTAL.md) — the Landlord Hub this ADR gates
-- Odoo `moneta_wealth` — `/api/v1/mobile/*`, the existing cloud surface
+- Odoo `moneta_wealth_odoo` — `/api/v1/mobile/*`, the existing cloud surface

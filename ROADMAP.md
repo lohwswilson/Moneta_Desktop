@@ -1,6 +1,6 @@
 # Moneta Wealth: Product Roadmap & Feature Parity Plan
 
-This roadmap defines the multi-phase engineering plan to achieve full feature parity between the **Odoo `moneta_wealth` suite** and the standalone, portable **Moneta Wealth** application built with **Tauri v2 + Svelte 5 + SQLite**.
+This roadmap defines the multi-phase engineering plan to achieve full feature parity between the **Odoo `moneta_wealth_odoo` suite** and the standalone, portable **Moneta Wealth** application built with **Tauri v2 + Svelte 5 + SQLite**.
 
 ---
 
@@ -111,7 +111,7 @@ This roadmap defines the multi-phase engineering plan to achieve full feature pa
 ---
 
 ### Phase 5: Real Estate, Mortgages & Debt Payoff (Completed ✅)
-*Parity with Odoo `property.py`, `loan.py`, and the `moneta_core` satellite*
+*Parity with Odoo `property.py`, `loan.py`, and the `moneta_core` landlord hub*
 
 - [x] **Property Equity & Valuation Tracker:**
   - Real estate, vehicle and valuables tracking with a linked mortgage account.
@@ -138,7 +138,7 @@ This roadmap defines the multi-phase engineering plan to achieve full feature pa
 ---
 
 ### Phase 6: Regional Financial Ecosystems (Singapore & Malaysia) (Target: Q3 2027)
-*Parity with Odoo `moneta_singapore` and `moneta_malaysia`*
+*Parity with Odoo `moneta_core` regional domain models*
 
 - [ ] **Singapore CPF Hub:**
   - Full support for OA, SA, MA, RA, and SRS accounts.
@@ -154,7 +154,7 @@ This roadmap defines the multi-phase engineering plan to achieve full feature pa
 ---
 
 ### Phase 7: AI Financial Advisor & Stochastic Simulators (Target: Q4 2027)
-*Parity with Odoo `monte_carlo.py`, `insight.py`, `moneta_core`*
+*Parity with Odoo `monte_carlo.py`, `insight.py` and the AI advisor in `moneta_core`*
 
 - [ ] **1,000-Path Monte Carlo Wealth Simulator:**
   - Stochastic market return engine executed via Rust / Web Worker.

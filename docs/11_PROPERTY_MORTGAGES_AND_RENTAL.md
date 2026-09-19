@@ -2,7 +2,7 @@
 
 This document covers the **Phase 5** hubs: property equity and valuation, mortgage amortization and prepayment modelling, and the landlord rent roll.
 
-*Parity with Odoo `property.py`, `loan.py`, and the `moneta_core` satellite (`rental_property.py`).*
+*Parity with Odoo `property.py`, `loan.py`, and the `moneta_core` landlord hub (`rental_property.py`).*
 
 ---
 

@@ -1,14 +1,14 @@
 # Roadmap & Feature Parity Plan
 
-This document details the feature parity comparison between the **Odoo `moneta_wealth`** backend suite and the standalone **Moneta Wealth App**.
+This document details the feature parity comparison between the **Odoo `moneta_wealth_odoo`** backend suite and the standalone **Moneta Wealth App**.
 
-> **Phase numbering note:** Moneta Wealth and the Odoo `moneta_wealth` module maintain **separate** roadmaps with **different** phase numbering. Desktop Phase 3 is not Odoo Phase 3. Where a Desktop feature mirrors an upstream track, this document names the Odoo track explicitly (e.g. *Odoo Track 5.7*). The authoritative Desktop roadmap is [`ROADMAP.md`](../ROADMAP.md); this page is the parity audit against it.
+> **Phase numbering note:** Moneta Wealth and the Odoo `moneta_wealth_odoo` module maintain **separate** roadmaps with **different** phase numbering. Desktop Phase 3 is not Odoo Phase 3. Where a Desktop feature mirrors an upstream track, this document names the Odoo track explicitly (e.g. *Odoo Track 5.7*). The authoritative Desktop roadmap is [`ROADMAP.md`](../ROADMAP.md); this page is the parity audit against it.
 
 ---
 
 ## 📊 Feature Parity Audit Matrix
 
-| Domain / Capability | Odoo moneta_wealth | Moneta Wealth Status | Parity State |
+| Domain / Capability | Odoo moneta_wealth_odoo | Moneta Wealth Status | Parity State |
 | :--- | :--- | :--- | :---: |
 | **Checkbook Register** | Window-partitioned running balances | Interactive register with credit-before-debit tiebreaker | **100% Parity** |
 | **Reconciliation Toggles** | 1-Click `Clr` (`UNC`, `CLR`, `REC`) | 1-Click interactive `Clr` badge cycling | **100% Parity** |
@@ -31,9 +31,9 @@ This document details the feature parity comparison between the **Odoo `moneta_w
 | **Property Equity & Valuation** | `moneta.property` + valuation log | Equity, LTV and appraisal history per asset | **100% Parity** |
 | **Mortgage Amortization** | `moneta.loan.scenario` | Shared engine, step-rate and rate inference | **100% Parity** |
 | **Debt Prepayment Simulator** | Extra monthly + lump sum | Live baseline-vs-accelerated comparison | **100% Parity** |
-| **Landlord & Rent Roll** | `moneta_core` satellite | Tenants, leases, rent roll, overdue detection | **100% Parity** |
+| **Landlord & Rent Roll** | `moneta_core` landlord hub | Tenants, leases, rent roll, overdue detection | **100% Parity** |
 | **Property Maintenance Ledger** | — none upstream | Not implemented | *Not in scope* |
-| **Regional Packs (CPF/EPF)** | `moneta_singapore` / `_malaysia` | Not implemented | *Phase 6* |
+| **Regional Packs (CPF/EPF)** | `moneta_core` regional models | Not implemented | *Phase 6* |
 | **Monte Carlo Simulation** | 1,000-path stochastic FIRE engine | Deterministic 4% rule & runway calculation | *Phase 7* |
 | **Cloud Sync & Billing** | Self-hosted server | Not implemented | *Phase 8* |
 
@@ -89,7 +89,7 @@ See [`10_STOCK_PORTFOLIO_AND_TAX_LOTS.md`](10_STOCK_PORTFOLIO_AND_TAX_LOTS.md).
 ---
 
 ### Phase 5: Real Estate, Mortgages & Debt Payoff (Completed ✅)
-*Parity with Odoo `property.py`, `loan.py`, and the `moneta_core` satellite*
+*Parity with Odoo `property.py`, `loan.py`, and the `moneta_core` landlord hub*
 
 - [x] **Property Equity & Valuation Tracker**: Real estate, vehicle and valuables tracking with linked mortgage accounts, derived equity and LTV, and a per-asset appraisal history.
 - [x] **Mortgage Amortization Schedule**: Month-by-month principal vs interest from one shared engine, with step-rate application and rate inference from ledger interest payments.
@@ -106,7 +106,7 @@ See [`10_STOCK_PORTFOLIO_AND_TAX_LOTS.md`](10_STOCK_PORTFOLIO_AND_TAX_LOTS.md).
 ---
 
 ### Phase 6: Regional Financial Ecosystems — Singapore & Malaysia (Target: Q3 2027)
-*Parity with Odoo `moneta_singapore` and `moneta_malaysia`*
+*Parity with Odoo `moneta_core` regional domain models*
 
 - [ ] **Singapore CPF Hub**: OA/SA/MA/RA and SRS accounts, contribution calculator by age and wage ceiling, CPF Housing Refund with accrued interest, SSB and MAS T-Bill ladders, and an IRAS relief optimizer.
 - [ ] **Malaysia EPF/KWSP Hub**: The 3-account structure (Persaraan, Sejahtera, Fleksibel), LHDN Borang BE relief calculator, and PRS/ASNB tracking.
@@ -114,7 +114,7 @@ See [`10_STOCK_PORTFOLIO_AND_TAX_LOTS.md`](10_STOCK_PORTFOLIO_AND_TAX_LOTS.md).
 ---
 
 ### Phase 7: AI Financial Advisor & Stochastic Simulators (Target: Q4 2027)
-*Parity with Odoo `monte_carlo.py`, `insight.py`, `moneta_core`*
+*Parity with Odoo `monte_carlo.py`, `insight.py` and the AI advisor in `moneta_core`*
 
 - [ ] **1,000-Path Monte Carlo Wealth Simulator**: Stochastic return engine via Rust/Web Worker with P10/P50/P90 bands over 30–50 year horizons.
 - [ ] **Local AI Financial Advisor**: Privacy-preserving cash-flow leak detection and high-interest debt alerts, via Ollama or a private API key.

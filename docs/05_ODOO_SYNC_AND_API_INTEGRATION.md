@@ -1,6 +1,6 @@
 # Moneta Cloud Sync & API Integration
 
-Moneta Wealth runs completely standalone — a local SQLite database on your machine — or optionally connects to a **Moneta Cloud** backend (a self-hosted Odoo 18 server running the [`moneta_wealth`](https://github.com/lohwswilson/moneta_wealth) module).
+Moneta Wealth runs completely standalone — a local SQLite database on your machine — or optionally connects to a **Moneta Cloud** backend (a self-hosted Odoo 18 server running the [`moneta_wealth_odoo`](https://github.com/lohwswilson/moneta_wealth_odoo) module).
 
 ---
 
