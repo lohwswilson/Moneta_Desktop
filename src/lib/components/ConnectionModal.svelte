@@ -13,7 +13,7 @@
     Sparkles
   } from '@lucide/svelte';
 
-  let mode = $state<'odoo' | 'sqlite' | 'mock'>(financeStore.config.mode);
+  let dataSource = $state<'local' | 'sandbox'>(financeStore.config.dataSource);
   let serverUrl = $state(financeStore.config.serverUrl);
   let apiToken = $state(financeStore.config.apiToken);
 
@@ -26,7 +26,7 @@
   const runTest = async () => {
     isTesting = true;
     testResult = null;
-    financeStore.config = { mode, serverUrl, apiToken };
+    financeStore.config = { dataSource, serverUrl, apiToken };
     financeStore.updateAdapter();
     testResult = await financeStore.testCurrentConnection();
     isTesting = false;
@@ -38,14 +38,15 @@
     const res = await financeStore.migrateFromOdoo(serverUrl, apiToken);
     migrationResult = res;
     if (res.success) {
-      mode = 'sqlite';
+      // Migration populates the local store; it never changes which store we use.
+      dataSource = 'local';
     }
     isMigrating = false;
   };
 
   const handleSave = (e: Event) => {
     e.preventDefault();
-    financeStore.saveConfig({ mode, serverUrl, apiToken });
+    financeStore.saveConfig({ dataSource, serverUrl, apiToken });
     financeStore.isSettingsOpen = false;
   };
 </script>
@@ -69,45 +70,38 @@
 
       <!-- Content -->
       <form onsubmit={handleSave} class="p-5 space-y-5">
-        <!-- 3-Way Mode Switcher -->
+        <!-- Data Source & Optional Cloud -->
         <div>
-          <label class="block text-[11px] uppercase font-semibold text-zinc-400 mb-1.5" for="conn-mode">
-            Data Source Architecture
-          </label>
-          <div class="grid grid-cols-3 gap-1.5 p-1 bg-zinc-950 rounded-lg border border-zinc-800">
-            <!-- Moneta Cloud -->
+          <span class="block text-[11px] uppercase font-semibold text-zinc-400 mb-1.5">
+            Data Source
+          </span>
+          <div class="grid grid-cols-2 gap-1.5 p-1 bg-zinc-950 rounded-lg border border-zinc-800">
+            <!-- Local store -->
             <button
               type="button"
-              onclick={() => (mode = 'odoo')}
-              class="py-2 px-2 rounded-md text-xs font-semibold flex items-center justify-center gap-1.5 transition-all {mode === 'odoo' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-400 hover:text-zinc-200'}"
-            >
-              <Server class="w-3.5 h-3.5 text-emerald-400" />
-              <span>Moneta Cloud</span>
-            </button>
-
-            <!-- Local SQLite -->
-            <button
-              type="button"
-              onclick={() => (mode = 'sqlite')}
-              class="py-2 px-2 rounded-md text-xs font-semibold flex items-center justify-center gap-1.5 transition-all {mode === 'sqlite' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-400 hover:text-zinc-200'}"
+              onclick={() => (dataSource = 'local')}
+              class="py-2 px-2 rounded-md text-xs font-semibold flex items-center justify-center gap-1.5 transition-all {dataSource === 'local' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-400 hover:text-zinc-200'}"
             >
               <Database class="w-3.5 h-3.5 text-sky-400" />
-              <span>Local SQLite</span>
+              <span>My Ledger</span>
             </button>
 
             <!-- Demo Sandbox -->
             <button
               type="button"
-              onclick={() => (mode = 'mock')}
-              class="py-2 px-2 rounded-md text-xs font-semibold flex items-center justify-center gap-1.5 transition-all {mode === 'mock' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-400 hover:text-zinc-200'}"
+              onclick={() => (dataSource = 'sandbox')}
+              class="py-2 px-2 rounded-md text-xs font-semibold flex items-center justify-center gap-1.5 transition-all {dataSource === 'sandbox' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-400 hover:text-zinc-200'}"
             >
               <span class="w-2 h-2 rounded-full bg-amber-400"></span>
-              <span>Demo Mock</span>
+              <span>Demo Sandbox</span>
             </button>
           </div>
+          <p class="text-[11px] text-zinc-500 mt-1.5">
+            Your data lives on this machine either way. Moneta Cloud is an optional sync target, not a data source.
+          </p>
         </div>
 
-        {#if mode === 'odoo'}
+        {#if dataSource === 'local'}
           <!-- Server URL -->
           <div>
             <label class="block text-[11px] uppercase font-semibold text-zinc-400 mb-1" for="conn-server-url">
@@ -171,7 +165,6 @@
             {/if}
           </div>
 
-        {:else if mode === 'sqlite'}
           <!-- SQLite Status & Backup Panel -->
           <div class="p-4 rounded-xl bg-zinc-950 border border-zinc-800 space-y-3">
             <div class="flex items-center justify-between">

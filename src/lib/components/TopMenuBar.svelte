@@ -484,10 +484,10 @@
       class="flex items-center gap-1.5 px-2 py-1 rounded-md bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-[11px] font-mono transition-colors"
       title="Click to switch data source mode"
     >
-      {#if financeStore.config.mode === 'odoo'}
+      {#if financeStore.cloudConfigured}
         <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
         <span class="text-emerald-400 font-semibold">Moneta Cloud</span>
-      {:else if financeStore.config.mode === 'sqlite'}
+      {:else if financeStore.config.dataSource === 'local'}
         <span class="w-1.5 h-1.5 rounded-full bg-sky-400"></span>
         <span class="text-sky-400 font-semibold">SQLite WASM</span>
       {:else}

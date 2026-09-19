@@ -99,7 +99,9 @@ LicenceToken {
 
 ### 5. Local-first with optional sync — replacing the three-mode switch
 
-Today `config.mode` is `'odoo' | 'sqlite' | 'mock'`, and `odoo` means *live queries against the server*. With Mobile in the picture that model breaks: both clients would need the server up simultaneously.
+> **Implemented 2026-09-19.** The refactor is done — see *As built* below.
+
+At the time of writing, `config.mode` was `'odoo' | 'sqlite' | 'mock'`, and `odoo` meant *live queries against the server*. With Mobile in the picture that model breaks: both clients would need the server up simultaneously.
 
 The model becomes:
 
@@ -109,7 +111,27 @@ Cloud sync is an ADDITIONAL capability    (subscribers)
 Moneta Mobile syncs through the same path (subscribers)
 ```
 
-`financeStore.updateAdapter()` and the adapter contract change accordingly. **Do this before Phase 6**, since CPF/EPF data must sync too.
+#### As built
+
+`ConnectionConfig` is now:
+
+```typescript
+interface ConnectionConfig {
+  dataSource: 'local' | 'sandbox';   // which LOCAL store
+  serverUrl: string;                 // Moneta Cloud — optional, for sync
+  apiToken: string;
+}
+```
+
+`cloudConfigured` is **derived** from the credentials rather than being a mode. Three behavioural changes:
+
+- `updateAdapter()` points `repository` at SQLite — or Mock for the sandbox — and **never** at `OdooAdapter`.
+- `refreshAll()` no longer returns early when the server is unreachable. Cloud work is best-effort and must never prevent local data from loading; the previous implementation blanked the app on an offline launch even though the data was on disk.
+- `testCurrentConnection()` probes **Moneta Cloud** rather than the local repository, since the local store needs no connection and probing it always reported success while telling the user nothing.
+
+The two Odoo-touching paths — `syncOdooSettingsToSqlite()` and `migrateFromOdoo()` — already pulled *into* SQLite and needed no change. They were the correct direction all along, which is why this refactor touched four files rather than the eighty-odd call sites it first appeared to threaten.
+
+A saved config in the old shape is migrated on load: `'mock'` → `'sandbox'`, and both `'odoo'` and `'sqlite'` → `'local'` with credentials retained. Both used the local database as the real store; only query routing differed, and that is what changed. Verified against all three legacy shapes, including that an unreachable cloud renders the app rather than blanking it.
 
 ### 6. Drop Phase 8; Moneta Cloud is the sync target
 

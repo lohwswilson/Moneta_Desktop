@@ -92,7 +92,19 @@ export interface DashboardMetrics {
 }
 
 export interface ConnectionConfig {
-  mode: 'odoo' | 'sqlite' | 'mock';
+  /**
+   * Which **local** store to use. Sync is orthogonal — see `serverUrl`/`apiToken`.
+   *
+   * - `local`   — the real SQLite database (the default for a real ledger)
+   * - `sandbox` — in-memory demo data for exploring the app without a ledger.
+   *               Never syncs, never touches Moneta Cloud.
+   *
+   * This replaced a `mode: 'odoo' | 'sqlite' | 'mock'` field, where `'odoo'`
+   * meant *live queries against the server*. That is incompatible with the
+   * local-first model — Odoo is a replication target now, not a query target.
+   */
+  dataSource: 'local' | 'sandbox';
+  /** Moneta Cloud endpoint for optional sync. Empty means local-only. */
   serverUrl: string;
   apiToken: string;
 }

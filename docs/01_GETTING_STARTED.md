@@ -53,39 +53,40 @@ The compiled native executable will be located in `src-tauri/target/release/bund
 
 ---
 
-## ⚙️ Connection Modes
+## ⚙️ Data Source & Moneta Cloud
 
-Moneta Wealth features a pluggable data architecture supporting three distinct operational modes, accessible by clicking the **Connection Status** badge in the bottom-left of the sidebar:
+Moneta Wealth is **local-first**: your ledger lives in an embedded SQLite database on this machine, and the app is fully functional with no network connection. Click the **Connection Status** badge in the bottom-left of the sidebar to configure it.
 
 ```
 +-------------------------------------------------------------------------+
-|                  CONNECTION MODE SELECTOR                               |
+|                  DATA SOURCE SELECTOR                                   |
 |                                                                         |
-|  [●] Local SQLite Database (100% Offline)                               |
+|  [●] My Ledger  —  Local SQLite (the default)                           |
 |      - Embedded sql.js WebAssembly engine                               |
 |      - Automatically saved to IndexedDB                                 |
 |      - Zero network activity, microsecond query performance             |
 |                                                                         |
-|  [○] Live Odoo 18 Server (moneta_finance)                               |
-|      - REST / JSON-RPC API connection (/api/v1/mobile/*)                |
-|      - Authenticated via Odoo Personal Access Token (Bearer PAT)        |
-|      - Multi-device central database synchronization                    |
-|                                                                         |
-|  [○] Demo Sandbox Mode                                                  |
+|  [○] Demo Sandbox                                                       |
 |      - Pre-seeded with Singapore financial assets                       |
 |      - DBS Checking, OCBC Savings, IBKR Brokerage, CPF OA/SA/MA         |
-|      - Safe sandbox to explore without touching real data               |
+|      - Explores the app without touching real data; never syncs         |
 +-------------------------------------------------------------------------+
+
+  Moneta Cloud (optional)  —  a sync target, not a data source
+      - REST / JSON-RPC (/api/v1/mobile/*) via Bearer PAT
+      - Populates a new local database, and syncs across devices
 ```
+
+**Moneta Cloud is not a data source.** The app always reads and writes the local database; the cloud is an optional *replication target*. That distinction is what makes it work fully offline — an unreachable server degrades sync, never the app. If you launch with Moneta Cloud configured but unreachable, you get your local ledger and a connection warning, not an empty screen.
 
 ---
 
-## 🔄 1-Click Odoo Migration (Odoo $\rightarrow$ SQLite)
+## 🔄 1-Click Migration (Moneta Cloud $\rightarrow$ Local)
 
-If you currently use the **Odoo 18 `moneta_finance`** module, Moneta Wealth includes an automated migration tool to transition your financial records into standalone local SQLite:
+If you already use the **Odoo 18 `moneta_finance`** module, Moneta Wealth includes an automated migration that copies your records into the local database:
 
 1. Click the **Connection Status** badge in the bottom-left sidebar.
-2. Select **Live Odoo 18 Server**.
+2. Ensure the data source is **My Ledger**.
 3. Enter your server URL:
    ```
    https://weeseng.dev8.ansis.com.sg
@@ -94,9 +95,9 @@ If you currently use the **Odoo 18 `moneta_finance`** module, Moneta Wealth incl
    - In Odoo, navigate to **User Profile $\rightarrow$ Account Security $\rightarrow$ Developer API Keys**.
    - Generate a new key and copy the token string.
 5. Click **Test Connection** to verify authorization.
-6. Under the migration banner, click **Migrate Odoo Data to SQLite**.
+6. Under the migration banner, click **Migrate Moneta Cloud Data to Local**.
 7. Moneta Wealth will:
-   - Query all accounts from Odoo.
+   - Query all accounts from Moneta Cloud.
    - Fetch historical transaction registers.
    - Insert all records into local SQLite tables with running balances.
    - Switch your active mode to **Local SQLite**.

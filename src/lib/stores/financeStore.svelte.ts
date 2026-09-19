@@ -27,13 +27,59 @@ import { MockAdapter } from '../data/mockAdapter';
 import { SqliteAdapter } from '../data/sqliteAdapter';
 import { configureApiClient } from '../api/client';
 
+/**
+ * Normalises a saved config, migrating the pre-local-first shape.
+ *
+ * The old field was `mode: 'odoo' | 'sqlite' | 'mock'`, which conflated two
+ * orthogonal things — which local store to use, and whether to talk to Odoo.
+ * `'odoo'` meant *live queries against the server*, incompatible with the
+ * local-first model, so it maps to the real local store with the cloud
+ * credentials retained. Both `'odoo'` and `'sqlite'` used the local database
+ * as the real store; only the query routing differed, and that is what changed.
+ *
+ * The storage key is still `moneta_desktop_config` **deliberately** — see
+ * AGENTS.md. Renaming it would orphan every existing install's settings.
+ */
+function migrateSavedConfig(parsed: any): ConnectionConfig {
+  const serverUrl = typeof parsed?.serverUrl === 'string' ? parsed.serverUrl : '';
+  const apiToken = typeof parsed?.apiToken === 'string' ? parsed.apiToken : '';
+
+  // Already migrated.
+  if (parsed?.dataSource === 'local' || parsed?.dataSource === 'sandbox') {
+    return { dataSource: parsed.dataSource, serverUrl, apiToken };
+  }
+
+  // Pre-local-first: 'mock' was the sandbox, everything else was the real store.
+  return {
+    dataSource: parsed?.mode === 'mock' ? 'sandbox' : 'local',
+    serverUrl,
+    apiToken,
+  };
+}
+
 class FinanceStore {
   // Svelte 5 Runes state
   config = $state<ConnectionConfig>({
-    mode: 'mock',
+    dataSource: 'sandbox',
     serverUrl: 'https://weeseng.dev8.ansis.com.sg',
     apiToken: '',
   });
+
+  /**
+   * True when Moneta Cloud credentials are present *and* we are on the real
+   * local store. Sandbox never syncs.
+   *
+   * Everything cloud-related is gated on this, and every cloud operation is
+   * best-effort: the app is local-first, so a missing or unreachable server
+   * must never prevent local data from loading.
+   */
+  get cloudConfigured(): boolean {
+    return (
+      this.config.dataSource === 'local' &&
+      !!this.config.serverUrl &&
+      !!this.config.apiToken
+    );
+  }
 
   connectedUser = $state<string | null>(null);
   isConnected = $state<boolean>(false);
@@ -106,12 +152,7 @@ class FinanceStore {
       const savedConfig = localStorage.getItem('moneta_desktop_config');
       if (savedConfig) {
         try {
-          const parsed = JSON.parse(savedConfig);
-          this.config = {
-            mode: parsed.mode || 'mock',
-            serverUrl: parsed.serverUrl || 'https://weeseng.dev8.ansis.com.sg',
-            apiToken: parsed.apiToken || '',
-          };
+          this.config = migrateSavedConfig(JSON.parse(savedConfig));
         } catch {
           // ignore corrupted local storage
         }
@@ -129,22 +170,44 @@ class FinanceStore {
     this.refreshAll();
   }
 
+  /**
+   * Points `repository` at the chosen **local** store and, when cloud
+   * credentials are present, configures the API client for sync.
+   *
+   * Odoo is never the repository. It is a replication target: reached through
+   * an explicit `OdooAdapter` for settings sync and migration, never as the
+   * source of ordinary reads and writes.
+   */
   updateAdapter() {
-    if (this.config.mode === 'odoo') {
+    this.repository =
+      this.config.dataSource === 'sandbox' ? new MockAdapter() : this.sqliteAdapter;
+
+    if (this.cloudConfigured) {
       configureApiClient(this.config.serverUrl, this.config.apiToken);
-      this.repository = new OdooAdapter();
-    } else if (this.config.mode === 'sqlite') {
-      this.repository = this.sqliteAdapter;
-    } else {
-      this.repository = new MockAdapter();
     }
   }
 
+  /**
+   * Probes Moneta Cloud when configured.
+   *
+   * In local-first the repository is always the local store, which needs no
+   * connection — probing it would always report success and tell the user
+   * nothing. What is worth reporting is whether the *cloud* is reachable, and
+   * that is informational only: a failure never blocks local data.
+   */
   async testCurrentConnection(): Promise<{ success: boolean; message: string; user?: string }> {
     this.isConnecting = true;
     this.connectionError = null;
     try {
-      const res = await this.repository.testConnection();
+      if (!this.cloudConfigured) {
+        // Sandbox, or local-only. Neither has a server to reach.
+        const res = await this.repository.testConnection();
+        this.isConnected = res.success;
+        this.connectedUser = null;
+        return res;
+      }
+
+      const res = await new OdooAdapter().testConnection();
       this.isConnected = res.success;
       if (res.success) {
         this.connectedUser = res.user || 'Authorized User';
@@ -165,22 +228,33 @@ class FinanceStore {
   async refreshAll() {
     this.isLoading = true;
     try {
-      const test = await this.testCurrentConnection();
-      if (!test.success && this.config.mode === 'odoo') {
-        return;
-      }
+      // ---------------------------------------------------------------------
+      // Local-first: the app loads from the local store, always.
+      //
+      // Cloud work happens first but is strictly best-effort — it must never
+      // prevent local data from loading. The previous implementation returned
+      // early when the server was unreachable, which meant an offline launch
+      // showed an empty app even though the data was on disk.
+      // ---------------------------------------------------------------------
+      if (this.cloudConfigured) {
+        await this.testCurrentConnection();
 
-      // Always refer back to Odoo DB for settings (base currency, FX rates, rules)
-      if (this.config.mode === 'odoo' || (this.config.serverUrl && this.config.apiToken)) {
+        // Settings are pulled every launch: base currency, FX rates and rules
+        // are canonical on the server and cheap to refresh.
         await this.syncOdooSettingsToSqlite();
-      }
 
-      // If in SQLite mode and SQLite database has 0 accounts, auto-populate from Odoo DB
-      if (this.config.mode === 'sqlite' && this.config.serverUrl && this.config.apiToken) {
-        const localAccounts = await this.sqliteAdapter.getAccounts();
-        if (localAccounts.length === 0) {
-          await this.migrateFromOdoo(this.config.serverUrl, this.config.apiToken);
+        // Bootstrap: an empty local database on a configured cloud is a first
+        // connect, so pull the ledger down once.
+        try {
+          const localAccounts = await this.sqliteAdapter.getAccounts();
+          if (localAccounts.length === 0) {
+            await this.migrateFromOdoo(this.config.serverUrl, this.config.apiToken);
+          }
+        } catch (err) {
+          console.warn('Cloud bootstrap skipped:', err);
         }
+      } else {
+        await this.testCurrentConnection();
       }
 
       await this.loadSettings();
@@ -1124,9 +1198,11 @@ class FinanceStore {
         (accId) => odoo.getAccountTransactions(accId, 500)
       );
 
-      // Save token & URL into persisted config and switch mode to SQLite
+      // Persist the credentials and stay on the real local store. Migration
+      // no longer switches "mode" — Odoo is not a data source any more, it is
+      // where the local database was populated from.
       this.saveConfig({
-        mode: 'sqlite',
+        dataSource: 'local',
         serverUrl: targetUrl,
         apiToken: targetToken,
       });

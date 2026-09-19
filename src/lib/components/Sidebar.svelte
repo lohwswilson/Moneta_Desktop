@@ -611,7 +611,7 @@
     <!-- Expanded Bottom Connection Status Bar -->
     <div class="p-3 border-t border-zinc-800/80 bg-zinc-950/60 flex items-center justify-between">
       <div class="flex items-center gap-2 overflow-hidden">
-        {#if financeStore.config.mode === 'odoo'}
+        {#if financeStore.cloudConfigured}
           <span class="w-2 h-2 rounded-full {financeStore.isConnected ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}"></span>
           <div class="truncate">
             <div class="text-xs font-semibold text-zinc-200 truncate">
@@ -619,7 +619,7 @@
             </div>
             <div class="text-[10px] text-zinc-500 truncate">{financeStore.config.serverUrl.replace(/^https?:\/\//, '')}</div>
           </div>
-        {:else if financeStore.config.mode === 'sqlite'}
+        {:else if financeStore.config.dataSource === 'local'}
           <span class="w-2 h-2 rounded-full bg-sky-400"></span>
           <div>
             <div class="text-xs font-semibold text-zinc-200">Local SQLite DB</div>
