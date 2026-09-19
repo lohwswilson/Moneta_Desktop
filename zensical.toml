@@ -1,0 +1,85 @@
+[project]
+site_name = "Moneta Wealth"
+site_description = "High-Performance Offline-First Personal Finance & Wealth Desktop Suite"
+site_author = "Wilson Loh"
+site_url = "https://lohwswilson.github.io/Moneta_Wealth/"
+repo_url = "https://github.com/lohwswilson/Moneta_Wealth"
+repo_name = "lohwswilson/Moneta_Wealth"
+docs_dir = "docs"
+
+nav = [
+    { "Home" = "index.md" },
+    { "User Guide" = [
+        { "Overview" = "user-guide/index.md" },
+        { "Getting Started & UI Tour" = "user-guide/01-getting-started.md" },
+        { "Accounts, Register & Reconciliation" = "user-guide/02-accounts-and-banking.md" },
+        { "Statement Import & Rules Engine" = "user-guide/03-statement-import-and-rules.md" },
+        { "Zero-Based Budgeting & Bills" = "user-guide/04-budgeting-and-bills.md" },
+        { "Cash Flow & Payee Intelligence" = "user-guide/05-cash-flow-and-analytics.md" },
+        { "Net Worth, FIRE & Goals" = "user-guide/06-wealth-and-goals.md" },
+        { "Investments, Mortgages & Landlord" = "user-guide/07-investments-and-property.md" },
+        { "Database Manager & Backups" = "user-guide/08-database-and-backups.md" }
+    ] },
+    { "Architecture & Specs" = [
+        { "Getting Started (Dev)" = "01_GETTING_STARTED.md" },
+        { "Banking & Checkbook Register" = "02_BANKING_AND_CHECKBOOK_REGISTER.md" },
+        { "Statement Wizard & Rules Engine" = "03_BANK_STATEMENT_WIZARD_AND_RULES.md" },
+        { "Local SQLite & Offline Storage" = "04_LOCAL_SQLITE_AND_OFFLINE_STORAGE.md" },
+        { "Odoo Sync & API Integration" = "05_ODOO_SYNC_AND_API_INTEGRATION.md" },
+        { "Command Center & FIRE Analytics" = "06_COMMAND_CENTER_AND_FIRE_ANALYTICS.md" },
+        { "Roadmap & Parity Audit" = "07_ROADMAP_AND_FEATURE_PARITY.md" },
+        { "Planning & Forecasting Hubs" = "08_PLANNING_AND_FORECASTING_HUBS.md" },
+        { "Payee Intelligence & Directory" = "09_PAYEE_INTELLIGENCE_AND_DIRECTORY.md" },
+        { "Stock Portfolio & Tax Lots" = "10_STOCK_PORTFOLIO_AND_TAX_LOTS.md" },
+        { "Property, Mortgages & Rental" = "11_PROPERTY_MORTGAGES_AND_RENTAL.md" }
+    ] },
+    { "ADRs" = [
+        { "ADR 0001: Subscription Tiers & Cloud Sync" = "adr/0001-subscription-tiers-and-cloud-sync.md" },
+        { "ADR 0002: Moneta Cloud Platform" = "adr/0002-moneta-cloud-platform.md" },
+        { "ADR 0003: Licence & Billing Topology" = "adr/0003-licence-and-billing-topology.md" },
+        { "ADR 0004: Entitlement Matrix & Lifecycle" = "adr/0004-entitlement-matrix-and-lifecycle.md" },
+        { "ADR 0005: Open Source & Dual-Licence" = "adr/0005-open-source-and-licence.md" },
+        { "ADR 0006: Sync Conflict Policy" = "adr/0006-sync-conflict-policy.md" }
+    ] }
+]
+
+[project.theme]
+variant = "modern"
+language = "en"
+features = [
+    "navigation.instant",
+    "navigation.instant.prefetch",
+    "navigation.tracking",
+    "navigation.tabs",
+    "navigation.tabs.sticky",
+    "navigation.top",
+    "navigation.footer",
+    "search.highlight",
+    "search.suggest",
+    "content.code.copy"
+]
+
+[[project.theme.palette]]
+scheme = "default"
+primary = "indigo"
+accent = "indigo"
+toggle = { icon = "lucide/sun", name = "Switch to dark mode" }
+
+[[project.theme.palette]]
+scheme = "slate"
+primary = "indigo"
+accent = "indigo"
+toggle = { icon = "lucide/moon", name = "Switch to light mode" }
+
+[project.markdown_extensions]
+admonition = {}
+attr_list = {}
+def_list = {}
+footnotes = {}
+tables = {}
+toc = { permalink = true }
+"pymdownx.arithmatex" = { generic = true }
+"pymdownx.superfences" = {}
+"pymdownx.highlight" = {}
+"pymdownx.details" = {}
+"pymdownx.tabbed" = { alternate_style = true }

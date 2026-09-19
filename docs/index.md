@@ -8,6 +8,11 @@ It operates completely **100% offline-first** using an embedded WebAssembly SQLi
 
 ---
 
+!!! tip "📖 Looking for the User Guide?"
+    If you are an end-user looking for step-by-step tutorials, workflows, shortcuts, and guides for all 11 hubs (Banking, Register, Statement Import, Budgeting, Bills, Cash Flow, Goals, Investments, Real Estate, and Backups), visit the **[Moneta Wealth User Guide](user-guide/index.md)**.
+
+---
+
 ## 🏛️ System Architecture
 
 ```

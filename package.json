@@ -12,7 +12,9 @@
     "check": "svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json",
     "tauri": "tauri",
     "desktop:dev": "tauri dev",
-    "desktop:build": "tauri build"
+    "desktop:build": "tauri build",
+    "docs:serve": "uvx zensical serve",
+    "docs:build": "uvx zensical build"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^7.3.0",

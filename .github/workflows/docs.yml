@@ -1,0 +1,40 @@
+name: Deploy Documentation
+
+on:
+  push:
+    branches:
+      - 'main'
+    paths:
+      - 'docs/**'
+      - 'zensical.toml'
+      - '.github/workflows/docs.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Zensical & Dependencies
+        run: |
+          pip install zensical ghp-import
+
+      - name: Build Documentation (Zensical Engine)
+        run: |
+          zensical build --clean
+
+      - name: Deploy to GitHub Pages (gh-pages)
+        run: |
+          ghp-import -p -f -n -m "deploy: update docs site with Zensical [skip ci]" site

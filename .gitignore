@@ -16,6 +16,7 @@ dist-ssr
 .vscode/*
 !.vscode/extensions.json
 .idea
+.claude/
 .DS_Store
 *.suo
 *.ntvs*
@@ -27,3 +28,6 @@ dist-ssr
 *.db
 src-tauri/target/
 
+# Documentation build output
+site/
+.zensical_cache/
