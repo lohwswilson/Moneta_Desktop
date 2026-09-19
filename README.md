@@ -28,7 +28,8 @@ Built with **Tauri v2**, **Svelte 5 (Runes-Native)**, **TypeScript**, **Tailwind
 - 🏪 **Payee Intelligence:** Autocomplete that recalls a merchant's category and typical amount, plus cadence detection and lifetime spend analytics.
 - 📊 **Stock Portfolio & Tax-Lot Accounting:** Multi-brokerage holdings across four sub-views, with FIFO/LIFO/HIFO/Specific-ID disposal and TWR/MWR performance metrics from one shared engine.
 - 🏡 **Property, Mortgages & Landlord Hub:** Property equity and LTV with appraisal history, month-by-month mortgage amortization with step-rate support, a prepayment simulator, and a full tenant rent roll.
-- 🔄 **Local-First, Cloud-Optional:** Your ledger lives in a local SQLite database and works entirely offline. Moneta Cloud is an optional sync target — a replication destination reached with a Personal Access Token, never a data source.
+- 🔄 **Local-First, Offline Default:** Your ledger lives in a local SQLite database and works entirely offline with zero forced network connection.
+- ☁️ **Subscriber Cloud Custody (Moneta Cloud):** Free users stay 100% local and private. Subscribers unlock automatic cloud custody: all financial data is safely kept, versioned, and backed up in Moneta Cloud (Odoo Backend), enabling instant multi-device sync with Moneta Mobile.
 - 🚀 **1-Click Moneta Cloud Migration:** Pull accounts, categories and historical registers from Moneta Cloud straight into the local database.
 
 ---

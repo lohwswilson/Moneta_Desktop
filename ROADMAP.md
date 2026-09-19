@@ -246,6 +246,7 @@ This roadmap defines the multi-phase engineering plan to achieve full feature pa
 
 **Also part of this phase:**
 
+- [ ] **Subscriber Cloud Custody Invariant:** When a paid subscription is activated, initiate full initial push of all local SQLite entities (accounts, transactions, categories, budgets, recurring bills, properties, loans, holdings, tax-lots) to Moneta Cloud (Odoo Backend), followed by continuous mutation and tombstone replication so the backend remains the complete, authoritative remote store for disaster recovery and multi-device sync.
 - [ ] **Subscription Tiers & Licence Tokens:** entitlement gating with a server-signed token, locally verified, carrying a 30-day offline grace window. See [ADR 0001](docs/adr/0001-subscription-tiers-and-cloud-sync.md) §3–4 and [ADR 0003](docs/adr/0003-licence-and-billing-topology.md).
 - [ ] **Licence Billing:** subscription purchase and renewal against Moneta Cloud.
 - [ ] **Moneta Mobile:** the sync client that carries the multi-device story (separate initiative).

@@ -107,9 +107,15 @@ The model becomes:
 
 ```
 SQLite is ALWAYS the local store          (offline-first survives unchanged)
-Cloud sync is an ADDITIONAL capability    (subscribers)
+Paid subscription activates Cloud Custody (ALL subscriber data kept in Moneta Cloud)
 Moneta Mobile syncs through the same path (subscribers)
 ```
+
+**Subscriber Cloud Custody Invariant:**
+When a user subscribes to Moneta Cloud, the client automatically initiates full initial sync and continuous replication so that **all subscriber financial records are kept in Moneta Cloud (Odoo Backend)**. This ensures:
+1. **Zero Data Loss Guarantee:** Complete automated cloud disaster recovery if the local device is lost, formatted, or replaced.
+2. **Multi-Device Availability:** Changes stream automatically to Moneta Mobile and secondary desktops.
+3. **Continuous Background Intelligence:** Moneta Cloud executes hourly stock quotes, automated bank feeds, and scheduled bill monitors in the background.
 
 #### As built
 

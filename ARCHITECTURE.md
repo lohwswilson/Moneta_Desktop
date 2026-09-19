@@ -8,7 +8,7 @@ This document defines the software engineering architecture, state management pa
 
 1. **100% Offline-First by Default**: The application must launch instantly and execute all operations (register updates, running balance calculations, statement imports, searches) without internet access.
 2. **Deterministic Financial Accuracy**: Floating-point balance drifts are prevented using rounding constraints and chronological tiebreaker algorithms.
-3. **Local-First Data Decoupling**: Business logic and UI components interact exclusively with an abstract repository interface. That repository is **always the local store** — SQLite for real data, an in-memory sandbox for the demo. Moneta Cloud is a *replication target*, reached through an explicit adapter, never a data source. See §6.
+3. **Local-First with Cloud Custody on Subscription**: Business logic and UI components interact exclusively with an abstract repository interface backed by local SQLite. For free users, all data remains 100% private and offline on their machine. For paid subscribers, **all financial records must be kept in Moneta Cloud (Odoo Backend)** via continuous bidirectional sync, providing automated cloud disaster recovery and seamless multi-device sync with Moneta Mobile. See §6.
 4. **Lightweight Native Desktop Footprint**: Leveraging **Tauri v2** and **Svelte 5** ensures minimal RAM consumption (~35 MB) and instantaneous UI response times.
 
 ---
@@ -174,12 +174,14 @@ The alternative — each adapter deriving its own numbers — produces a record 
 
 Moneta Cloud sync is built in stages, each independently useful and verifiable. This section describes the model; the decisions and their reasoning live in [ADR 0001](docs/adr/0001-subscription-tiers-and-cloud-sync.md) and [ADR 0006](docs/adr/0006-sync-conflict-policy.md).
 
-### 6.1 The model: local-first, sync optional
+### 6.1 The model: local-first, mandatory cloud custody on subscription
 
 ```
-SQLite is ALWAYS the local store          (offline-first, unconditional)
-Moneta Cloud is an ADDITIONAL capability  (subscribers)
+SQLite is ALWAYS the local store          (offline-first, free tier)
+Paid subscription activates Cloud Custody (ALL subscriber data kept in Moneta Cloud)
 ```
+
+For free users, all data remains strictly local in embedded SQLite with zero network transmission. When a user subscribes to Moneta Cloud, the client initiates continuous replication so that **all subscriber financial records are kept in Moneta Cloud (Odoo Backend)** as the authoritative master repository for disaster recovery, background processing, and multi-device sync with Moneta Mobile.
 
 `ConnectionConfig` expresses this directly:
 
