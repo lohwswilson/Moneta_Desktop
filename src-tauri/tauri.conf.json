@@ -1,6 +1,6 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "Moneta",
+  "productName": "Moneta Wealth",
   "version": "0.1.0",
   "identifier": "com.ansis.moneta",
   "build": {
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "Moneta Personal Finance",
+        "title": "Moneta Wealth — Your Private Wealth Command Center",
         "width": 1200,
         "height": 800,
         "minWidth": 900,

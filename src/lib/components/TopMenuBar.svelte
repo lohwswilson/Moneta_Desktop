@@ -84,8 +84,8 @@
       </div>
       <div class="flex items-center gap-1.5 font-bold text-zinc-100 tracking-wide">
         MONETA
-        <span class="text-[9px] uppercase tracking-widest font-semibold px-1.5 py-0.2 rounded bg-zinc-800 text-zinc-400">
-          Desktop
+        <span class="text-[9px] uppercase tracking-widest font-semibold px-1.5 py-0.5 rounded bg-emerald-950/80 border border-emerald-800/60 text-emerald-400">
+          WEALTH
         </span>
       </div>
     </button>

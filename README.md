@@ -1,8 +1,10 @@
-# Moneta Desktop
+# Moneta Wealth
 
 <div align="center">
 
-**A High-Performance, Portable, Offline-First Personal Finance & Wealth Desktop Application**
+**Your Private Wealth Command Center**
+
+*A High-Performance, Portable, Offline-First Personal Finance & Wealth Application*
 
 Built with **Tauri v2**, **Svelte 5 (Runes-Native)**, **TypeScript**, **Tailwind CSS v4**, and **SQLite**.
 
