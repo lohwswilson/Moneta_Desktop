@@ -75,7 +75,8 @@ This document defines the canonical architecture rules, coding standards, and op
 │   ├── verify_goal_math.ts          # Goal progress maths assertions
 │   ├── verify_portfolio_math.ts     # Lot / disposal / TWR-MWR assertions
 │   ├── verify_loan_math.ts          # Amortization & prepayment assertions
-│   └── verify_property_math.ts      # Equity / rental / rent-roll assertions
+│   ├── verify_property_math.ts      # Equity / rental / rent-roll assertions
+│   └── verify_sync_tracking.ts      # Change-log triggers against real SQLite
 ├── src/
 │   ├── App.svelte                   # Root application shell & view routing
 │   ├── lib/
@@ -94,6 +95,7 @@ This document defines the canonical architecture rules, coding standards, and op
 │   │   │   ├── portfolioMath.ts     # Shared lot / disposal / TWR-MWR derivation
 │   │   │   ├── loanMath.ts          # Shared amortization / prepayment derivation
 │   │   │   ├── propertyMath.ts      # Shared equity / rental / rent-roll derivation
+│   │   │   ├── syncSchema.ts        # Change-tracking table & triggers
 │   │   │   └── importers/
 │   │   │       └── bankStatementParser.ts # CSV & QIF statement parser
 │   │   └── components/
@@ -126,6 +128,8 @@ When modifying or extending the SQLite database:
 2. Ensure new tables include `IF NOT EXISTS`.
 3. If seeding new default records, check table row counts first before inserting.
 4. Always invoke `await this.persist()` after executing write transactions to flush binary database buffers into IndexedDB.
+5. **If the table holds user data, add it to `SYNC_TRACKED_TABLES`** in [`src/lib/data/syncSchema.ts`](file:///opt/moneta_wealth/src/lib/data/syncSchema.ts) so its changes are recorded for sync. Settings-like tables that are canonical on the server (`app_settings`, `currency_rates`) stay out of that list — a local edit to them is not something to push.
+6. **Never create sync triggers before the seed block.** `buildSyncSchemaDDL()` runs at the *end* of `runMigrations()` deliberately; attaching triggers first queued ~48 seeded default rows as pending changes, which a first sync would push as though the user had entered them.
 
 ---
 
@@ -167,6 +171,9 @@ node --experimental-strip-types scripts/verify_goal_math.ts
 node --experimental-strip-types scripts/verify_portfolio_math.ts
 node --experimental-strip-types scripts/verify_loan_math.ts
 node --experimental-strip-types scripts/verify_property_math.ts
+
+# 3b. Sync change-tracking schema (runs a real SQLite engine)
+node --experimental-strip-types scripts/verify_sync_tracking.ts
 
 # 4. Route parity — every client call must have a server route.
 #    Client calls:   src/lib/api/odooApi.ts

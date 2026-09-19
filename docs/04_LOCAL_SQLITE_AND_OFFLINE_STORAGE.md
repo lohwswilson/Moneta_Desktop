@@ -202,6 +202,29 @@ CREATE TABLE IF NOT EXISTS goals (
 
 > **Note on `goals.status`:** the column exists so a paused goal survives a round-trip, but nothing in the UI sets it. Upstream `moneta.goal` cannot write it either — the field is computed without an inverse. It is read, not written.
 
+### Table: `sync_changes`
+Append-only log of local changes awaiting push to Moneta Cloud. Written by **SQLite triggers**, not application code — so deletes are captured as tombstones and no write path can forget to record itself. See [`src/lib/data/syncSchema.ts`](file:///opt/moneta_wealth/src/lib/data/syncSchema.ts).
+
+```sql
+CREATE TABLE IF NOT EXISTS sync_changes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  entity TEXT NOT NULL,
+  entity_id TEXT NOT NULL,
+  op TEXT NOT NULL,
+  changed_at TEXT NOT NULL DEFAULT (datetime('now')),
+  synced_at TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_sync_changes_pending
+  ON sync_changes (synced_at, id);
+```
+
+Three triggers — `AFTER INSERT`, `AFTER UPDATE`, `AFTER DELETE` — are created for each of the 18 user-data tables listed in `SYNC_TRACKED_TABLES`. `app_settings` and `currency_rates` are deliberately excluded: they are canonical on the server and pulled *down*, so a local edit is not something to push.
+
+`synced_at` is NULL until the change is pushed. The log is **append-only**: editing a row that has already synced inserts a *new* entry rather than reviving the old one, so marking is safe and there is no un-mark path to get wrong.
+
+> **Ordering matters.** The triggers are created at the *end* of `runMigrations()`, after seeding. Attaching them first queued ~48 seeded default rows as pending changes, which a first sync would have pushed as though the user had entered them.
+
 ### Migration Protocol
 
 When extending the schema:

@@ -20,6 +20,7 @@ import type {
   RentPayment,
   LoanScenario,
   LoanRateChange,
+  SyncChange,
 } from '../types/moneta';
 
 export interface VerifyBalanceResult {
@@ -119,5 +120,13 @@ export interface IMonetaRepository {
   deleteLoanScenario?(id: string | number): Promise<boolean>;
   /** Infers rate-change segments from historical interest payments on the linked account. */
   inferLoanRateChanges?(id: string | number): Promise<LoanRateChange[]>;
+
+  // --- Sync change tracking (local store only) ---
+  /** Changes recorded locally that have not yet been pushed to Moneta Cloud. */
+  getPendingChanges?(limit?: number): Promise<SyncChange[]>;
+  /** How many changes await push. */
+  getPendingChangeCount?(): Promise<number>;
+  /** Marks changes as pushed. Returns how many were marked. */
+  markChangesSynced?(ids: number[]): Promise<number>;
 }
 

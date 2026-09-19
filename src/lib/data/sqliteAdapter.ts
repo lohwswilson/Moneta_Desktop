@@ -23,8 +23,11 @@ import type {
   LoanScenario,
   LoanRateChange,
   PropertyValuation,
+  SyncChange,
+  SyncOp,
 } from '../types/moneta';
 import type { VerifyBalanceResult } from './repository';
+import { buildSyncSchemaDDL } from './syncSchema';
 import initSqlJs, { type Database, type SqlJsStatic } from 'sql.js';
 import { DEFAULT_RULES } from './rulesEngine';
 import { computeGoalMetrics, toDateOnlyString, todayDateOnly } from './goalMath';
@@ -373,6 +376,9 @@ export class SqliteAdapter implements IMonetaRepository {
       );
     `);
 
+    // Change tracking is attached at the END of this method, after seeding —
+    // see the note there for why the order matters.
+
     // Seed default settings and rates if empty
     this.db.run(`
       INSERT OR IGNORE INTO app_settings (key, value) VALUES ('base_currency', 'SGD');
@@ -496,6 +502,22 @@ export class SqliteAdapter implements IMonetaRepository {
           ('hld-msft', :acc, 'sec-msft', 'MSFT', 10.0, 426.41);
       `, { ':acc': brokerAccId });
     }
+
+    // ---------------------------------------------------------------------
+    // Change tracking — attached AFTER seeding, deliberately.
+    //
+    // The triggers record every write, and seeding runs on every fresh
+    // install. Creating them before the seed block queued ~48 default rows
+    // (categorization rules, budgets, bills, demo securities) as pending
+    // changes, which a first sync would then push to the server as though the
+    // user had entered them. Attaching the triggers afterwards leaves seeded
+    // defaults as plain local state.
+    //
+    // Defined in syncSchema.ts — triggers rather than application-level
+    // logging, so deletes are captured and no write path can forget to record
+    // itself. See that file for the reasoning.
+    // ---------------------------------------------------------------------
+    this.db.run(buildSyncSchemaDDL());
 
     this.persist();
   }
@@ -3723,6 +3745,71 @@ export class SqliteAdapter implements IMonetaRepository {
 
     await this.persist();
     return created;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Sync change tracking
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Locally-recorded changes not yet pushed to Moneta Cloud, in the order they
+   * occurred — the change-log id is monotonic, so it doubles as the push order.
+   */
+  async getPendingChanges(limit: number = 500): Promise<SyncChange[]> {
+    if (!this.db) await this.init();
+    if (!this.db) return [];
+
+    const res = this.db.exec(
+      `SELECT id, entity, entity_id, op, changed_at, synced_at
+         FROM sync_changes
+        WHERE synced_at IS NULL
+        ORDER BY id
+        LIMIT :limit;`,
+      { ':limit': limit }
+    );
+    if (!res || res.length === 0 || !res[0].values) return [];
+
+    return res[0].values.map((row) => ({
+      id: Number(row[0]),
+      entity: String(row[1]),
+      entity_id: String(row[2]),
+      op: String(row[3]) as SyncOp,
+      changed_at: String(row[4]),
+      synced_at: row[5] ? String(row[5]) : undefined,
+    }));
+  }
+
+  /** Number of changes awaiting push — cheap enough to drive a UI badge. */
+  async getPendingChangeCount(): Promise<number> {
+    if (!this.db) await this.init();
+    if (!this.db) return 0;
+    const res = this.db.exec(`SELECT COUNT(*) FROM sync_changes WHERE synced_at IS NULL;`);
+    return Number(res?.[0]?.values?.[0]?.[0]) || 0;
+  }
+
+  /**
+   * Marks changes as pushed.
+   *
+   * Safe precisely because the log is append-only: a later edit to the same row
+   * inserts a new entry rather than reviving a marked one, so there is no
+   * un-mark path to get wrong. Returns how many were marked.
+   */
+  async markChangesSynced(ids: number[]): Promise<number> {
+    if (!this.db) await this.init();
+    if (!this.db) return 0;
+
+    // sql.js has no array binding for IN (...). These ids come from our own
+    // append-only log and are coerced to finite numbers, so the interpolation
+    // cannot carry anything but digits.
+    const list = ids
+      .map((i) => Number(i))
+      .filter((i) => Number.isFinite(i))
+      .join(',');
+    if (!list) return 0;
+
+    this.db.run(`UPDATE sync_changes SET synced_at = datetime('now') WHERE id IN (${list});`);
+    await this.persist();
+    return ids.length;
   }
 
   /**

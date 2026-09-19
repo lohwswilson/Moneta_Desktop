@@ -109,6 +109,29 @@ export interface ConnectionConfig {
   apiToken: string;
 }
 
+/** `upsert` covers insert and update — the sync engine pushes current state either way. */
+export type SyncOp = 'upsert' | 'delete';
+
+/**
+ * One locally-recorded change awaiting push to Moneta Cloud.
+ *
+ * Written by SQLite triggers, not application code — see
+ * `src/lib/data/syncSchema.ts`. The log is **append-only**: editing a row that
+ * has already synced inserts a *new* entry rather than reviving the old one, so
+ * `synced_at` marks what was pushed and never needs un-marking.
+ */
+export interface SyncChange {
+  /** Change-log sequence number. Monotonic, so it doubles as the push order. */
+  id: number;
+  /** Table name — see `SYNC_TRACKED_TABLES`. */
+  entity: string;
+  entity_id: string;
+  op: SyncOp;
+  changed_at: string;
+  /** NULL until pushed. */
+  synced_at?: string;
+}
+
 export interface EnvelopeBudget {
   id: string | number;
   name: string;

@@ -41,6 +41,7 @@ node --experimental-strip-types scripts/verify_goal_math.ts
 node --experimental-strip-types scripts/verify_portfolio_math.ts
 node --experimental-strip-types scripts/verify_loan_math.ts
 node --experimental-strip-types scripts/verify_property_math.ts
+node --experimental-strip-types scripts/verify_sync_tracking.ts
 ```
 
 Then two checks that have both caught real defects:
