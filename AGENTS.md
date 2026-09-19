@@ -47,6 +47,8 @@ All paths here are **relative to the repository root**. On the current machine t
    | `portfolioMath.ts` | `investment.py`, `tax_lot.py` (`_modified_dietz`, `_xirr`) |
    | `loanMath.ts` | `loan.py` (amortization, `action_generate_schedule`, `action_infer_rate_changes`) |
    | `propertyMath.ts` | `property.py::_compute_equity`, `rental_property.py::_compute_rental_metrics` |
+   | `cpfMath.ts` | `cpf.py`, `singapore_property.py` (interest, LIFE, housing 2.5% refund, BSD/ABSD) |
+   | `irasMath.ts` | `iras_tax.py` (progressive tax, $80k relief cap, SRS tax shield) |
 
    A figure that can silently disagree — amortization, tax lots, goal progress, rental yield — is the highest-risk kind, because a wrong number still renders. These are the pairs that most need the assertions in `scripts/`.
 
@@ -74,13 +76,14 @@ moneta_wealth/                       # Repo root — /opt/moneta_wealth symlinks
 │   ├── 08_PLANNING_AND_FORECASTI... # Budgets, bills, cash flow & goals hubs
 │   ├── 09_PAYEE_INTELLIGENCE_A...   # Merchant memory & spend analytics
 │   ├── 10_STOCK_PORTFOLIO_AND_T...  # Holdings, disposal strategies, TWR/MWR
-│   ├── 11_PROPERTY_MORTGAGES_AN...  # Equity, amortization, prepayment, rent roll
-│   └── adr/                         # Architecture Decision Records 0001–0006 (0006 = sync conflict policy)
+│   └── 11_PROPERTY_MORTGAGES_AN...  # Equity, amortization, prepayment, rent roll
 ├── scripts/
 │   ├── verify_goal_math.ts          # Goal progress maths assertions
 │   ├── verify_portfolio_math.ts     # Lot / disposal / TWR-MWR assertions
 │   ├── verify_loan_math.ts          # Amortization & prepayment assertions
 │   ├── verify_property_math.ts      # Equity / rental / rent-roll assertions
+│   ├── verify_cpf_math.ts           # CPF interest / LIFE / housing assertions
+│   ├── verify_iras_math.ts          # IRAS tax bracket / relief cap assertions
 │   ├── verify_sync_tracking.ts      # Change-log triggers against real SQLite
 │   ├── verify_sync_conflict.ts      # Conflict-resolution policy assertions
 │   └── verify_backup_restore.ts     # Database binary export/restore assertions
@@ -102,8 +105,10 @@ moneta_wealth/                       # Repo root — /opt/moneta_wealth symlinks
 │   │   │   ├── portfolioMath.ts     # Shared lot / disposal / TWR-MWR derivation
 │   │   │   ├── loanMath.ts          # Shared amortization / prepayment derivation
 │   │   │   ├── propertyMath.ts      # Shared equity / rental / rent-roll derivation
+│   │   │   ├── cpfMath.ts           # Shared CPF interest / LIFE / housing refund
+│   │   │   ├── irasMath.ts          # Shared IRAS progressive tax & relief caps
 │   │   │   ├── syncSchema.ts        # Change-tracking table & triggers
-│   │   │   ├── syncConflict.ts      # Conflict-resolution policy (ADR 0006)
+│   │   │   ├── syncConflict.ts      # Conflict-resolution policy
 │   │   │   └── importers/
 │   │   │       └── bankStatementParser.ts # CSV & QIF statement parser
 │   │   └── components/
@@ -120,6 +125,7 @@ moneta_wealth/                       # Repo root — /opt/moneta_wealth symlinks
 │   │       ├── PropertyHub.svelte   # Property equity, LTV & valuation history
 │   │       ├── LoanHub.svelte       # Amortization schedule & prepayment simulator
 │   │       ├── LandlordHub.svelte   # Tenants, leases & rent roll
+│   │       ├── SingaporeWealthHub.svelte # CPF accounts, LIFE, housing refund & IRAS
 │   │       ├── QuickAddModal.svelte # Transaction capture & split allocations
 │   │       ├── StatementImportModal.svelte # Drag-and-drop statement wizard
 │   │       ├── VerifyBalanceModal.svelte # 10-second balance verification & adjustment
@@ -176,7 +182,7 @@ npm run check
 npm run build
 
 # 3. Run every assertion script: domain maths, sync change-tracking (real SQLite
-#    engine), sync conflict policy (ADR 0006), and backup/restore (WASM SQLite).
+#    engine), sync conflict policy, and backup/restore (WASM SQLite).
 #    The glob is deliberate — §4 step 7 adds scripts to this directory, and a
 #    hand-maintained list would silently stop running the new ones.
 for f in scripts/verify_*.ts; do

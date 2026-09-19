@@ -28,6 +28,7 @@ Built with **Tauri v2**, **Svelte 5 (Runes-Native)**, **TypeScript**, **Tailwind
 - 🏪 **Payee Intelligence:** Autocomplete that recalls a merchant's category and typical amount, plus cadence detection and lifetime spend analytics.
 - 📊 **Stock Portfolio & Tax-Lot Accounting:** Multi-brokerage holdings across four sub-views, with FIFO/LIFO/HIFO/Specific-ID disposal and TWR/MWR performance metrics from one shared engine.
 - 🏡 **Property, Mortgages & Landlord Hub:** Property equity and LTV with appraisal history, month-by-month mortgage amortization with step-rate support, a prepayment simulator, and a full tenant rent roll.
+- 🇸🇬 **Singapore Wealth Hub (`SingaporeWealthHub.svelte`):** Complete CPF Multi-Account Hub (OA, SA, MA, RA), CPF LIFE actuarial retirement simulator (BRS/FRS/ERS), 2.5% housing accrued interest & net cash proceeds, tiered stamp duties (BSD/ABSD), and IRAS progressive income tax planner with statutory $80k relief cap.
 - 🔄 **Local-First, Offline Default:** Your ledger lives in a local SQLite database and works entirely offline with zero forced network connection.
 - ☁️ **Subscriber Cloud Custody (Moneta Cloud):** Free users stay 100% local and private. Subscribers unlock automatic cloud custody: all financial data is safely kept, versioned, and backed up in Moneta Cloud (Odoo Backend), enabling instant multi-device sync with Moneta Mobile.
 - 🚀 **1-Click Moneta Cloud Migration:** Pull accounts, categories and historical registers from Moneta Cloud straight into the local database.
@@ -111,6 +112,7 @@ Full documentation lives in [`docs/`](docs/index.md):
 | 09 | [Payee Intelligence & Directory](docs/09_PAYEE_INTELLIGENCE_AND_DIRECTORY.md) | Merchant memory, cadence, spend analytics |
 | 10 | [Stock Portfolio & Tax-Lot Accounting](docs/10_STOCK_PORTFOLIO_AND_TAX_LOTS.md) | Holdings, disposal strategies, TWR/MWR |
 | 11 | [Property, Mortgages & Rental Income](docs/11_PROPERTY_MORTGAGES_AND_RENTAL.md) | Equity, amortization, prepayment, rent roll |
+| 12 | [Singapore Regional Wealth Pack](docs/12_SINGAPORE_WEALTH_PACK.md) | CPF, CPF LIFE, housing refund, stamp duty, IRAS tax |
 
 ---
 
@@ -131,6 +133,12 @@ node --experimental-strip-types scripts/verify_loan_math.ts
 
 # Property maths (equity clamping, LTV, rent roll, schedule idempotency)
 node --experimental-strip-types scripts/verify_property_math.ts
+
+# CPF & Housing maths (extra 1% interest pool, CPF LIFE, 2.5% accrued interest, BSD/ABSD)
+node --experimental-strip-types scripts/verify_cpf_math.ts
+
+# IRAS Tax maths (progressive brackets, $80k relief cap, SRS tax shield)
+node --experimental-strip-types scripts/verify_iras_math.ts
 ```
 
 ---
@@ -141,8 +149,8 @@ Moneta Wealth is licensed under the **Apache License 2.0** — see [`LICENSE`](L
 
 **The desktop application is free and open source, permanently.** Use it offline, unmodified and unrestricted: no account, no login, no subscription, no telemetry. Fork it, audit it, build on it.
 
-**Moneta Cloud is the paid tier** (S$9/month) and covers multi-device sync, Moneta Mobile, cloud backup and partner sharing. The subscription buys a **hosted service**, not the software — every feature runs in the free app; what you pay for is having your data on every device and backed up.
+**Moneta Cloud is the paid tier** and covers multi-device sync, Moneta Mobile, cloud backup and partner sharing. The subscription buys a **hosted service**, not the software — every feature runs in the free app; what you pay for is having your data on every device and backed up.
 
-The two are separable by design. See [ADR 0001](docs/adr/0001-subscription-tiers-and-cloud-sync.md) and [ADR 0004](docs/adr/0004-entitlement-matrix-and-lifecycle.md) for the reasoning.
+The two are separable by design: the subscription buys a service, not access to software you already have.
 
-`moneta_core`, the Odoo 18 backend module, is licensed separately under [LGPL-3.0](https://github.com/lohwswilson/moneta_core).
+`moneta_core`, the Odoo 18 backend module, is a separate, privately held component and is not distributed with this application.

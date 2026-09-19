@@ -18,6 +18,7 @@
   import PropertyHub from './lib/components/PropertyHub.svelte';
   import LoanHub from './lib/components/LoanHub.svelte';
   import LandlordHub from './lib/components/LandlordHub.svelte';
+  import SingaporeWealthHub from './lib/components/SingaporeWealthHub.svelte';
   import TopMenuBar from './lib/components/TopMenuBar.svelte';
 
   onMount(() => {
@@ -54,6 +55,8 @@
         <LoanHub />
       {:else if financeStore.activeView === 'landlord'}
         <LandlordHub />
+      {:else if financeStore.activeView === 'singapore_hub'}
+        <SingaporeWealthHub />
       {:else if financeStore.selectedAccountId === null || financeStore.activeView === 'command_center'}
         <CommandCenter />
       {:else}

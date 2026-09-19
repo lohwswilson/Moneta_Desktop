@@ -73,10 +73,15 @@ class FinanceStore {
   rentPayments = $state<RentPayment[]>([]);
   loanScenarios = $state<LoanScenario[]>([]);
 
+  // Regional state (Singapore - Phase 6)
+  cpfAccounts = $state<MonetaAccount[]>([]);
+  cpfHousingRecords = $state<CPFHousingRecord[]>([]);
+  irasTaxRecords = $state<IRASTaxRecord[]>([]);
+
   // View routing — one discriminant, one branch per view in App.svelte
   activeView = $state<'command_center' | 'register' | 'budgets' | 'bills'
                      | 'cashflow' | 'payees' | 'goals' | 'portfolio'
-                     | 'property' | 'loans' | 'landlord'>('command_center');
+                     | 'property' | 'loans' | 'landlord' | 'singapore_hub'>('command_center');
 
   // Modal visibility
   isQuickAddOpen = $state<boolean>(false);
@@ -148,12 +153,16 @@ Derived figures that Odoo also computes are implemented **once** in a shared mod
 - [`src/lib/data/portfolioMath.ts`](file:///opt/moneta_wealth/src/lib/data/portfolioMath.ts) — mirrors `investment.py` / `tax_lot.py` (`_modified_dietz`, `_xirr`)
 - [`src/lib/data/loanMath.ts`](file:///opt/moneta_wealth/src/lib/data/loanMath.ts) — mirrors `loan.py` (amortization, prepayment, rate inference)
 - [`src/lib/data/propertyMath.ts`](file:///opt/moneta_wealth/src/lib/data/propertyMath.ts) — mirrors `property.py` and `rental_property.py` (equity, rental metrics, rent roll)
+- [`src/lib/data/cpfMath.ts`](file:///opt/moneta_wealth/src/lib/data/cpfMath.ts) — mirrors `cpf.py` and `singapore_property.py` (CPF interest, CPF LIFE, 2.5% housing refund, BSD/ABSD)
+- [`src/lib/data/irasMath.ts`](file:///opt/moneta_wealth/src/lib/data/irasMath.ts) — mirrors `iras_tax.py` (progressive income tax brackets, $80k relief cap, SRS tax shield)
 
 ```typescript
 // Both adapters do this — neither defines its own maths
 import { computeLotMetrics, disposeTaxLots, computeModifiedDietz, computeXIRR } from './portfolioMath';
 import { computePropertyMetrics, computeLeaseStatus, computeRentTotals } from './propertyMath';
 import { simulatePrepayment, detectRateChanges } from './loanMath';
+import { computeCPFInterest, computeCPFLifeSimulation, computeCPFHousingRefund, computeSingaporeStampDuty } from './cpfMath';
+import { computeIRASTaxAssessment } from './irasMath';
 ```
 
 Each module has a matching assertion suite under `scripts/` — 175 assertions in total across the four at the time of writing. They exist because the maths is the part that fails *silently*: a wrong amortization figure still renders, and nothing else in the stack would catch it.
@@ -172,7 +181,7 @@ The alternative — each adapter deriving its own numbers — produces a record 
 
 ## 6. Sync Architecture
 
-Moneta Cloud sync is built in stages, each independently useful and verifiable. This section describes the model; the decisions and their reasoning live in [ADR 0001](docs/adr/0001-subscription-tiers-and-cloud-sync.md) and [ADR 0006](docs/adr/0006-sync-conflict-policy.md).
+Moneta Cloud sync is built in stages, each independently useful and verifiable. This section describes the model.
 
 ### 6.1 The model: local-first, mandatory cloud custody on subscription
 
@@ -222,4 +231,4 @@ Deletion is an explicit signal, never inferred from absence — a record missing
 | 5 | Sync engine — mutation queue and pull cursor | ⬜ Blocked on 4 |
 | 6 | Licence token — issuance, local verification, grace window | ⬜ Needs infrastructure |
 
-**Stage 4 is the blocker.** Several entities are read-only over `/api/v1/mobile/*` today and cannot be pushed, and Odoo's `unlink` makes deletions invisible — so a record deleted on one device is resurrected by the next pull from a device that still has it. See [ADR 0006 §4](docs/adr/0006-sync-conflict-policy.md).
+**Stage 4 is the blocker.** Several entities are read-only over `/api/v1/mobile/*` today and cannot be pushed, and Odoo's `unlink` makes deletions invisible — so a record deleted on one device is resurrected by the next pull from a device that still has it. Deletions must therefore be explicit rather than inferred from absence.

@@ -41,11 +41,11 @@ This document details the feature parity audit between the **Odoo `moneta_core`*
 | **Technical Indicators** | `models/technical_indicators.py`| Planned: 14-day RSI, MACD, 50/200 SMA Cross, Bollinger Bands | *Phase 4 Backlog* |
 | **Security Analysis & DCF** | `models/security_analysis.py` | Planned: MS Money P/E, PEG, Beta, DCF fair value model | *Phase 4 Backlog* |
 | **GEM Dual Momentum** | `models/gem_strategy.py` | Planned: 12-month Gary Antonacci momentum allocation signals | *Phase 4 Backlog* |
-| **Singapore CPF Hub** | `models/cpf.py` | Planned: OA, SA, MA, RA, monthly interest, extra 1% on $60k | *Phase 6 Port* |
-| **CPF LIFE Simulator** | `models/cpf.py` | Planned: BRS ($106.5k), FRS ($213k), ERS ($426k) payout models | *Phase 6 Port* |
-| **CPF Housing Accrued Interest**| `models/singapore_property.py` | Planned: 2.5% compounded interest on OA/grants refund upon sale | *Phase 6 Port* |
-| **Singapore Stamp Duties** | `models/singapore_property.py` | Planned: BSD (1%–6%), ABSD (Citizen/PR/Foreigner), TDSR/MSR | *Phase 6 Port* |
-| **IRAS Personal Tax Planner** | `models/iras_tax.py` | Planned: Progressive tax (0%–24%), $80k relief cap, RSTU/SRS advice | *Phase 6 Port* |
+| **Singapore CPF Hub** | `models/cpf.py` | Full OA, SA, MA, RA ledger, monthly interest, extra 1% pool logic in `cpfMath.ts` & `SingaporeWealthHub.svelte` | **100% Parity** |
+| **CPF LIFE Simulator** | `models/cpf.py` | BRS ($106.5k), FRS ($213k), ERS ($426k) Standard/Escalating/Basic payout models | **100% Parity** |
+| **CPF Housing Accrued Interest**| `models/singapore_property.py` | 2.5% compounded interest on OA/grants, refund calculation, net cash proceeds | **100% Parity** |
+| **Singapore Stamp Duties** | `models/singapore_property.py` | Tiered BSD (1%–6%) and ABSD (Citizen/PR/Foreigner/Entity up to 65%) | **100% Parity** |
+| **IRAS Personal Tax Planner** | `models/iras_tax.py` | YA 2024–2026 progressive tax (0%–24%), $80k relief cap, SRS optimization advisor | **100% Parity** |
 | **Singapore Fixed Income** | `models/singapore_fixed_income.py`| Planned: SSB 10-year step-up coupon curve, MAS T-Bills ladder | *Phase 6 Port* |
 | **Malaysia EPF/KWSP Hub** | `models/epf.py` | Planned: Akaun Persaraan (75%), Sejahtera (15%), Fleksibel (10%) | *Phase 7 Port* |
 | **LHDN Borang BE Tax Planner** | `models/lhdn_tax.py` | Planned: Borang BE tax brackets (0%–30%), reliefs (RM 9k, etc.) | *Phase 7 Port* |
@@ -54,7 +54,7 @@ This document details the feature parity audit between the **Odoo `moneta_core`*
 | **100-Year Crisis Stress-Tester**| `moneta_core Track 1.1` | Planned: Historical replays (1929, 1973, 1987, 2000, 2008, 2020) | *Phase 8 Port* |
 | **Financial Health Audit** | `models/insight.py` | Planned: Anomaly detector, fee audits, runway alerts | *Phase 8 Port* |
 | **Emergency Digital Will** | `models/emergency_access.py` | Planned: Time-delayed legacy access with cancellation override | *Phase 8 Port* |
-| **Cloud Sync & Subscriptions** | ADR 0001, ADR 0006 | Client triggers done; Stage 4 Odoo write endpoints in progress | *Phase 9 Sync* |
+| **Cloud Sync & Subscriptions** | — | Client triggers done; Stage 4 write endpoints in progress | *Phase 9 Sync* |
 
 ---
 

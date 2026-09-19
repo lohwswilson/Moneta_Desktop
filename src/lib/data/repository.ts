@@ -21,6 +21,13 @@ import type {
   LoanScenario,
   LoanRateChange,
   SyncChange,
+  CPFAccountSummary,
+  CPFHousingRecord,
+  IRASTaxRecord,
+  SSBBondRecord,
+  TBillRecord,
+  SRSTrackerRecord,
+  UCITSComparisonRecord,
 } from '../types/moneta';
 
 export interface VerifyBalanceResult {
@@ -131,6 +138,26 @@ export interface IMonetaRepository {
   getPendingChangeCount?(): Promise<number>;
   /** Marks changes as pushed. Returns how many were marked. */
   markChangesSynced?(ids: number[]): Promise<number>;
+
+  // --- Milestone 1: Singapore Regional Wealth Pack ---
+  getCPFAccounts?(userAge?: number): Promise<CPFAccountSummary>;
+  getCPFHousingRecords?(): Promise<CPFHousingRecord[]>;
+  saveCPFHousingRecord?(record: Partial<CPFHousingRecord>): Promise<CPFHousingRecord>;
+  deleteCPFHousingRecord?(id: string | number): Promise<boolean>;
+  getIRASTaxRecords?(): Promise<IRASTaxRecord[]>;
+  saveIRASTaxRecord?(record: Partial<IRASTaxRecord>): Promise<IRASTaxRecord>;
+  deleteIRASTaxRecord?(id: string | number): Promise<boolean>;
+
+  // Singapore Fixed Income & SRS (singapore_fixed_income.py, srs.py)
+  getSSBBonds?(): Promise<SSBBondRecord[]>;
+  saveSSBBond?(record: Partial<SSBBondRecord>): Promise<SSBBondRecord>;
+  deleteSSBBond?(id: string | number): Promise<boolean>;
+  getTBills?(): Promise<TBillRecord[]>;
+  saveTBill?(record: Partial<TBillRecord>): Promise<TBillRecord>;
+  deleteTBill?(id: string | number): Promise<boolean>;
+  getSRSRecords?(): Promise<SRSTrackerRecord[]>;
+  saveSRSRecord?(record: Partial<SRSTrackerRecord>): Promise<SRSTrackerRecord>;
+  deleteSRSRecord?(id: string | number): Promise<boolean>;
 
   // --- Database Management & Backup/Restore (local store only) ---
   /** Restore full database from binary SQLite bytes. */

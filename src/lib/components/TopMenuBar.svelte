@@ -53,6 +53,7 @@
     if (['budgets', 'bills', 'cashflow', 'goals'].includes(view)) return 'planning';
     if (view === 'portfolio') return 'investing';
     if (['property', 'loans', 'landlord'].includes(view)) return 'property';
+    if (view === 'singapore_hub') return 'regional';
     return null;
   });
 </script>
@@ -334,7 +335,7 @@
       <div class="relative">
         <button
           onclick={(e) => toggleMenu('regional', e)}
-          class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md font-medium text-zinc-300 hover:bg-zinc-900 hover:text-white transition-colors"
+          class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md font-medium transition-colors {currentDomain === 'regional' ? 'bg-zinc-800 text-red-400' : 'text-zinc-300 hover:bg-zinc-900 hover:text-white'}"
         >
           <Shield class="w-3.5 h-3.5 text-red-400" />
           <span>Regional</span>
@@ -347,18 +348,21 @@
             <div class="px-3 py-1.5 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">
               Singapore & Malaysia Packs
             </div>
-            <div class="px-3 py-2 flex items-center justify-between text-zinc-400 hover:bg-zinc-800/40 rounded-lg">
+            <button
+              onclick={() => handleNavigate(() => financeStore.navigateToSingaporeHub())}
+              class="w-full px-3 py-2 flex items-center justify-between text-left text-zinc-200 hover:bg-zinc-800/80 rounded-lg transition-colors cursor-pointer"
+            >
               <div class="flex items-center gap-2.5">
                 <span class="text-base">🇸🇬</span>
                 <div>
-                  <div class="font-medium text-zinc-200">Singapore CPF & SRS</div>
-                  <div class="text-[10px] text-zinc-500">OA/SA/MA/RA, T-Bills & IRAS Tax</div>
+                  <div class="font-medium text-zinc-100">Singapore Wealth Pack</div>
+                  <div class="text-[10px] text-zinc-400">CPF LIFE, Housing Accrued & IRAS Tax</div>
                 </div>
               </div>
-              <span class="text-[9px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700">
-                Phase 6
+              <span class="text-[9px] px-1.5 py-0.5 rounded bg-emerald-950/80 text-emerald-400 border border-emerald-800/60 font-semibold">
+                Active
               </span>
-            </div>
+            </button>
             <div class="px-3 py-2 flex items-center justify-between text-zinc-400 hover:bg-zinc-800/40 rounded-lg">
               <div class="flex items-center gap-2.5">
                 <span class="text-base">🇲🇾</span>

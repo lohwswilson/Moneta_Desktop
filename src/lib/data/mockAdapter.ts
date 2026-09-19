@@ -22,6 +22,12 @@ import type {
   LoanScenario,
   LoanRateChange,
   PropertyValuation,
+  CPFAccountSummary,
+  CPFHousingRecord,
+  IRASTaxRecord,
+  SSBBondRecord,
+  TBillRecord,
+  SRSTrackerRecord,
 } from '../types/moneta';
 import type { VerifyBalanceResult } from './repository';
 import { computeGoalMetrics, toDateOnlyString, todayDateOnly } from './goalMath';
@@ -36,6 +42,10 @@ import {
 } from './propertyMath';
 import { simulatePrepayment, detectRateChanges, resolveTermMonths } from './loanMath';
 import type { RateObservation } from './loanMath';
+import { computeCPFInterest, computeCPFHousingRefund, computeCPFLifeSimulation } from './cpfMath';
+import { computeSingaporeTax } from './irasMath';
+import { computeSSBYields, computeTBillEconomics } from './singaporeFixedIncomeMath';
+import { computeSRSMetrics, computeSRSWithdrawalPlan } from './srsMath';
 
 let mockAccounts: MonetaAccount[] = [
   {
@@ -87,6 +97,58 @@ let mockAccounts: MonetaAccount[] = [
     cleared_balance: 92350.0,
     reconciled_balance: 92350.0,
     interest_rate: 2.5,
+    active: true,
+  },
+  {
+    id: 'acc-cpf-sa',
+    name: 'CPF Special Account (SA)',
+    account_type: 'cpf_sa',
+    account_number_mask: '••••8821',
+    institution_name: 'CPF Board',
+    currency_code: 'SGD',
+    current_balance: 65200.0,
+    cleared_balance: 65200.0,
+    reconciled_balance: 65200.0,
+    interest_rate: 4.05,
+    active: true,
+  },
+  {
+    id: 'acc-cpf-ma',
+    name: 'CPF MediSave Account (MA)',
+    account_type: 'cpf_ma',
+    account_number_mask: '••••8821',
+    institution_name: 'CPF Board',
+    currency_code: 'SGD',
+    current_balance: 71500.0,
+    cleared_balance: 71500.0,
+    reconciled_balance: 71500.0,
+    interest_rate: 4.05,
+    active: true,
+  },
+  {
+    id: 'acc-cpf-ra',
+    name: 'CPF Retirement Account (RA)',
+    account_type: 'cpf_ra',
+    account_number_mask: '••••8821',
+    institution_name: 'CPF Board',
+    currency_code: 'SGD',
+    current_balance: 0.0,
+    cleared_balance: 0.0,
+    reconciled_balance: 0.0,
+    interest_rate: 4.05,
+    active: true,
+  },
+  {
+    id: 'acc-srs',
+    name: 'Supplementary Retirement Scheme (SRS)',
+    account_type: 'srs',
+    account_number_mask: '••••5402',
+    institution_name: 'OCBC Bank',
+    currency_code: 'SGD',
+    current_balance: 15300.0,
+    cleared_balance: 15300.0,
+    reconciled_balance: 15300.0,
+    interest_rate: 0.05,
     active: true,
   },
   {
@@ -1584,7 +1646,544 @@ export class MockAdapter implements IMonetaRepository {
     });
     return created;
   }
+
+  // -------------------------------------------------------------------------
+  // Milestone 1: Singapore Regional Wealth Pack (CPF & IRAS)
+  // -------------------------------------------------------------------------
+
+  async getCPFAccounts(userAge: number = 35): Promise<CPFAccountSummary> {
+    let oa = 0;
+    let sa = 0;
+    let ma = 0;
+    let ra = 0;
+
+    for (const a of mockAccounts) {
+      if (a.account_type === 'cpf_oa') oa += a.current_balance;
+      else if (a.account_type === 'cpf_sa') sa += a.current_balance;
+      else if (a.account_type === 'cpf_ma') ma += a.current_balance;
+      else if (a.account_type === 'cpf_ra') ra += a.current_balance;
+    }
+
+    const intMetrics = computeCPFInterest({
+      oa,
+      sa,
+      ma,
+      ra,
+      age: userAge,
+    });
+
+    return {
+      oa_balance: oa,
+      sa_balance: sa,
+      ma_balance: ma,
+      ra_balance: ra,
+      total_balance: oa + sa + ma + ra,
+      total_annual_interest: intMetrics.totalAnnualInterest,
+      extra_interest_earned: intMetrics.extraInterestTotal,
+      user_age: userAge,
+    };
+  }
+
+  async getCPFHousingRecords(): Promise<CPFHousingRecord[]> {
+    return mockCPFHousingRecords.map((r) => {
+      const refund = computeCPFHousingRefund({
+        downpaymentOA: r.oa_withdrawn_downpayment,
+        monthlyOA: r.oa_withdrawn_monthly,
+        housingGrants: r.housing_grant_amount,
+        yearsHeld: r.ownership_years,
+        marketValuation: r.valuation,
+        outstandingLoan: r.outstanding_loan,
+      });
+
+      return {
+        ...r,
+        accrued_interest: refund.totalAccruedInterest,
+        total_refund_due: refund.totalRefundRequired,
+        net_sale_cash_proceeds: refund.netCashProceeds,
+      };
+    });
+  }
+
+  async saveCPFHousingRecord(record: Partial<CPFHousingRecord>): Promise<CPFHousingRecord> {
+    const id = record.id ? String(record.id) : `mock-cpf-h-${Date.now()}`;
+    const name = record.property_name || 'My Singapore Property';
+    const pDate = record.purchase_date || new Date().toISOString().split('T')[0];
+    const price = Number(record.purchase_price) || 0;
+    const val = Number(record.valuation) || 0;
+    const downpayment = Number(record.oa_withdrawn_downpayment) || 0;
+    const monthly = Number(record.oa_withdrawn_monthly) || 0;
+    const grants = Number(record.housing_grant_amount) || 0;
+    const loan = Number(record.outstanding_loan) || 0;
+    const years = Number(record.ownership_years) || 0;
+    const notes = record.notes || '';
+
+    const refund = computeCPFHousingRefund({
+      downpaymentOA: downpayment,
+      monthlyOA: monthly,
+      housingGrants: grants,
+      yearsHeld: years,
+      marketValuation: val,
+      outstandingLoan: loan,
+    });
+
+    const item: CPFHousingRecord = {
+      id,
+      property_name: name,
+      purchase_date: pDate,
+      purchase_price: price,
+      valuation: val,
+      oa_withdrawn_downpayment: downpayment,
+      oa_withdrawn_monthly: monthly,
+      housing_grant_amount: grants,
+      outstanding_loan: loan,
+      ownership_years: years,
+      accrued_interest: refund.totalAccruedInterest,
+      total_refund_due: refund.totalRefundRequired,
+      net_sale_cash_proceeds: refund.netCashProceeds,
+      notes,
+    };
+
+    const idx = mockCPFHousingRecords.findIndex((h) => String(h.id) === String(id));
+    if (idx >= 0) {
+      mockCPFHousingRecords[idx] = item;
+    } else {
+      mockCPFHousingRecords.unshift(item);
+    }
+    return item;
+  }
+
+  async deleteCPFHousingRecord(id: string | number): Promise<boolean> {
+    mockCPFHousingRecords = mockCPFHousingRecords.filter((h) => String(h.id) !== String(id));
+    return true;
+  }
+
+  async getIRASTaxRecords(): Promise<IRASTaxRecord[]> {
+    return mockIRASTaxRecords.map((r) => {
+      const taxRes = computeSingaporeTax({
+        employmentIncome: r.employment_income,
+        tradeIncome: r.trade_income,
+        rentalIncome: r.rental_income,
+        otherIncome: r.other_income,
+        reliefs: {
+          cpfEmployee: r.cpf_employee_relief,
+          earnedIncome: r.earned_income_relief,
+          srs: r.srs_contribution,
+          rstuSelf: r.rstu_self,
+          rstuFamily: r.rstu_family,
+          nsman: r.nsman_relief,
+          child: r.child_relief,
+          parent: r.parent_relief,
+          donations250Pct: r.donations_250,
+        },
+      });
+
+      return {
+        ...r,
+        total_income: taxRes.totalIncome,
+        total_reliefs: taxRes.totalReliefs,
+        chargeable_income: taxRes.chargeableIncome,
+        tax_payable: taxRes.netTaxPayable,
+        effective_tax_rate_pct: taxRes.effectiveTaxRatePct,
+        marginal_tax_rate_pct: taxRes.marginalTaxRatePct,
+        srs_potential_tax_savings: taxRes.srsPotentialTaxSavings,
+      };
+    });
+  }
+
+  async saveIRASTaxRecord(record: Partial<IRASTaxRecord>): Promise<IRASTaxRecord> {
+    const id = record.id ? String(record.id) : `mock-iras-ya${record.assessment_year || 2025}-${Date.now()}`;
+    const ya = Number(record.assessment_year) || 2025;
+    const employment = Number(record.employment_income) || 0;
+    const trade = Number(record.trade_income) || 0;
+    const rental = Number(record.rental_income) || 0;
+    const other = Number(record.other_income) || 0;
+    const cpfRelief = Number(record.cpf_employee_relief) || 0;
+    const earnedRelief = Number(record.earned_income_relief) || 0;
+    const srs = Number(record.srs_contribution) || 0;
+    const rstuSelf = Number(record.rstu_self) || 0;
+    const rstuFamily = Number(record.rstu_family) || 0;
+    const nsman = Number(record.nsman_relief) || 0;
+    const child = Number(record.child_relief) || 0;
+    const parent = Number(record.parent_relief) || 0;
+    const donations = Number(record.donations_250) || 0;
+    const notes = record.notes || '';
+
+    const taxRes = computeSingaporeTax({
+      employmentIncome: employment,
+      tradeIncome: trade,
+      rentalIncome: rental,
+      otherIncome: other,
+      reliefs: {
+        cpfEmployee: cpfRelief,
+        earnedIncome: earnedRelief,
+        srs,
+        rstuSelf,
+        rstuFamily,
+        nsman,
+        child,
+        parent,
+        donations250Pct: donations,
+      },
+    });
+
+    const item: IRASTaxRecord = {
+      id,
+      assessment_year: ya,
+      employment_income: employment,
+      trade_income: trade,
+      rental_income: rental,
+      other_income: other,
+      cpf_employee_relief: cpfRelief,
+      earned_income_relief: earnedRelief,
+      srs_contribution: srs,
+      rstu_self: rstuSelf,
+      rstu_family: rstuFamily,
+      nsman_relief: nsman,
+      child_relief: child,
+      parent_relief: parent,
+      donations_250: donations,
+      total_income: taxRes.totalIncome,
+      total_reliefs: taxRes.totalReliefs,
+      chargeable_income: taxRes.chargeableIncome,
+      tax_payable: taxRes.netTaxPayable,
+      effective_tax_rate_pct: taxRes.effectiveTaxRatePct,
+      marginal_tax_rate_pct: taxRes.marginalTaxRatePct,
+      srs_potential_tax_savings: taxRes.srsPotentialTaxSavings,
+      notes,
+    };
+
+    const idx = mockIRASTaxRecords.findIndex((t) => String(t.id) === String(id));
+    if (idx >= 0) {
+      mockIRASTaxRecords[idx] = item;
+    } else {
+      mockIRASTaxRecords.unshift(item);
+    }
+    return item;
+  }
+
+  async deleteIRASTaxRecord(id: string | number): Promise<boolean> {
+    mockIRASTaxRecords = mockIRASTaxRecords.filter((t) => String(t.id) !== String(id));
+    return true;
+  }
+
+  // --- Milestone 1: Singapore Fixed Income (SSB & T-Bills) & SRS ---
+  async getSSBBonds(): Promise<SSBBondRecord[]> {
+    return mockSSBBonds.map((b) => {
+      const rates = [
+        b.rate_year_1, b.rate_year_2, b.rate_year_3, b.rate_year_4, b.rate_year_5,
+        b.rate_year_6, b.rate_year_7, b.rate_year_8, b.rate_year_9, b.rate_year_10,
+      ];
+      const yields = computeSSBYields({ investmentAmount: b.investment_amount, stepUpRates: rates });
+      return {
+        ...b,
+        average_10yr_yield: yields.average10YrYield,
+        total_interest_to_maturity: yields.totalInterestToMaturity,
+        next_coupon_payout: yields.nextSemiAnnualCoupon,
+      };
+    });
+  }
+
+  async saveSSBBond(record: Partial<SSBBondRecord>): Promise<SSBBondRecord> {
+    const id = record.id ? String(record.id) : `mock-ssb-${Date.now()}`;
+    const code = record.issue_code || 'SBNEW';
+    const amt = Number(record.investment_amount || 10000);
+    const issueDate = record.issue_date || new Date().toISOString().split('T')[0];
+    const maturityDate = record.maturity_date || `${Number(issueDate.split('-')[0]) + 10}-${issueDate.slice(5)}`;
+    const fundingSource = record.funding_source || 'cash';
+    const rates = [
+      record.rate_year_1 ?? 2.80, record.rate_year_2 ?? 2.85, record.rate_year_3 ?? 2.90, record.rate_year_4 ?? 2.95, record.rate_year_5 ?? 3.00,
+      record.rate_year_6 ?? 3.05, record.rate_year_7 ?? 3.10, record.rate_year_8 ?? 3.15, record.rate_year_9 ?? 3.20, record.rate_year_10 ?? 3.30,
+    ];
+    const yields = computeSSBYields({ investmentAmount: amt, stepUpRates: rates });
+    const state = record.state || 'active';
+    const notes = record.notes || '';
+
+    const item: SSBBondRecord = {
+      id,
+      issue_code: code,
+      investment_amount: amt,
+      issue_date: issueDate,
+      maturity_date: maturityDate,
+      funding_source: fundingSource,
+      rate_year_1: rates[0],
+      rate_year_2: rates[1],
+      rate_year_3: rates[2],
+      rate_year_4: rates[3],
+      rate_year_5: rates[4],
+      rate_year_6: rates[5],
+      rate_year_7: rates[6],
+      rate_year_8: rates[7],
+      rate_year_9: rates[8],
+      rate_year_10: rates[9],
+      average_10yr_yield: yields.average10YrYield,
+      total_interest_to_maturity: yields.totalInterestToMaturity,
+      next_coupon_payout: yields.nextSemiAnnualCoupon,
+      state,
+      notes,
+    };
+
+    const idx = mockSSBBonds.findIndex((b) => String(b.id) === String(id));
+    if (idx >= 0) {
+      mockSSBBonds[idx] = item;
+    } else {
+      mockSSBBonds.unshift(item);
+    }
+    return item;
+  }
+
+  async deleteSSBBond(id: string | number): Promise<boolean> {
+    mockSSBBonds = mockSSBBonds.filter((b) => String(b.id) !== String(id));
+    return true;
+  }
+
+  async getTBills(): Promise<TBillRecord[]> {
+    return mockTBills.map((t) => {
+      const econ = computeTBillEconomics({
+        faceValue: t.face_value,
+        issuePricePerHundred: t.issue_price_per_hundred,
+        tenureType: t.tenure_type,
+        fundingSource: t.funding_source,
+        issueDate: t.issue_date,
+      });
+      return {
+        ...t,
+        total_investment_cost: econ.totalInvestmentCost,
+        net_discount_profit: econ.netDiscountProfit,
+        cut_off_yield_p_a: econ.cutOffYieldPA,
+      };
+    });
+  }
+
+  async saveTBill(record: Partial<TBillRecord>): Promise<TBillRecord> {
+    const id = record.id ? String(record.id) : `mock-tbill-${Date.now()}`;
+    const code = record.issue_code || 'BSNEW';
+    const tenure = record.tenure_type || '6_month';
+    const auctionDate = record.auction_date || new Date().toISOString().split('T')[0];
+    const issueDate = record.issue_date || new Date().toISOString().split('T')[0];
+    const fundingSource = record.funding_source || 'cash';
+    const face = Number(record.face_value || 10000);
+    const price = Number(record.issue_price_per_hundred || 98.15);
+    const econ = computeTBillEconomics({
+      faceValue: face,
+      issuePricePerHundred: price,
+      tenureType: tenure,
+      fundingSource,
+      issueDate,
+    });
+    const state = record.state || 'active';
+    const notes = record.notes || '';
+
+    const item: TBillRecord = {
+      id,
+      issue_code: code,
+      tenure_type: tenure,
+      auction_date: auctionDate,
+      issue_date: issueDate,
+      maturity_date: econ.maturityDate,
+      funding_source: fundingSource,
+      face_value: face,
+      issue_price_per_hundred: price,
+      total_investment_cost: econ.totalInvestmentCost,
+      net_discount_profit: econ.netDiscountProfit,
+      cut_off_yield_p_a: econ.cutOffYieldPA,
+      state,
+      notes,
+    };
+
+    const idx = mockTBills.findIndex((t) => String(t.id) === String(id));
+    if (idx >= 0) {
+      mockTBills[idx] = item;
+    } else {
+      mockTBills.unshift(item);
+    }
+    return item;
+  }
+
+  async deleteTBill(id: string | number): Promise<boolean> {
+    mockTBills = mockTBills.filter((t) => String(t.id) !== String(id));
+    return true;
+  }
+
+  async getSRSRecords(): Promise<SRSTrackerRecord[]> {
+    return mockSRSRecords.map((s) => {
+      const metrics = computeSRSMetrics({
+        residencyStatus: s.residency_status,
+        totalContributedYTD: s.total_contributed,
+        marginalTaxRatePct: s.marginal_tax_rate,
+      });
+      const plan = computeSRSWithdrawalPlan({
+        currentBalance: s.srs_current_balance,
+      });
+      return {
+        ...s,
+        annual_cap: metrics.annualCap,
+        remaining_allowance: metrics.remainingAllowance,
+        estimated_tax_savings: metrics.estimatedTaxSavings,
+        annual_withdrawal_target: plan.annualWithdrawalTarget,
+        annual_taxable_portion: plan.annualTaxablePortion,
+        is_tax_free_strategy: plan.isTaxFreeStrategy,
+      };
+    });
+  }
+
+  async saveSRSRecord(record: Partial<SRSTrackerRecord>): Promise<SRSTrackerRecord> {
+    const id = record.id ? String(record.id) : `mock-srs-${Date.now()}`;
+    const taxYear = Number(record.tax_year || new Date().getFullYear());
+    const residency = record.residency_status || 'citizen_pr';
+    const contrib = Number(record.total_contributed || 0);
+    const rate = Number(record.marginal_tax_rate || 15.0);
+    const bal = Number(record.srs_current_balance || 0);
+    const notes = record.notes || '';
+
+    const metrics = computeSRSMetrics({
+      residencyStatus: residency,
+      totalContributedYTD: contrib,
+      marginalTaxRatePct: rate,
+    });
+    const plan = computeSRSWithdrawalPlan({
+      currentBalance: bal,
+    });
+
+    const item: SRSTrackerRecord = {
+      id,
+      tax_year: taxYear,
+      residency_status: residency,
+      annual_cap: metrics.annualCap,
+      total_contributed: contrib,
+      remaining_allowance: metrics.remainingAllowance,
+      marginal_tax_rate: rate,
+      estimated_tax_savings: metrics.estimatedTaxSavings,
+      srs_current_balance: bal,
+      annual_withdrawal_target: plan.annualWithdrawalTarget,
+      annual_taxable_portion: plan.annualTaxablePortion,
+      is_tax_free_strategy: plan.isTaxFreeStrategy,
+      notes,
+    };
+
+    const idx = mockSRSRecords.findIndex((s) => String(s.id) === String(id));
+    if (idx >= 0) {
+      mockSRSRecords[idx] = item;
+    } else {
+      mockSRSRecords.unshift(item);
+    }
+    return item;
+  }
+
+  async deleteSRSRecord(id: string | number): Promise<boolean> {
+    mockSRSRecords = mockSRSRecords.filter((s) => String(s.id) !== String(id));
+    return true;
+  }
 }
+
+let mockCPFHousingRecords: CPFHousingRecord[] = [
+  {
+    id: 'cpf-h-1',
+    property_name: 'Bishan 4-Room Model A Flat',
+    purchase_date: '2019-06-15',
+    purchase_price: 560000,
+    valuation: 780000,
+    oa_withdrawn_downpayment: 60000,
+    oa_withdrawn_monthly: 48000,
+    housing_grant_amount: 30000,
+    outstanding_loan: 285000,
+    ownership_years: 5,
+    accrued_interest: 18195,
+    total_refund_due: 156195,
+    net_sale_cash_proceeds: 338805,
+    notes: 'Primary residence - CPF OA accrued interest tracking',
+  },
+];
+
+let mockIRASTaxRecords: IRASTaxRecord[] = [
+  {
+    id: 'iras-ya2025',
+    assessment_year: 2025,
+    employment_income: 120000,
+    trade_income: 0,
+    rental_income: 0,
+    other_income: 0,
+    cpf_employee_relief: 20400,
+    earned_income_relief: 1000,
+    srs_contribution: 15300,
+    rstu_self: 8000,
+    rstu_family: 0,
+    nsman_relief: 3000,
+    child_relief: 4000,
+    parent_relief: 0,
+    donations_250: 2000,
+    total_income: 120000,
+    total_reliefs: 53700,
+    chargeable_income: 66300,
+    tax_payable: 2364.5,
+    effective_tax_rate_pct: 1.97,
+    marginal_tax_rate_pct: 7.0,
+    srs_potential_tax_savings: 0,
+    notes: 'YA 2025 Tax Planning & Optimization',
+  },
+];
+
+let mockSSBBonds: SSBBondRecord[] = [
+  {
+    id: 'ssb-jan26',
+    issue_code: 'SBJAN26 GX26010T',
+    investment_amount: 10000,
+    issue_date: '2026-01-02',
+    maturity_date: '2036-01-02',
+    funding_source: 'cash',
+    rate_year_1: 2.80,
+    rate_year_2: 2.85,
+    rate_year_3: 2.90,
+    rate_year_4: 2.95,
+    rate_year_5: 3.00,
+    rate_year_6: 3.05,
+    rate_year_7: 3.10,
+    rate_year_8: 3.15,
+    rate_year_9: 3.20,
+    rate_year_10: 3.30,
+    average_10yr_yield: 3.03,
+    total_interest_to_maturity: 3030,
+    next_coupon_payout: 140,
+    state: 'active',
+    notes: 'MAS 10-Year Step-Up Savings Bond',
+  },
+];
+
+let mockTBills: TBillRecord[] = [
+  {
+    id: 'tbill-26105',
+    issue_code: 'BS26105A',
+    tenure_type: '6_month',
+    auction_date: '2026-01-08',
+    issue_date: '2026-01-13',
+    maturity_date: '2026-07-14',
+    funding_source: 'cash',
+    face_value: 10000,
+    issue_price_per_hundred: 98.15,
+    total_investment_cost: 9815,
+    net_discount_profit: 185,
+    cut_off_yield_p_a: 3.78,
+    state: 'active',
+    notes: 'MAS 6-Month Treasury Bill',
+  },
+];
+
+let mockSRSRecords: SRSTrackerRecord[] = [
+  {
+    id: 'srs-2025',
+    tax_year: 2025,
+    residency_status: 'citizen_pr',
+    annual_cap: 15300,
+    total_contributed: 15300,
+    remaining_allowance: 0,
+    marginal_tax_rate: 15.0,
+    estimated_tax_savings: 2295,
+    srs_current_balance: 80000,
+    annual_withdrawal_target: 8000,
+    annual_taxable_portion: 4000,
+    is_tax_free_strategy: true,
+    notes: 'SRS Annual Tax Shield Plan',
+  },
+];
 
 let mockHoldings: PortfolioHolding[] = [
   {

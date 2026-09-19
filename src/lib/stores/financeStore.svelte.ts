@@ -20,6 +20,12 @@ import type {
   PropertyTenant,
   RentPayment,
   LoanScenario,
+  CPFAccountSummary,
+  CPFHousingRecord,
+  IRASTaxRecord,
+  SSBBondRecord,
+  TBillRecord,
+  SRSTrackerRecord,
 } from '../types/moneta';
 import type { IMonetaRepository } from '../data/repository';
 import { OdooAdapter } from '../data/odooAdapter';
@@ -89,7 +95,7 @@ class FinanceStore {
   metrics = $state<DashboardMetrics | null>(null);
   accounts = $state<MonetaAccount[]>([]);
   selectedAccountId = $state<string | number | null>(null);
-  activeView = $state<'command_center' | 'register' | 'budgets' | 'bills' | 'cashflow' | 'payees' | 'goals' | 'portfolio' | 'property' | 'loans' | 'landlord'>('command_center');
+  activeView = $state<'command_center' | 'register' | 'budgets' | 'bills' | 'cashflow' | 'payees' | 'goals' | 'portfolio' | 'property' | 'loans' | 'landlord' | 'singapore_hub'>('command_center');
   transactions = $state<MonetaTransaction[]>([]);
   budgets = $state<EnvelopeBudget[]>([]);
   bills = $state<RecurringBill[]>([]);
@@ -112,6 +118,26 @@ class FinanceStore {
   rentPayments = $state<RentPayment[]>([]);
   loanScenarios = $state<LoanScenario[]>([]);
   selectedLoanId = $state<string | number | null>(null);
+
+  // Milestone 1: Singapore Regional Wealth Pack
+  cpfAccounts = $state<CPFAccountSummary | null>(null);
+  cpfHousingRecords = $state<CPFHousingRecord[]>([]);
+  irasTaxRecords = $state<IRASTaxRecord[]>([]);
+  ssbBonds = $state<SSBBondRecord[]>([]);
+  tbills = $state<TBillRecord[]>([]);
+  srsRecords = $state<SRSTrackerRecord[]>([]);
+  userAge = $state<number>(35);
+  isCPFHousingModalOpen = $state<boolean>(false);
+  isIRASTaxModalOpen = $state<boolean>(false);
+  isSSBModalOpen = $state<boolean>(false);
+  isTBillModalOpen = $state<boolean>(false);
+  isSRSModalOpen = $state<boolean>(false);
+  editingCPFHousing = $state<CPFHousingRecord | null>(null);
+  editingIRASTax = $state<IRASTaxRecord | null>(null);
+  editingSSB = $state<SSBBondRecord | null>(null);
+  editingTBill = $state<TBillRecord | null>(null);
+  editingSRS = $state<SRSTrackerRecord | null>(null);
+
   settings = $state<OdooSettingsPayload | null>(null);
   filterState = $state<'all' | 'unreconciled' | 'cleared' | 'reconciled'>('all');
   isLoading = $state<boolean>(false);
@@ -268,6 +294,7 @@ class FinanceStore {
       await this.loadRentPayments();
       await this.loadLoanScenarios();
       await this.loadPortfolio();
+      await this.loadSingaporeData();
 
       if (!this.selectedAccountId && accounts.length > 0) {
         this.selectedAccountId = accounts[0].id;
@@ -971,6 +998,196 @@ class FinanceStore {
       return 0;
     } finally {
       this.isLoading = false;
+    }
+  }
+
+  // --- Milestone 1: Singapore Regional Wealth Pack ---
+
+  async navigateToSingaporeHub() {
+    this.selectedAccountId = null;
+    this.activeView = 'singapore_hub';
+    await this.loadSingaporeData();
+  }
+
+  async loadSingaporeData() {
+    try {
+      if (this.repository.getCPFAccounts) {
+        this.cpfAccounts = await this.repository.getCPFAccounts(this.userAge);
+      }
+      if (this.repository.getCPFHousingRecords) {
+        this.cpfHousingRecords = await this.repository.getCPFHousingRecords();
+      }
+      if (this.repository.getIRASTaxRecords) {
+        this.irasTaxRecords = await this.repository.getIRASTaxRecords();
+      }
+      if (this.repository.getSSBBonds) {
+        this.ssbBonds = await this.repository.getSSBBonds();
+      }
+      if (this.repository.getTBills) {
+        this.tbills = await this.repository.getTBills();
+      }
+      if (this.repository.getSRSRecords) {
+        this.srsRecords = await this.repository.getSRSRecords();
+      }
+    } catch (err) {
+      console.error('Failed to load Singapore wealth data:', err);
+    }
+  }
+
+  async saveCPFHousingRecord(record: Partial<CPFHousingRecord>): Promise<CPFHousingRecord | null> {
+    this.isLoading = true;
+    try {
+      if (!this.repository.saveCPFHousingRecord) return null;
+      const saved = await this.repository.saveCPFHousingRecord(record);
+      await this.loadSingaporeData();
+      return saved;
+    } catch (err) {
+      console.error('Failed to save CPF housing record:', err);
+      throw err;
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  async deleteCPFHousingRecord(id: string | number): Promise<boolean> {
+    this.isLoading = true;
+    try {
+      if (!this.repository.deleteCPFHousingRecord) return false;
+      const ok = await this.repository.deleteCPFHousingRecord(id);
+      await this.loadSingaporeData();
+      return ok;
+    } catch (err) {
+      console.error('Failed to delete CPF housing record:', err);
+      throw err;
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  async saveIRASTaxRecord(record: Partial<IRASTaxRecord>): Promise<IRASTaxRecord | null> {
+    this.isLoading = true;
+    try {
+      if (!this.repository.saveIRASTaxRecord) return null;
+      const saved = await this.repository.saveIRASTaxRecord(record);
+      await this.loadSingaporeData();
+      return saved;
+    } catch (err) {
+      console.error('Failed to save IRAS tax record:', err);
+      throw err;
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  async deleteIRASTaxRecord(id: string | number): Promise<boolean> {
+    this.isLoading = true;
+    try {
+      if (!this.repository.deleteIRASTaxRecord) return false;
+      const ok = await this.repository.deleteIRASTaxRecord(id);
+      await this.loadSingaporeData();
+      return ok;
+    } catch (err) {
+      console.error('Failed to delete IRAS tax record:', err);
+      throw err;
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  async saveSSBBond(record: Partial<SSBBondRecord>): Promise<SSBBondRecord | null> {
+    this.isLoading = true;
+    try {
+      if (!this.repository.saveSSBBond) return null;
+      const saved = await this.repository.saveSSBBond(record);
+      await this.loadSingaporeData();
+      return saved;
+    } catch (err) {
+      console.error('Failed to save SSB bond:', err);
+      throw err;
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  async deleteSSBBond(id: string | number): Promise<boolean> {
+    this.isLoading = true;
+    try {
+      if (!this.repository.deleteSSBBond) return false;
+      const ok = await this.repository.deleteSSBBond(id);
+      await this.loadSingaporeData();
+      return ok;
+    } catch (err) {
+      console.error('Failed to delete SSB bond:', err);
+      throw err;
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  async saveTBill(record: Partial<TBillRecord>): Promise<TBillRecord | null> {
+    this.isLoading = true;
+    try {
+      if (!this.repository.saveTBill) return null;
+      const saved = await this.repository.saveTBill(record);
+      await this.loadSingaporeData();
+      return saved;
+    } catch (err) {
+      console.error('Failed to save T-Bill:', err);
+      throw err;
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  async deleteTBill(id: string | number): Promise<boolean> {
+    this.isLoading = true;
+    try {
+      if (!this.repository.deleteTBill) return false;
+      const ok = await this.repository.deleteTBill(id);
+      await this.loadSingaporeData();
+      return ok;
+    } catch (err) {
+      console.error('Failed to delete T-Bill:', err);
+      throw err;
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  async saveSRSRecord(record: Partial<SRSTrackerRecord>): Promise<SRSTrackerRecord | null> {
+    this.isLoading = true;
+    try {
+      if (!this.repository.saveSRSRecord) return null;
+      const saved = await this.repository.saveSRSRecord(record);
+      await this.loadSingaporeData();
+      return saved;
+    } catch (err) {
+      console.error('Failed to save SRS record:', err);
+      throw err;
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  async deleteSRSRecord(id: string | number): Promise<boolean> {
+    this.isLoading = true;
+    try {
+      if (!this.repository.deleteSRSRecord) return false;
+      const ok = await this.repository.deleteSRSRecord(id);
+      await this.loadSingaporeData();
+      return ok;
+    } catch (err) {
+      console.error('Failed to delete SRS record:', err);
+      throw err;
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  async setUserAge(age: number) {
+    this.userAge = age;
+    if (this.repository.getCPFAccounts) {
+      this.cpfAccounts = await this.repository.getCPFAccounts(age);
     }
   }
 

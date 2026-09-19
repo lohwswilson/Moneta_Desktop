@@ -23,7 +23,7 @@ Odoo-module PRs target the **`18.0`** branch, as that repo's own guide describes
 
 **Regional tax and contribution packs.** This is the project's real differentiator and the area where a contributor with local knowledge beats anything we can do alone. CPF and EPF rules, IRAS reliefs, LHDN Borang BE, UK CGT/ISA — all change annually and all benefit from someone who actually files in that jurisdiction.
 
-**Bank statement formats.** The app recognises DBS/POSB, OCBC, UOB and Standard Chartered CSV/QIF exports. If your bank's export breaks the parser, a sample file (redacted) plus the fix is genuinely useful. Automated bank feeds are unavailable in Singapore — see [ADR 0004](docs/adr/0004-entitlement-matrix-and-lifecycle.md) — so **excellent manual import is the product**, not a stopgap.
+**Bank statement formats.** The app recognises DBS/POSB, OCBC, UOB and Standard Chartered CSV/QIF exports. If your bank's export breaks the parser, a sample file (redacted) plus the fix is genuinely useful. **Excellent manual import is the product**, not a stopgap.
 
 **Correctness fixes with a test.** If you find a figure that is wrong, an assertion in the matching `scripts/verify_*.ts` plus the fix is the ideal contribution.
 

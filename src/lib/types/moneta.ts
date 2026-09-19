@@ -529,6 +529,138 @@ export interface LoanScenario {
   years_saved: number;
 }
 
+// --- Milestone 1: Singapore Regional Wealth Pack ---
 
+export interface CPFAccountSummary {
+  oa_balance: number;
+  sa_balance: number;
+  ma_balance: number;
+  ra_balance: number;
+  total_balance: number;
+  total_annual_interest: number;
+  extra_interest_earned: number;
+  user_age: number;
+  monthly_salary?: number;
+}
+
+export interface CPFHousingRecord {
+  id: string | number;
+  property_name: string;
+  purchase_date: string;
+  purchase_price: number;
+  valuation: number;
+  oa_withdrawn_downpayment: number;
+  oa_withdrawn_monthly: number;
+  housing_grant_amount: number;
+  outstanding_loan: number;
+  ownership_years: number;
+  /** Derived metrics — see `cpfMath.ts` */
+  accrued_interest: number;
+  total_refund_due: number;
+  net_sale_cash_proceeds: number;
+  notes?: string;
+  created_at?: string;
+}
+
+export interface IRASTaxRecord {
+  id: string | number;
+  assessment_year: number;
+  employment_income: number;
+  trade_income: number;
+  rental_income: number;
+  other_income: number;
+  cpf_employee_relief: number;
+  earned_income_relief: number;
+  srs_contribution: number;
+  rstu_self: number;
+  rstu_family: number;
+  nsman_relief: number;
+  child_relief: number;
+  parent_relief: number;
+  donations_250: number;
+  /** Derived metrics — see `irasMath.ts` */
+  total_income: number;
+  total_reliefs: number;
+  chargeable_income: number;
+  tax_payable: number;
+  effective_tax_rate_pct: number;
+  marginal_tax_rate_pct: number;
+  srs_potential_tax_savings: number;
+  notes?: string;
+  created_at?: string;
+}
+
+export interface SSBBondRecord {
+  id: string | number;
+  issue_code: string;
+  investment_amount: number;
+  issue_date: string;
+  maturity_date: string;
+  funding_source: 'cash' | 'srs';
+  rate_year_1: number;
+  rate_year_2: number;
+  rate_year_3: number;
+  rate_year_4: number;
+  rate_year_5: number;
+  rate_year_6: number;
+  rate_year_7: number;
+  rate_year_8: number;
+  rate_year_9: number;
+  rate_year_10: number;
+  average_10yr_yield: number;
+  total_interest_to_maturity: number;
+  next_coupon_payout: number;
+  state: 'active' | 'redeemed' | 'matured';
+  notes?: string;
+  created_at?: string;
+}
+
+export interface TBillRecord {
+  id: string | number;
+  issue_code: string;
+  tenure_type: '6_month' | '1_year';
+  auction_date?: string;
+  issue_date: string;
+  maturity_date: string;
+  funding_source: 'cash' | 'cpf_oa' | 'cpf_sa' | 'srs';
+  face_value: number;
+  issue_price_per_hundred: number;
+  total_investment_cost: number;
+  net_discount_profit: number;
+  cut_off_yield_p_a: number;
+  state: 'active' | 'matured';
+  notes?: string;
+  created_at?: string;
+}
+
+export interface SRSTrackerRecord {
+  id: string | number;
+  tax_year: number;
+  residency_status: 'citizen_pr' | 'foreigner';
+  annual_cap: number;
+  total_contributed: number;
+  remaining_allowance: number;
+  marginal_tax_rate: number;
+  estimated_tax_savings: number;
+  srs_current_balance: number;
+  annual_withdrawal_target: number;
+  annual_taxable_portion: number;
+  is_tax_free_strategy: boolean;
+  notes?: string;
+  created_at?: string;
+}
+
+export interface UCITSComparisonRecord {
+  id: string | number;
+  name: string;
+  portfolio_value: number;
+  dividend_yield_pct: number;
+  expected_growth_rate: number;
+  investment_horizon_years: number;
+  annual_tax_savings_with_ucits: number;
+  cumulative_tax_savings_horizon: number;
+  us_estate_tax_exposure: number;
+  notes?: string;
+}
 
 

@@ -25,6 +25,13 @@ import type {
   PropertyValuation,
   SyncChange,
   SyncOp,
+  CPFAccountSummary,
+  CPFHousingRecord,
+  IRASTaxRecord,
+  SSBBondRecord,
+  TBillRecord,
+  SRSTrackerRecord,
+  UCITSComparisonRecord,
 } from '../types/moneta';
 import type { VerifyBalanceResult } from './repository';
 import { buildSyncSchemaDDL, SYNC_NOW_EXPR } from './syncSchema';
@@ -42,6 +49,10 @@ import {
 } from './propertyMath';
 import { simulatePrepayment, detectRateChanges, resolveTermMonths } from './loanMath';
 import type { RateObservation } from './loanMath';
+import { computeCPFInterest, computeCPFHousingRefund, computeCPFLifeSimulation } from './cpfMath';
+import { computeSingaporeTax } from './irasMath';
+import { computeSSBYields, computeTBillEconomics, computeUCITSETFComparison } from './singaporeFixedIncomeMath';
+import { computeSRSMetrics, computeSRSWithdrawalPlan } from './srsMath';
 
 const DB_INDEXEDDB_NAME = 'moneta_sqlite_db';
 const STORE_NAME = 'sqlite_storage';
@@ -374,6 +385,101 @@ export class SqliteAdapter implements IMonetaRepository {
         annual_rate REAL NOT NULL,
         note TEXT
       );
+
+      CREATE TABLE IF NOT EXISTS cpf_housing_records (
+        id TEXT PRIMARY KEY,
+        property_name TEXT NOT NULL,
+        purchase_date TEXT NOT NULL,
+        purchase_price REAL NOT NULL,
+        valuation REAL NOT NULL,
+        oa_withdrawn_downpayment REAL NOT NULL DEFAULT 0,
+        oa_withdrawn_monthly REAL NOT NULL DEFAULT 0,
+        housing_grant_amount REAL NOT NULL DEFAULT 0,
+        outstanding_loan REAL NOT NULL DEFAULT 0,
+        ownership_years REAL NOT NULL DEFAULT 0,
+        notes TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS iras_tax_records (
+        id TEXT PRIMARY KEY,
+        assessment_year INTEGER NOT NULL,
+        employment_income REAL NOT NULL DEFAULT 0,
+        trade_income REAL NOT NULL DEFAULT 0,
+        rental_income REAL NOT NULL DEFAULT 0,
+        other_income REAL NOT NULL DEFAULT 0,
+        cpf_employee_relief REAL NOT NULL DEFAULT 0,
+        earned_income_relief REAL NOT NULL DEFAULT 0,
+        srs_contribution REAL NOT NULL DEFAULT 0,
+        rstu_self REAL NOT NULL DEFAULT 0,
+        rstu_family REAL NOT NULL DEFAULT 0,
+        nsman_relief REAL NOT NULL DEFAULT 0,
+        child_relief REAL NOT NULL DEFAULT 0,
+        parent_relief REAL NOT NULL DEFAULT 0,
+        donations_250 REAL NOT NULL DEFAULT 0,
+        notes TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS ssb_bonds (
+        id TEXT PRIMARY KEY,
+        issue_code TEXT NOT NULL,
+        investment_amount REAL NOT NULL,
+        issue_date TEXT NOT NULL,
+        maturity_date TEXT NOT NULL,
+        funding_source TEXT DEFAULT 'cash',
+        rate_year_1 REAL DEFAULT 2.80,
+        rate_year_2 REAL DEFAULT 2.85,
+        rate_year_3 REAL DEFAULT 2.90,
+        rate_year_4 REAL DEFAULT 2.95,
+        rate_year_5 REAL DEFAULT 3.00,
+        rate_year_6 REAL DEFAULT 3.05,
+        rate_year_7 REAL DEFAULT 3.10,
+        rate_year_8 REAL DEFAULT 3.15,
+        rate_year_9 REAL DEFAULT 3.20,
+        rate_year_10 REAL DEFAULT 3.30,
+        average_10yr_yield REAL DEFAULT 3.03,
+        total_interest_to_maturity REAL DEFAULT 0,
+        next_coupon_payout REAL DEFAULT 0,
+        state TEXT DEFAULT 'active',
+        notes TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS tbills (
+        id TEXT PRIMARY KEY,
+        issue_code TEXT NOT NULL,
+        tenure_type TEXT DEFAULT '6_month',
+        auction_date TEXT,
+        issue_date TEXT NOT NULL,
+        maturity_date TEXT NOT NULL,
+        funding_source TEXT DEFAULT 'cash',
+        face_value REAL NOT NULL,
+        issue_price_per_hundred REAL DEFAULT 98.15,
+        total_investment_cost REAL DEFAULT 0,
+        net_discount_profit REAL DEFAULT 0,
+        cut_off_yield_p_a REAL DEFAULT 0,
+        state TEXT DEFAULT 'active',
+        notes TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS srs_records (
+        id TEXT PRIMARY KEY,
+        tax_year INTEGER NOT NULL,
+        residency_status TEXT DEFAULT 'citizen_pr',
+        annual_cap REAL DEFAULT 15300,
+        total_contributed REAL DEFAULT 0,
+        remaining_allowance REAL DEFAULT 15300,
+        marginal_tax_rate REAL DEFAULT 15.0,
+        estimated_tax_savings REAL DEFAULT 0,
+        srs_current_balance REAL DEFAULT 0,
+        annual_withdrawal_target REAL DEFAULT 0,
+        annual_taxable_portion REAL DEFAULT 0,
+        is_tax_free_strategy INTEGER DEFAULT 1,
+        notes TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      );
     `);
 
     // Change tracking is attached at the END of this method, after seeding —
@@ -501,6 +607,92 @@ export class SqliteAdapter implements IMonetaRepository {
           ('hld-nvda', :acc, 'sec-nvda', 'NVDA', 50.0, 161.83),
           ('hld-msft', :acc, 'sec-msft', 'MSFT', 10.0, 426.41);
       `, { ':acc': brokerAccId });
+    }
+
+    // Seed default Singapore CPF Housing record if table is empty
+    const cpfHRes = this.db.exec('SELECT COUNT(*) as count FROM cpf_housing_records;');
+    const cpfHCount = (cpfHRes[0]?.values[0]?.[0] as number) || 0;
+    if (cpfHCount === 0) {
+      this.db.run(`
+        INSERT OR IGNORE INTO cpf_housing_records (
+          id, property_name, purchase_date, purchase_price, valuation,
+          oa_withdrawn_downpayment, oa_withdrawn_monthly, housing_grant_amount,
+          outstanding_loan, ownership_years, notes
+        ) VALUES (
+          'cpf-h-1', 'Bishan 4-Room Model A Flat', '2019-06-15', 560000, 780000,
+          60000, 48000, 30000, 285000, 5, 'Primary residence - CPF OA accrued interest tracking'
+        );
+      `);
+    }
+
+    // Seed default Singapore IRAS Tax Planning assessment if table is empty
+    const irasRes = this.db.exec('SELECT COUNT(*) as count FROM iras_tax_records;');
+    const irasCount = (irasRes[0]?.values[0]?.[0] as number) || 0;
+    if (irasCount === 0) {
+      this.db.run(`
+        INSERT OR IGNORE INTO iras_tax_records (
+          id, assessment_year, employment_income, trade_income, rental_income, other_income,
+          cpf_employee_relief, earned_income_relief, srs_contribution, rstu_self, rstu_family,
+          nsman_relief, child_relief, parent_relief, donations_250, notes
+        ) VALUES (
+          'iras-ya2025', 2025, 120000, 0, 0, 0,
+          20400, 1000, 15300, 8000, 0,
+          3000, 4000, 0, 2000, 'YA 2025 Tax Planning & Optimization'
+        );
+      `);
+    }
+
+    // Seed default Singapore Savings Bond (SSB) if table is empty
+    const ssbRes = this.db.exec('SELECT COUNT(*) as count FROM ssb_bonds;');
+    const ssbCount = (ssbRes[0]?.values[0]?.[0] as number) || 0;
+    if (ssbCount === 0) {
+      this.db.run(`
+        INSERT OR IGNORE INTO ssb_bonds (
+          id, issue_code, investment_amount, issue_date, maturity_date, funding_source,
+          rate_year_1, rate_year_2, rate_year_3, rate_year_4, rate_year_5,
+          rate_year_6, rate_year_7, rate_year_8, rate_year_9, rate_year_10,
+          average_10yr_yield, total_interest_to_maturity, next_coupon_payout, state, notes
+        ) VALUES (
+          'ssb-jan26', 'SBJAN26 GX26010T', 10000, '2026-01-02', '2036-01-02', 'cash',
+          2.80, 2.85, 2.90, 2.95, 3.00, 3.05, 3.10, 3.15, 3.20, 3.30,
+          3.03, 3030, 140, 'active', 'MAS 10-Year Step-Up Savings Bond'
+        );
+      `);
+    }
+
+    // Seed default MAS T-Bill if table is empty
+    const tbillRes = this.db.exec('SELECT COUNT(*) as count FROM tbills;');
+    const tbillCount = (tbillRes[0]?.values[0]?.[0] as number) || 0;
+    if (tbillCount === 0) {
+      this.db.run(`
+        INSERT OR IGNORE INTO tbills (
+          id, issue_code, tenure_type, auction_date, issue_date, maturity_date, funding_source,
+          face_value, issue_price_per_hundred, total_investment_cost, net_discount_profit,
+          cut_off_yield_p_a, state, notes
+        ) VALUES (
+          'tbill-26105', 'BS26105A', '6_month', '2026-01-08', '2026-01-13', '2026-07-14', 'cash',
+          10000, 98.15, 9815, 185, 3.78, 'active', 'MAS 6-Month Treasury Bill'
+        );
+      `);
+    }
+
+    // Seed default SRS Tracker record if table is empty
+    const srsRes = this.db.exec('SELECT COUNT(*) as count FROM srs_records;');
+    const srsCount = (srsRes[0]?.values[0]?.[0] as number) || 0;
+    if (srsCount === 0) {
+      this.db.run(`
+        INSERT OR IGNORE INTO srs_records (
+          id, tax_year, residency_status, annual_cap, total_contributed,
+          remaining_allowance, marginal_tax_rate, estimated_tax_savings,
+          srs_current_balance, annual_withdrawal_target, annual_taxable_portion,
+          is_tax_free_strategy, notes
+        ) VALUES (
+          'srs-2025', 2025, 'citizen_pr', 15300, 15300,
+          0, 15.0, 2295,
+          80000, 8000, 4000,
+          1, 'SRS Annual Tax Shield Plan'
+        );
+      `);
     }
 
     // ---------------------------------------------------------------------
@@ -4098,6 +4290,840 @@ export class SqliteAdapter implements IMonetaRepository {
       tables,
       totalRows,
     };
+  }
+
+  // -------------------------------------------------------------------------
+  // Milestone 1: Singapore Regional Wealth Pack (CPF & IRAS)
+  // -------------------------------------------------------------------------
+
+  /**
+   * Summarizes user's CPF balances (OA, SA, MA, RA) and calculates statutory interest.
+   */
+  async getCPFAccounts(userAge: number = 35): Promise<CPFAccountSummary> {
+    await this.init();
+    if (!this.db) {
+      return {
+        oa_balance: 0,
+        sa_balance: 0,
+        ma_balance: 0,
+        ra_balance: 0,
+        total_balance: 0,
+        total_annual_interest: 0,
+        extra_interest_earned: 0,
+        user_age: userAge,
+      };
+    }
+
+    const res = this.db.exec(`
+      SELECT account_type, SUM(current_balance) as bal
+      FROM accounts
+      WHERE account_type IN ('cpf_oa', 'cpf_sa', 'cpf_ma', 'cpf_ra')
+      GROUP BY account_type;
+    `);
+
+    let oa = 0;
+    let sa = 0;
+    let ma = 0;
+    let ra = 0;
+
+    if (res.length && res[0].values.length) {
+      for (const row of res[0].values) {
+        const type = String(row[0]);
+        const bal = Number(row[1]) || 0;
+        if (type === 'cpf_oa') oa = bal;
+        else if (type === 'cpf_sa') sa = bal;
+        else if (type === 'cpf_ma') ma = bal;
+        else if (type === 'cpf_ra') ra = bal;
+      }
+    } else {
+      // Default realistic CPF balances if user hasn't created individual accounts yet
+      oa = 92350;
+      sa = 65200;
+      ma = 71500;
+      ra = 0;
+    }
+
+    const intMetrics = computeCPFInterest({
+      oa,
+      sa,
+      ma,
+      ra,
+      age: userAge,
+    });
+
+    return {
+      oa_balance: oa,
+      sa_balance: sa,
+      ma_balance: ma,
+      ra_balance: ra,
+      total_balance: oa + sa + ma + ra,
+      total_annual_interest: intMetrics.totalAnnualInterest,
+      extra_interest_earned: intMetrics.extraInterestTotal,
+      user_age: userAge,
+    };
+  }
+
+  /**
+   * Retrieves all CPF housing records with 2.5% compounded accrued interest calculations.
+   */
+  async getCPFHousingRecords(): Promise<CPFHousingRecord[]> {
+    await this.init();
+    if (!this.db) return [];
+
+    const res = this.db.exec(`
+      SELECT id, property_name, purchase_date, purchase_price, valuation,
+             oa_withdrawn_downpayment, oa_withdrawn_monthly, housing_grant_amount,
+             outstanding_loan, ownership_years, notes, created_at
+      FROM cpf_housing_records
+      ORDER BY created_at DESC;
+    `);
+
+    if (!res.length) return [];
+
+    return res[0].values.map((v) => {
+      const downpayment = Number(v[5]) || 0;
+      const monthly = Number(v[6]) || 0;
+      const grants = Number(v[7]) || 0;
+      const loan = Number(v[8]) || 0;
+      const years = Number(v[9]) || 0;
+      const val = Number(v[4]) || 0;
+
+      const refund = computeCPFHousingRefund({
+        downpaymentOA: downpayment,
+        monthlyOA: monthly,
+        housingGrants: grants,
+        yearsHeld: years,
+        marketValuation: val,
+        outstandingLoan: loan,
+      });
+
+      return {
+        id: String(v[0]),
+        property_name: String(v[1]),
+        purchase_date: String(v[2]),
+        purchase_price: Number(v[3]),
+        valuation: val,
+        oa_withdrawn_downpayment: downpayment,
+        oa_withdrawn_monthly: monthly,
+        housing_grant_amount: grants,
+        outstanding_loan: loan,
+        ownership_years: years,
+        accrued_interest: refund.totalAccruedInterest,
+        total_refund_due: refund.totalRefundRequired,
+        net_sale_cash_proceeds: refund.netCashProceeds,
+        notes: v[10] ? String(v[10]) : undefined,
+        created_at: v[11] ? String(v[11]) : undefined,
+      };
+    });
+  }
+
+  /**
+   * Saves or updates a CPF housing record.
+   */
+  async saveCPFHousingRecord(record: Partial<CPFHousingRecord>): Promise<CPFHousingRecord> {
+    await this.init();
+    if (!this.db) throw new Error('Database not initialized');
+
+    const id = record.id ? String(record.id) : `cpf-h-${Date.now()}`;
+    const name = record.property_name || 'My Singapore Property';
+    const pDate = record.purchase_date || new Date().toISOString().split('T')[0];
+    const price = Number(record.purchase_price) || 0;
+    const val = Number(record.valuation) || 0;
+    const downpayment = Number(record.oa_withdrawn_downpayment) || 0;
+    const monthly = Number(record.oa_withdrawn_monthly) || 0;
+    const grants = Number(record.housing_grant_amount) || 0;
+    const loan = Number(record.outstanding_loan) || 0;
+    const years = Number(record.ownership_years) || 0;
+    const notes = record.notes || '';
+
+    this.db.run(`
+      INSERT OR REPLACE INTO cpf_housing_records (
+        id, property_name, purchase_date, purchase_price, valuation,
+        oa_withdrawn_downpayment, oa_withdrawn_monthly, housing_grant_amount,
+        outstanding_loan, ownership_years, notes
+      ) VALUES (
+        :id, :name, :pDate, :price, :val, :downpayment, :monthly, :grants, :loan, :years, :notes
+      );
+    `, {
+      ':id': id,
+      ':name': name,
+      ':pDate': pDate,
+      ':price': price,
+      ':val': val,
+      ':downpayment': downpayment,
+      ':monthly': monthly,
+      ':grants': grants,
+      ':loan': loan,
+      ':years': years,
+      ':notes': notes,
+    });
+
+    await this.persist();
+
+    const refund = computeCPFHousingRefund({
+      downpaymentOA: downpayment,
+      monthlyOA: monthly,
+      housingGrants: grants,
+      yearsHeld: years,
+      marketValuation: val,
+      outstandingLoan: loan,
+    });
+
+    return {
+      id,
+      property_name: name,
+      purchase_date: pDate,
+      purchase_price: price,
+      valuation: val,
+      oa_withdrawn_downpayment: downpayment,
+      oa_withdrawn_monthly: monthly,
+      housing_grant_amount: grants,
+      outstanding_loan: loan,
+      ownership_years: years,
+      accrued_interest: refund.totalAccruedInterest,
+      total_refund_due: refund.totalRefundRequired,
+      net_sale_cash_proceeds: refund.netCashProceeds,
+      notes,
+    };
+  }
+
+  /**
+   * Deletes a CPF housing record.
+   */
+  async deleteCPFHousingRecord(id: string | number): Promise<boolean> {
+    await this.init();
+    if (!this.db) return false;
+
+    this.db.run(`DELETE FROM cpf_housing_records WHERE id = :id;`, {
+      ':id': String(id),
+    });
+
+    await this.persist();
+    return true;
+  }
+
+  /**
+   * Retrieves all IRAS tax records with progressive tax calculations.
+   */
+  async getIRASTaxRecords(): Promise<IRASTaxRecord[]> {
+    await this.init();
+    if (!this.db) return [];
+
+    const res = this.db.exec(`
+      SELECT id, assessment_year, employment_income, trade_income, rental_income, other_income,
+             cpf_employee_relief, earned_income_relief, srs_contribution, rstu_self, rstu_family,
+             nsman_relief, child_relief, parent_relief, donations_250, notes, created_at
+      FROM iras_tax_records
+      ORDER BY assessment_year DESC;
+    `);
+
+    if (!res.length) return [];
+
+    return res[0].values.map((v) => {
+      const employment = Number(v[2]) || 0;
+      const trade = Number(v[3]) || 0;
+      const rental = Number(v[4]) || 0;
+      const other = Number(v[5]) || 0;
+      const cpfRelief = Number(v[6]) || 0;
+      const earnedRelief = Number(v[7]) || 0;
+      const srs = Number(v[8]) || 0;
+      const rstuSelf = Number(v[9]) || 0;
+      const rstuFamily = Number(v[10]) || 0;
+      const nsman = Number(v[11]) || 0;
+      const child = Number(v[12]) || 0;
+      const parent = Number(v[13]) || 0;
+      const donations = Number(v[14]) || 0;
+
+      const taxRes = computeSingaporeTax({
+        employmentIncome: employment,
+        tradeIncome: trade,
+        rentalIncome: rental,
+        otherIncome: other,
+        reliefs: {
+          cpfEmployee: cpfRelief,
+          earnedIncome: earnedRelief,
+          srs,
+          rstuSelf,
+          rstuFamily,
+          nsman,
+          child,
+          parent,
+          donations250Pct: donations,
+        },
+      });
+
+      return {
+        id: String(v[0]),
+        assessment_year: Number(v[1]),
+        employment_income: employment,
+        trade_income: trade,
+        rental_income: rental,
+        other_income: other,
+        cpf_employee_relief: cpfRelief,
+        earned_income_relief: earnedRelief,
+        srs_contribution: srs,
+        rstu_self: rstuSelf,
+        rstu_family: rstuFamily,
+        nsman_relief: nsman,
+        child_relief: child,
+        parent_relief: parent,
+        donations_250: donations,
+        total_income: taxRes.totalIncome,
+        total_reliefs: taxRes.totalReliefs,
+        chargeable_income: taxRes.chargeableIncome,
+        tax_payable: taxRes.netTaxPayable,
+        effective_tax_rate_pct: taxRes.effectiveTaxRatePct,
+        marginal_tax_rate_pct: taxRes.marginalTaxRatePct,
+        srs_potential_tax_savings: taxRes.srsPotentialTaxSavings,
+        notes: v[15] ? String(v[15]) : undefined,
+        created_at: v[16] ? String(v[16]) : undefined,
+      };
+    });
+  }
+
+  /**
+   * Saves or updates an IRAS tax record.
+   */
+  async saveIRASTaxRecord(record: Partial<IRASTaxRecord>): Promise<IRASTaxRecord> {
+    await this.init();
+    if (!this.db) throw new Error('Database not initialized');
+
+    const id = record.id ? String(record.id) : `iras-ya${record.assessment_year || 2025}-${Date.now()}`;
+    const ya = Number(record.assessment_year) || 2025;
+    const employment = Number(record.employment_income) || 0;
+    const trade = Number(record.trade_income) || 0;
+    const rental = Number(record.rental_income) || 0;
+    const other = Number(record.other_income) || 0;
+    const cpfRelief = Number(record.cpf_employee_relief) || 0;
+    const earnedRelief = Number(record.earned_income_relief) || 0;
+    const srs = Number(record.srs_contribution) || 0;
+    const rstuSelf = Number(record.rstu_self) || 0;
+    const rstuFamily = Number(record.rstu_family) || 0;
+    const nsman = Number(record.nsman_relief) || 0;
+    const child = Number(record.child_relief) || 0;
+    const parent = Number(record.parent_relief) || 0;
+    const donations = Number(record.donations_250) || 0;
+    const notes = record.notes || '';
+
+    this.db.run(`
+      INSERT OR REPLACE INTO iras_tax_records (
+        id, assessment_year, employment_income, trade_income, rental_income, other_income,
+        cpf_employee_relief, earned_income_relief, srs_contribution, rstu_self, rstu_family,
+        nsman_relief, child_relief, parent_relief, donations_250, notes
+      ) VALUES (
+        :id, :ya, :emp, :trade, :rent, :oth,
+        :cpfR, :earnR, :srs, :rSelf, :rFam,
+        :nsm, :child, :parent, :don, :notes
+      );
+    `, {
+      ':id': id,
+      ':ya': ya,
+      ':emp': employment,
+      ':trade': trade,
+      ':rent': rental,
+      ':oth': other,
+      ':cpfR': cpfRelief,
+      ':earnR': earnedRelief,
+      ':srs': srs,
+      ':rSelf': rstuSelf,
+      ':rFam': rstuFamily,
+      ':nsm': nsman,
+      ':child': child,
+      ':parent': parent,
+      ':don': donations,
+      ':notes': notes,
+    });
+
+    await this.persist();
+
+    const taxRes = computeSingaporeTax({
+      employmentIncome: employment,
+      tradeIncome: trade,
+      rentalIncome: rental,
+      otherIncome: other,
+      reliefs: {
+        cpfEmployee: cpfRelief,
+        earnedIncome: earnedRelief,
+        srs,
+        rstuSelf,
+        rstuFamily,
+        nsman,
+        child,
+        parent,
+        donations250Pct: donations,
+      },
+    });
+
+    return {
+      id,
+      assessment_year: ya,
+      employment_income: employment,
+      trade_income: trade,
+      rental_income: rental,
+      other_income: other,
+      cpf_employee_relief: cpfRelief,
+      earned_income_relief: earnedRelief,
+      srs_contribution: srs,
+      rstu_self: rstuSelf,
+      rstu_family: rstuFamily,
+      nsman_relief: nsman,
+      child_relief: child,
+      parent_relief: parent,
+      donations_250: donations,
+      total_income: taxRes.totalIncome,
+      total_reliefs: taxRes.totalReliefs,
+      chargeable_income: taxRes.chargeableIncome,
+      tax_payable: taxRes.netTaxPayable,
+      effective_tax_rate_pct: taxRes.effectiveTaxRatePct,
+      marginal_tax_rate_pct: taxRes.marginalTaxRatePct,
+      srs_potential_tax_savings: taxRes.srsPotentialTaxSavings,
+      notes,
+    };
+  }
+
+  /**
+   * Deletes an IRAS tax record.
+   */
+  async deleteIRASTaxRecord(id: string | number): Promise<boolean> {
+    await this.init();
+    if (!this.db) return false;
+
+    this.db.run(`DELETE FROM iras_tax_records WHERE id = :id;`, {
+      ':id': String(id),
+    });
+
+    await this.persist();
+    return true;
+  }
+
+  // =========================================================================
+  // Singapore Fixed Income & SRS Implementations (singapore_fixed_income.py, srs.py)
+  // =========================================================================
+
+  /**
+   * Retrieves all Singapore Savings Bonds (SSB).
+   */
+  async getSSBBonds(): Promise<SSBBondRecord[]> {
+    await this.init();
+    if (!this.db) return [];
+
+    const res = this.db.exec(`
+      SELECT
+        id, issue_code, investment_amount, issue_date, maturity_date, funding_source,
+        rate_year_1, rate_year_2, rate_year_3, rate_year_4, rate_year_5,
+        rate_year_6, rate_year_7, rate_year_8, rate_year_9, rate_year_10,
+        average_10yr_yield, total_interest_to_maturity, next_coupon_payout, state, notes
+      FROM ssb_bonds
+      ORDER BY issue_date DESC, id DESC;
+    `);
+
+    if (!res.length) return [];
+
+    return res[0].values.map((v) => {
+      const amt = Number(v[2]) || 0;
+      const rates = [
+        Number(v[6]) || 0, Number(v[7]) || 0, Number(v[8]) || 0, Number(v[9]) || 0, Number(v[10]) || 0,
+        Number(v[11]) || 0, Number(v[12]) || 0, Number(v[13]) || 0, Number(v[14]) || 0, Number(v[15]) || 0,
+      ];
+      const yields = computeSSBYields({ investmentAmount: amt, stepUpRates: rates });
+
+      return {
+        id: String(v[0]),
+        issue_code: String(v[1]),
+        investment_amount: amt,
+        issue_date: String(v[3]),
+        maturity_date: String(v[4]),
+        funding_source: (v[5] as 'cash' | 'srs') || 'cash',
+        rate_year_1: rates[0],
+        rate_year_2: rates[1],
+        rate_year_3: rates[2],
+        rate_year_4: rates[3],
+        rate_year_5: rates[4],
+        rate_year_6: rates[5],
+        rate_year_7: rates[6],
+        rate_year_8: rates[7],
+        rate_year_9: rates[8],
+        rate_year_10: rates[9],
+        average_10yr_yield: yields.average10YrYield,
+        total_interest_to_maturity: yields.totalInterestToMaturity,
+        next_coupon_payout: yields.nextSemiAnnualCoupon,
+        state: (v[19] as 'active' | 'redeemed' | 'matured') || 'active',
+        notes: v[20] ? String(v[20]) : undefined,
+      };
+    });
+  }
+
+  /**
+   * Saves or updates a Singapore Savings Bond (SSB).
+   */
+  async saveSSBBond(record: Partial<SSBBondRecord>): Promise<SSBBondRecord> {
+    await this.init();
+    if (!this.db) throw new Error('Database not initialized');
+
+    const id = record.id ? String(record.id) : `ssb-${Date.now()}`;
+    const code = record.issue_code || 'SBNEW';
+    const amt = Number(record.investment_amount || 10000);
+    const issueDate = record.issue_date || new Date().toISOString().split('T')[0];
+    const maturityDate = record.maturity_date || `${Number(issueDate.split('-')[0]) + 10}-${issueDate.slice(5)}`;
+    const fundingSource = record.funding_source || 'cash';
+    const rates = [
+      record.rate_year_1 ?? 2.80, record.rate_year_2 ?? 2.85, record.rate_year_3 ?? 2.90, record.rate_year_4 ?? 2.95, record.rate_year_5 ?? 3.00,
+      record.rate_year_6 ?? 3.05, record.rate_year_7 ?? 3.10, record.rate_year_8 ?? 3.15, record.rate_year_9 ?? 3.20, record.rate_year_10 ?? 3.30,
+    ];
+    const yields = computeSSBYields({ investmentAmount: amt, stepUpRates: rates });
+    const state = record.state || 'active';
+    const notes = record.notes || '';
+
+    this.db.run(`
+      INSERT OR REPLACE INTO ssb_bonds (
+        id, issue_code, investment_amount, issue_date, maturity_date, funding_source,
+        rate_year_1, rate_year_2, rate_year_3, rate_year_4, rate_year_5,
+        rate_year_6, rate_year_7, rate_year_8, rate_year_9, rate_year_10,
+        average_10yr_yield, total_interest_to_maturity, next_coupon_payout, state, notes
+      ) VALUES (
+        :id, :code, :amt, :issueDate, :maturityDate, :funding,
+        :r1, :r2, :r3, :r4, :r5, :r6, :r7, :r8, :r9, :r10,
+        :avgYield, :totInt, :nextCoupon, :state, :notes
+      );
+    `, {
+      ':id': id,
+      ':code': code,
+      ':amt': amt,
+      ':issueDate': issueDate,
+      ':maturityDate': maturityDate,
+      ':funding': fundingSource,
+      ':r1': rates[0],
+      ':r2': rates[1],
+      ':r3': rates[2],
+      ':r4': rates[3],
+      ':r5': rates[4],
+      ':r6': rates[5],
+      ':r7': rates[6],
+      ':r8': rates[7],
+      ':r9': rates[8],
+      ':r10': rates[9],
+      ':avgYield': yields.average10YrYield,
+      ':totInt': yields.totalInterestToMaturity,
+      ':nextCoupon': yields.nextSemiAnnualCoupon,
+      ':state': state,
+      ':notes': notes,
+    });
+
+    await this.persist();
+
+    return {
+      id,
+      issue_code: code,
+      investment_amount: amt,
+      issue_date: issueDate,
+      maturity_date: maturityDate,
+      funding_source: fundingSource,
+      rate_year_1: rates[0],
+      rate_year_2: rates[1],
+      rate_year_3: rates[2],
+      rate_year_4: rates[3],
+      rate_year_5: rates[4],
+      rate_year_6: rates[5],
+      rate_year_7: rates[6],
+      rate_year_8: rates[7],
+      rate_year_9: rates[8],
+      rate_year_10: rates[9],
+      average_10yr_yield: yields.average10YrYield,
+      total_interest_to_maturity: yields.totalInterestToMaturity,
+      next_coupon_payout: yields.nextSemiAnnualCoupon,
+      state,
+      notes,
+    };
+  }
+
+  /**
+   * Deletes a Singapore Savings Bond.
+   */
+  async deleteSSBBond(id: string | number): Promise<boolean> {
+    await this.init();
+    if (!this.db) return false;
+
+    this.db.run(`DELETE FROM ssb_bonds WHERE id = :id;`, {
+      ':id': String(id),
+    });
+
+    await this.persist();
+    return true;
+  }
+
+  /**
+   * Retrieves all MAS Treasury Bills (T-Bills).
+   */
+  async getTBills(): Promise<TBillRecord[]> {
+    await this.init();
+    if (!this.db) return [];
+
+    const res = this.db.exec(`
+      SELECT
+        id, issue_code, tenure_type, auction_date, issue_date, maturity_date,
+        funding_source, face_value, issue_price_per_hundred, total_investment_cost,
+        net_discount_profit, cut_off_yield_p_a, state, notes
+      FROM tbills
+      ORDER BY issue_date DESC, id DESC;
+    `);
+
+    if (!res.length) return [];
+
+    return res[0].values.map((v) => {
+      const face = Number(v[7]) || 0;
+      const price = Number(v[8]) || 100.0;
+      const tenure = (v[2] as '6_month' | '1_year') || '6_month';
+      const econ = computeTBillEconomics({
+        faceValue: face,
+        issuePricePerHundred: price,
+        tenureType: tenure,
+        issueDate: String(v[4]),
+      });
+
+      return {
+        id: String(v[0]),
+        issue_code: String(v[1]),
+        tenure_type: tenure,
+        auction_date: v[3] ? String(v[3]) : undefined,
+        issue_date: String(v[4]),
+        maturity_date: String(v[5]),
+        funding_source: (v[6] as 'cash' | 'cpf_oa' | 'cpf_sa' | 'srs') || 'cash',
+        face_value: face,
+        issue_price_per_hundred: price,
+        total_investment_cost: econ.totalInvestmentCost,
+        net_discount_profit: econ.netDiscountProfit,
+        cut_off_yield_p_a: econ.cutOffYieldPA,
+        state: (v[12] as 'active' | 'matured') || 'active',
+        notes: v[13] ? String(v[13]) : undefined,
+      };
+    });
+  }
+
+  /**
+   * Saves or updates a MAS Treasury Bill (T-Bill).
+   */
+  async saveTBill(record: Partial<TBillRecord>): Promise<TBillRecord> {
+    await this.init();
+    if (!this.db) throw new Error('Database not initialized');
+
+    const id = record.id ? String(record.id) : `tbill-${Date.now()}`;
+    const code = record.issue_code || 'BSNEW';
+    const tenure = record.tenure_type || '6_month';
+    const auctionDate = record.auction_date || new Date().toISOString().split('T')[0];
+    const issueDate = record.issue_date || new Date().toISOString().split('T')[0];
+    const fundingSource = record.funding_source || 'cash';
+    const face = Number(record.face_value || 10000);
+    const price = Number(record.issue_price_per_hundred || 98.15);
+    const econ = computeTBillEconomics({
+      faceValue: face,
+      issuePricePerHundred: price,
+      tenureType: tenure,
+      fundingSource,
+      issueDate,
+    });
+    const state = record.state || 'active';
+    const notes = record.notes || '';
+
+    this.db.run(`
+      INSERT OR REPLACE INTO tbills (
+        id, issue_code, tenure_type, auction_date, issue_date, maturity_date,
+        funding_source, face_value, issue_price_per_hundred, total_investment_cost,
+        net_discount_profit, cut_off_yield_p_a, state, notes
+      ) VALUES (
+        :id, :code, :tenure, :auctionDate, :issueDate, :maturityDate,
+        :funding, :face, :price, :cost,
+        :profit, :yieldPA, :state, :notes
+      );
+    `, {
+      ':id': id,
+      ':code': code,
+      ':tenure': tenure,
+      ':auctionDate': auctionDate,
+      ':issueDate': issueDate,
+      ':maturityDate': econ.maturityDate,
+      ':funding': fundingSource,
+      ':face': face,
+      ':price': price,
+      ':cost': econ.totalInvestmentCost,
+      ':profit': econ.netDiscountProfit,
+      ':yieldPA': econ.cutOffYieldPA,
+      ':state': state,
+      ':notes': notes,
+    });
+
+    await this.persist();
+
+    return {
+      id,
+      issue_code: code,
+      tenure_type: tenure,
+      auction_date: auctionDate,
+      issue_date: issueDate,
+      maturity_date: econ.maturityDate,
+      funding_source: fundingSource,
+      face_value: face,
+      issue_price_per_hundred: price,
+      total_investment_cost: econ.totalInvestmentCost,
+      net_discount_profit: econ.netDiscountProfit,
+      cut_off_yield_p_a: econ.cutOffYieldPA,
+      state,
+      notes,
+    };
+  }
+
+  /**
+   * Deletes a MAS Treasury Bill.
+   */
+  async deleteTBill(id: string | number): Promise<boolean> {
+    await this.init();
+    if (!this.db) return false;
+
+    this.db.run(`DELETE FROM tbills WHERE id = :id;`, {
+      ':id': String(id),
+    });
+
+    await this.persist();
+    return true;
+  }
+
+  /**
+   * Retrieves all SRS Tracker records.
+   */
+  async getSRSRecords(): Promise<SRSTrackerRecord[]> {
+    await this.init();
+    if (!this.db) return [];
+
+    const res = this.db.exec(`
+      SELECT
+        id, tax_year, residency_status, annual_cap, total_contributed,
+        remaining_allowance, marginal_tax_rate, estimated_tax_savings,
+        srs_current_balance, annual_withdrawal_target, annual_taxable_portion,
+        is_tax_free_strategy, notes
+      FROM srs_records
+      ORDER BY tax_year DESC, id DESC;
+    `);
+
+    if (!res.length) return [];
+
+    return res[0].values.map((v) => {
+      const residency = (v[2] as 'citizen_pr' | 'foreigner') || 'citizen_pr';
+      const contrib = Number(v[4]) || 0;
+      const rate = Number(v[6]) || 15.0;
+      const bal = Number(v[8]) || 0;
+
+      const metrics = computeSRSMetrics({
+        residencyStatus: residency,
+        totalContributedYTD: contrib,
+        marginalTaxRatePct: rate,
+      });
+
+      const plan = computeSRSWithdrawalPlan({
+        currentBalance: bal,
+      });
+
+      return {
+        id: String(v[0]),
+        tax_year: Number(v[1]),
+        residency_status: residency,
+        annual_cap: metrics.annualCap,
+        total_contributed: contrib,
+        remaining_allowance: metrics.remainingAllowance,
+        marginal_tax_rate: rate,
+        estimated_tax_savings: metrics.estimatedTaxSavings,
+        srs_current_balance: bal,
+        annual_withdrawal_target: plan.annualWithdrawalTarget,
+        annual_taxable_portion: plan.annualTaxablePortion,
+        is_tax_free_strategy: plan.isTaxFreeStrategy,
+        notes: v[12] ? String(v[12]) : undefined,
+      };
+    });
+  }
+
+  /**
+   * Saves or updates an SRS Tracker record.
+   */
+  async saveSRSRecord(record: Partial<SRSTrackerRecord>): Promise<SRSTrackerRecord> {
+    await this.init();
+    if (!this.db) throw new Error('Database not initialized');
+
+    const id = record.id ? String(record.id) : `srs-${Date.now()}`;
+    const taxYear = Number(record.tax_year || new Date().getFullYear());
+    const residency = record.residency_status || 'citizen_pr';
+    const contrib = Number(record.total_contributed || 0);
+    const rate = Number(record.marginal_tax_rate || 15.0);
+    const bal = Number(record.srs_current_balance || 0);
+    const notes = record.notes || '';
+
+    const metrics = computeSRSMetrics({
+      residencyStatus: residency,
+      totalContributedYTD: contrib,
+      marginalTaxRatePct: rate,
+    });
+
+    const plan = computeSRSWithdrawalPlan({
+      currentBalance: bal,
+    });
+
+    this.db.run(`
+      INSERT OR REPLACE INTO srs_records (
+        id, tax_year, residency_status, annual_cap, total_contributed,
+        remaining_allowance, marginal_tax_rate, estimated_tax_savings,
+        srs_current_balance, annual_withdrawal_target, annual_taxable_portion,
+        is_tax_free_strategy, notes
+      ) VALUES (
+        :id, :year, :residency, :cap, :contrib,
+        :rem, :rate, :saved,
+        :bal, :target, :taxable,
+        :free, :notes
+      );
+    `, {
+      ':id': id,
+      ':year': taxYear,
+      ':residency': residency,
+      ':cap': metrics.annualCap,
+      ':contrib': contrib,
+      ':rem': metrics.remainingAllowance,
+      ':rate': rate,
+      ':saved': metrics.estimatedTaxSavings,
+      ':bal': bal,
+      ':target': plan.annualWithdrawalTarget,
+      ':taxable': plan.annualTaxablePortion,
+      ':free': plan.isTaxFreeStrategy ? 1 : 0,
+      ':notes': notes,
+    });
+
+    await this.persist();
+
+    return {
+      id,
+      tax_year: taxYear,
+      residency_status: residency,
+      annual_cap: metrics.annualCap,
+      total_contributed: contrib,
+      remaining_allowance: metrics.remainingAllowance,
+      marginal_tax_rate: rate,
+      estimated_tax_savings: metrics.estimatedTaxSavings,
+      srs_current_balance: bal,
+      annual_withdrawal_target: plan.annualWithdrawalTarget,
+      annual_taxable_portion: plan.annualTaxablePortion,
+      is_tax_free_strategy: plan.isTaxFreeStrategy,
+      notes,
+    };
+  }
+
+  /**
+   * Deletes an SRS Tracker record.
+   */
+  async deleteSRSRecord(id: string | number): Promise<boolean> {
+    await this.init();
+    if (!this.db) return false;
+
+    this.db.run(`DELETE FROM srs_records WHERE id = :id;`, {
+      ':id': String(id),
+    });
+
+    await this.persist();
+    return true;
   }
 
   /**

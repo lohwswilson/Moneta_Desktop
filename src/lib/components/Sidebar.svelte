@@ -251,6 +251,15 @@
             </span>
           </button>
         {/if}
+
+        <!-- Singapore Wealth Hub -->
+        <button
+          onclick={() => financeStore.navigateToSingaporeHub()}
+          title="Singapore Wealth Hub (CPF, Housing, IRAS)"
+          class="relative p-2 rounded-lg text-zinc-400 hover:text-red-400 hover:bg-zinc-900 transition-colors cursor-pointer {financeStore.activeView === 'singapore_hub' ? 'bg-zinc-800 text-red-400' : ''}"
+        >
+          <span class="text-xs">🇸🇬</span>
+        </button>
       </div>
     </div>
 
@@ -332,6 +341,21 @@
           {#if financeStore.metrics}
             <span class="font-mono text-zinc-200 font-bold">
               {formatCurrency(financeStore.metrics.net_worth)}
+            </span>
+          {/if}
+        </button>
+
+        <button
+          onclick={() => financeStore.navigateToSingaporeHub()}
+          class="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors cursor-pointer {financeStore.activeView === 'singapore_hub' ? 'bg-zinc-800 text-white shadow-sm border border-zinc-700/60' : 'text-zinc-400 hover:bg-zinc-900 hover:text-white border border-transparent'}"
+        >
+          <span class="flex items-center gap-2">
+            <span class="text-sm">🇸🇬</span>
+            Singapore Wealth Hub
+          </span>
+          {#if financeStore.cpfAccounts}
+            <span class="font-mono text-emerald-400 text-[11px] font-bold">
+              {formatCurrency(financeStore.cpfAccounts.total_balance)}
             </span>
           {/if}
         </button>

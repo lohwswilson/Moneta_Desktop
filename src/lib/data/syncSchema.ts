@@ -50,6 +50,11 @@ export const SYNC_TRACKED_TABLES = [
   'rent_payments',
   'loan_scenarios',
   'loan_rate_changes',
+  'cpf_housing_records',
+  'iras_tax_records',
+  'ssb_bonds',
+  'tbills',
+  'srs_records',
 ] as const;
 
 export type SyncTrackedTable = (typeof SYNC_TRACKED_TABLES)[number];

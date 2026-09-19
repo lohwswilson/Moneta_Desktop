@@ -14,7 +14,7 @@ All data access is mediated through the [`IMonetaRepository`](file:///opt/moneta
 | `MockAdapter` | In-memory sandbox, selected by `dataSource: 'sandbox'`. Never syncs. |
 | `OdooAdapter` | **Not a repository driver.** Reached only by explicit operations — settings sync and the one-time migration. |
 
-`OdooAdapter` is never the source of ordinary reads and writes. That is the local-first model; see [ADR 0001 §5](adr/0001-subscription-tiers-and-cloud-sync.md) and [ARCHITECTURE.md §6](../ARCHITECTURE.md).
+`OdooAdapter` is never the source of ordinary reads and writes. That is the local-first model; see `ARCHITECTURE.md` §6.
 
 The interface declares optional capabilities with `?`, so an adapter that does not implement one degrades to an empty list rather than throwing:
 
@@ -52,7 +52,7 @@ That inversion has a consequence the endpoint list makes visible: **the API was 
 
 Full parity has been achieved for budgets (`createBudget`, `updateBudget`, `deleteBudget`) and batch transaction operations across the Odoo REST API and client adapters.
 
-**Deletions need explicit support too.** Odoo's `unlink` removes rows, so a deleted record is simply absent from a query — indistinguishable from one never pushed from this client. Without server-side tombstones, a record deleted on one device is **resurrected** by the next pull from a device that still has it. Odoo's built-in `active` flag (archive rather than unlink) is the natural mechanism. See [ADR 0006 §4](adr/0006-sync-conflict-policy.md).
+**Deletions need explicit support too.** Odoo's `unlink` removes rows, so a deleted record is simply absent from a query — indistinguishable from one never pushed from this client. Without server-side tombstones, a record deleted on one device is **resurrected** by the next pull from a device that still has it. Odoo's built-in `active` flag (archive rather than unlink) is the natural mechanism.
 
 ---
 

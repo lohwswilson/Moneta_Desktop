@@ -31,6 +31,7 @@ It operates completely **100% offline-first** using an embedded WebAssembly SQLi
 |  ├── Payee Intelligence Directory (Cadence & Spend Analytics)           |
 |  ├── Stock Portfolio & Tax-Lot Hub (Holdings, Lots, Gains, Alloc)       |
 |  ├── Property, Loans & Landlord Hubs (Equity, Payoff, Rent Roll)        |
+|  ├── Singapore Wealth Hub (CPF, LIFE, Housing Refund, IRAS Tax)         |
 |  └── Data Source & Moneta Cloud Modal (My Ledger / Sandbox / Sync)      |
 |                                                                         |
 |  [ Local-First Data Layer (IMonetaRepository) ]                         |
@@ -155,7 +156,7 @@ It operates completely **100% offline-first** using an embedded WebAssembly SQLi
 | **Mortgage Amortization & Prepayment** | **✔ Native** | ✔ Native | ✖ No | Partial | ✔ Native |
 | **Landlord Rent Roll & Tenants** | **✔ Native** | ✖ No | ✖ No | ✖ No | ✔ Satellite |
 | **Direct Odoo 18 Server Sync** | **✔ Native (Bearer PAT)**| ✖ No | ✖ No | ✖ No | Host Backend |
-| **Cost** | **✔ Free desktop app; Cloud S$9/mo** | ✖ $70+/yr | ✖ $109/yr | ✖ $100/yr | ✔ Free Self-Hosted |
+| **Cost** | **✔ Free & open source** | ✖ Paid | ✖ Paid | ✖ Paid | ✔ Free Self-Hosted |
 
 ---
 
@@ -172,14 +173,14 @@ It operates completely **100% offline-first** using an embedded WebAssembly SQLi
 9. **[Payee Intelligence & Directory](09_PAYEE_INTELLIGENCE_AND_DIRECTORY.md)**: Merchant memory, cadence detection and spend analytics.
 10. **[Stock Portfolio & Tax-Lot Accounting](10_STOCK_PORTFOLIO_AND_TAX_LOTS.md)**: Holdings register, disposal strategies, TWR/MWR, and the two Phase 4 boundaries.
 11. **[Property, Mortgages & Rental Income](11_PROPERTY_MORTGAGES_AND_RENTAL.md)**: Property equity, the amortization engine, the rent roll, and the Phase 5 divergences.
+12. **[Singapore Regional Wealth Pack](12_SINGAPORE_WEALTH_PACK.md)**: CPF multi-accounts, CPF LIFE actuarial simulator, 2.5% housing accrued interest, stamp duties (BSD/ABSD), and IRAS progressive tax planner.
 
 ### Architecture Decision Records
 
-| ADR | Decision |
-| :--- | :--- |
-| [0001](adr/0001-subscription-tiers-and-cloud-sync.md) | Subscription tiers and cloud sync — entitlement gating, licence tokens, local-first plus sync, and the supersession of Phase 8 |
-| [0002](adr/0002-moneta-cloud-platform.md) | Moneta Cloud platform — stay on Odoo, narrowed to a sync store plus licensing and billing; shared instances, version pinning, LGPL position |
-| [0003](adr/0003-licence-and-billing-topology.md) | Licence and billing topology — one licence database, local token verification, enforcement via the sync service, ANSIS accounting linkage |
-| [0004](adr/0004-entitlement-matrix-and-lifecycle.md) | Entitlement matrix and customer lifecycle — what each tier can access, pricing, the upgrade path, and cancellation |
-| [0005](adr/0005-open-source-and-licence.md) | Open source and licence choice — Apache-2.0 for the desktop app, proprietary server, and the reasoning for each |
-| [0006](adr/0006-sync-conflict-policy.md) | Sync conflict policy — server-arrival last-write-wins, tombstones, and why the clock is not consulted |
+The architecture decision records for Moneta are **not published in this repository**. They
+record subscription tiers, pricing and unit economics, licence and billing topology, and the
+group's company structure — material that is confidential and maintained separately from this
+public client.
+
+Decisions that affect how you *use* or *contribute to* this application are instead stated
+where they apply: in `ARCHITECTURE.md`, in the user guide above, and in `CONTRIBUTING.md`.

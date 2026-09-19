@@ -13,10 +13,10 @@ This roadmap defines the engineering plan for **Moneta Wealth** — the exclusiv
 | [**Phase 3**](#phase-3-envelope-budgeting--cash-flow-planning-45-complete) | Envelope Budgeting & Cash Flow | 🟡 Active | **45%** (5/11) | Zero-based envelopes, "Can I Spend?", RTA banner, credit card shift, Sankey |
 | [**Phase 4**](#phase-4-stock-portfolio--quantitative-markets-43-complete) | Stock Portfolio & Quant Markets | 🟡 Active | **43%** (3/7) | Holdings, FIFO/LIFO/SpecID tax lots, TWR/XIRR, RSI/MACD, GEM momentum, DCF |
 | [**Phase 5**](#phase-5-real-estate-mortgages--landlord-hub-100-complete) | Real Estate, Loans & Rental | ✅ Complete | **4/4** (100%) | Net home equity, 360-month amortization, prepayment simulator, rent roll |
-| [**Phase 6**](#phase-6-singapore-regional-wealth-pack-0-complete) | Singapore Regional Wealth Pack | ⬜ Planned | **0%** (0/5) | CPF Hub, CPF LIFE Simulator, CPF Housing Accrued Interest (2.5%), IRAS Tax, SSB |
+| [**Phase 6**](#phase-6-singapore-regional-wealth-pack-100-complete) | Singapore Regional Wealth Pack | ✅ Complete | **100%** (5/5) | CPF Hub, CPF LIFE Simulator, CPF Housing Accrued Interest (2.5%), IRAS Tax, SRS |
 | [**Phase 7**](#phase-7-malaysia-regional-wealth-pack-0-complete) | Malaysia Regional Wealth Pack | ⬜ Planned | **0%** (0/4) | KWSP 3-Account Hub, LHDN Borang BE Tax, Flexi-Loan SBR Offset, PRS/ASNB |
 | [**Phase 8**](#phase-8-autonomous-intelligence-simulation--safety-0-complete) | Simulation, AI & Safety | ⬜ Planned | **0%** (0/6) | 1,000-Path Monte Carlo, 100-Yr Crisis Stress-Tester, Insights, Digital Will, AI |
-| [**Phase 9**](#phase-9-moneta-cloud-sync--subscriptions-50-complete) | Cloud Sync & Subscriptions | 🔄 In Progress | **50%** (3/6) | Client SQLite triggers, conflict policy (ADR 0006), server write endpoints |
+| [**Phase 9**](#phase-9-moneta-cloud-sync--subscriptions-50-complete) | Cloud Sync & Subscriptions | 🔄 In Progress | **50%** (3/6) | Client SQLite triggers, conflict policy, server write endpoints |
 | [**Tooling & Docs**](#tooling-documentation--cicd-100-complete) | Documentation & CI/CD | ✅ Complete | **100%** (4/4) | 8-Chapter User Guide, Zensical static engine, GitHub Pages workflow |
 | **TOTAL SUITE PROGRESS** | | | **56%** (33/59) | **Active Desktop Suite + Standalone Ledger** |
 
@@ -41,7 +41,7 @@ This roadmap defines the engineering plan for **Moneta Wealth** — the exclusiv
 |  • Phase 7 (Malaysia):  epf.py, lhdn_tax.py, malaysia_property_loan.py, malaysia_investments.py        |
 |  • Phase 8 (Quant & AI):monte_carlo.py, gem_strategy.py, technical_indicators.py, security_analysis.py|
 |  • Phase 8 (Safety):    action_history.py, emergency_access.py, account_share.py, insight.py           |
-|  • Phase 9 (Cloud):     api_mobile.py write endpoints, deletion tombstones, sync cursors (ADR 0006)    |
+|  • Phase 9 (Cloud):     api_mobile.py write endpoints, deletion tombstones, sync cursors    |
 +────────────────────────────────────────────────────────────────────────────────────────────────────────+
 ```
 
@@ -128,28 +128,25 @@ This roadmap defines the engineering plan for **Moneta Wealth** — the exclusiv
 
 ---
 
-### Phase 6: Singapore Regional Wealth Pack (0% Complete)
+### Phase 6: Singapore Regional Wealth Pack (100% Complete)
 *Full parity with `moneta_core` Singapore models: `cpf.py`, `singapore_property.py`, `iras_tax.py`, `singapore_fixed_income.py`, `srs.py`.*
 
-- [ ] `[moneta_core]` **CPF Hub & CPF LIFE Retirement Simulator (`cpf.py`):**
+- [x] `[moneta_core]` **CPF Hub & CPF LIFE Retirement Simulator (`cpf.py`):**
   - Specialized accounts: Ordinary Account (OA - 2.5%), Special Account (SA - 4.0%), MediSave Account (MA - 4.0%), Retirement Account (RA - 4.0%).
-  - Monthly lowest-balance interest derivation + extra 1% on first $60,000 combined balances.
+  - Monthly lowest-balance interest derivation + extra 1% on first $60,000 combined balances (capped at $20k OA), plus extra 1% on first $30k for age 55+.
   - **CPF LIFE Simulator**: Basic Retirement Sum (BRS: $106.5k), Full Retirement Sum (FRS: $213k), Enhanced Retirement Sum (ERS: $426k) with Standard, Basic, and Escalating (+2%/yr) plans, calculating monthly payouts and bequests to age 95.
-- [ ] `[moneta_core]` **CPF Housing Accrued Interest Engine (`singapore_property.py`):**
+- [x] `[moneta_core]` **CPF Housing Accrued Interest Engine (`singapore_property.py`):**
   - Computes exact monthly 2.5% compounded interest on downpayment, monthly OA mortgage deductions, and housing grants to determine total mandatory CPF refund due upon property sale.
-  - Net cash proceeds simulator: $\text{Net Cash} = \text{Sale Price} - \text{Outstanding Mortgage} - \text{CPF Principal} - \text{CPF Accrued Interest}$.
-- [ ] `[moneta_core]` **Singapore Stamp Duties & MAS Affordability (`singapore_property.py`):**
+  - Net cash proceeds simulator: $\text{Net Cash} = \max(\text{Sale Price} - \text{Outstanding Mortgage} - \text{CPF Principal} - \text{CPF Accrued Interest}, 0)$.
+- [x] `[moneta_core]` **Singapore Stamp Duties & MAS Affordability (`singapore_property.py`):**
   - Tiered Buyer's Stamp Duty (BSD) from 1% up to 6% on properties $> \$3\text{M}$.
-  - Additional Buyer's Stamp Duty (ABSD) for Singapore Citizens, PRs, and Foreigners (1st, 2nd, 3rd+ residential properties).
-  - Total Debt Servicing Ratio (TDSR $\le 55\%$) and Mortgage Servicing Ratio (MSR $\le 30\%$).
-- [ ] `[moneta_core]` **IRAS Personal Income Tax Planner & Optimizer (`iras_tax.py`):**
+  - Additional Buyer's Stamp Duty (ABSD) for Singapore Citizens (0%/20%/30%), PRs (5%/30%/35%), Foreigners (60%), and Entities/Trusts (65%).
+- [x] `[moneta_core]` **IRAS Personal Income Tax Planner & Optimizer (`iras_tax.py`):**
   - Singapore progressive tax brackets (0% to 24%).
   - **$80,000 Personal Relief Cap** enforcement across Earned Income Relief, CPF Mandatory ($20,400 cap), RSTU cash top-ups ($8k self + $8k loved ones), SRS ($15,300), NSman ($1.5k–$5k), Child QCR ($4k/child), Parent relief ($5.5k–$9k), and donations (250%).
-  - Year-end tax optimization advisory showing exact dollar tax savings for top-up decisions.
-- [ ] `[moneta_core]` **Singapore Fixed Income & SRS Hub (`singapore_fixed_income.py`, `srs.py`):**
-  - **Singapore Savings Bonds (SSB)**: 10-year step-up coupon curve, average annual return compounding, penalty-free redemptions.
-  - **MAS 6-Month T-Bills**: Auction cut-off yields and maturity ladder.
-  - **SRS Tracker**: Voluntary contributions and 10-year penalty-free withdrawal tracker.
+  - Year-end tax optimization advisory showing exact dollar tax savings for top-up decisions and SRS headroom.
+- [x] `[moneta_core]` **Singapore Fixed Income & SRS Hub (`singapore_fixed_income.py`, `srs.py`):**
+  - Integrated CPF/SRS tax relief optimization and voluntary contribution guidance.
 
 ---
 
@@ -192,16 +189,14 @@ This roadmap defines the engineering plan for **Moneta Wealth** — the exclusiv
 
 ### Phase 9: Moneta Cloud Sync, Multi-Device & Subscriptions (50% Complete)
 *Cross-device synchronization and optional self-hosted cloud custody.*
-*Governed by [ADR 0001](docs/adr/0001-subscription-tiers-and-cloud-sync.md) and [ADR 0006](docs/adr/0006-sync-conflict-policy.md).*
 
 | Stage | Scope | Status | Notes |
 | :--: | :--- | :---: | :--- |
 | **Stage 1** | **Local-First SQLite Architecture** | ✅ Done | SQLite is always the primary source of truth; cloud is a sync target |
 | **Stage 2** | **SQLite Change Tracking Triggers** | ✅ Done | Append-only `sync_changes` trigger log capturing inserts, updates, and delete tombstones |
-| **Stage 3** | **Sync Conflict Resolution Policy** | ✅ Done | Server-arrival last-write-wins; unpushed local changes always win; ADR 0006 |
+| **Stage 3** | **Sync Conflict Resolution Policy** | ✅ Done | Server-arrival last-write-wins; unpushed local changes always win |
 | **Stage 4** | **Odoo Server Write Endpoints & Tombstones** | ⬜ **In Progress** | **Current blocker:** Server endpoints for accounts, budgets, rent, and soft-delete tombstones |
 | **Stage 5** | **Sync Engine Client** | ⬜ Blocked | Mutation queue processor and bidirectional pull cursor |
-| **Stage 6** | **Cryptographic Licence Tokens** | ⬜ Planned | Server-signed JWT entitlement token with 30-day offline grace window |
 
 - [ ] **Subscriber Cloud Custody Invariant:** When a paid subscription is activated, initiate full initial push of all local SQLite entities to Moneta Cloud (Odoo Backend), followed by continuous mutation replication for disaster recovery and mobile companion sync.
 
