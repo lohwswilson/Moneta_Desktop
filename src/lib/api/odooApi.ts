@@ -174,6 +174,23 @@ export const OdooApi = {
   },
 
   /**
+   * Batch import multiple transactions atomically
+   */
+  async batchCreateTransactions(
+    accountId: string | number,
+    transactions: Partial<MonetaTransaction>[]
+  ): Promise<MonetaTransaction[]> {
+    const response = await getApiClient().post('/api/v1/mobile/transactions/batch_create', {
+      jsonrpc: '2.0',
+      params: {
+        account_id: accountId,
+        transactions,
+      },
+    });
+    return response.data?.result?.transactions || [];
+  },
+
+  /**
    * Fetch active envelope budgets
    */
   async getBudgets(): Promise<EnvelopeBudget[]> {
@@ -182,6 +199,45 @@ export const OdooApi = {
       params: {},
     });
     return response.data?.result?.budgets || [];
+  },
+
+  /**
+   * Create a new category envelope in active budget
+   */
+  async createBudget(payload: Partial<EnvelopeBudget>): Promise<EnvelopeBudget> {
+    const response = await getApiClient().post('/api/v1/mobile/budgets/create', {
+      jsonrpc: '2.0',
+      params: payload,
+    });
+    return response.data?.result?.budget;
+  },
+
+  /**
+   * Update an existing category envelope
+   */
+  async updateBudget(
+    id: string | number,
+    payload: Partial<EnvelopeBudget>
+  ): Promise<EnvelopeBudget> {
+    const response = await getApiClient().post('/api/v1/mobile/budgets/update', {
+      jsonrpc: '2.0',
+      params: {
+        id,
+        ...payload,
+      },
+    });
+    return response.data?.result?.budget;
+  },
+
+  /**
+   * Delete an envelope from budget
+   */
+  async deleteBudget(id: string | number): Promise<boolean> {
+    const response = await getApiClient().post('/api/v1/mobile/budgets/delete', {
+      jsonrpc: '2.0',
+      params: { id },
+    });
+    return response.data?.result?.success || false;
   },
 
   /**

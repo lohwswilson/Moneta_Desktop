@@ -84,8 +84,30 @@ export class OdooAdapter implements IMonetaRepository {
     return OdooApi.deleteTransaction(id);
   }
 
+  async batchCreateTransactions(
+    accountId: string | number,
+    transactions: Partial<MonetaTransaction>[]
+  ): Promise<MonetaTransaction[]> {
+    return OdooApi.batchCreateTransactions(accountId, transactions);
+  }
+
   async getBudgets(): Promise<EnvelopeBudget[]> {
     return OdooApi.getBudgets();
+  }
+
+  async createBudget(payload: Partial<EnvelopeBudget>): Promise<EnvelopeBudget> {
+    return OdooApi.createBudget(payload);
+  }
+
+  async updateBudget(
+    id: string | number,
+    payload: Partial<EnvelopeBudget>
+  ): Promise<EnvelopeBudget> {
+    return OdooApi.updateBudget(id, payload);
+  }
+
+  async deleteBudget(id: string | number): Promise<boolean> {
+    return OdooApi.deleteBudget(id);
   }
 
   async getSettings(): Promise<OdooSettingsPayload | null> {
