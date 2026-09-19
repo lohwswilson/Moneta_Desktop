@@ -1,0 +1,1869 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="High-Performance Offline-First Personal Finance & Wealth Desktop Suite">
+      
+      
+        <meta name="author" content="Wilson Loh">
+      
+      
+        <link rel="canonical" href="https://lohwswilson.github.io/Moneta_Wealth/05_ODOO_SYNC_AND_API_INTEGRATION/">
+      
+      
+        <link rel="prev" href="../04_LOCAL_SQLITE_AND_OFFLINE_STORAGE/">
+      
+      
+        <link rel="next" href="../06_COMMAND_CENTER_AND_FIRE_ANALYTICS/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="zensical-0.0.63">
+    
+    
+      
+        <title>Odoo Sync & API Integration - Moneta Wealth</title>
+      
+    
+    
+      
+        
+      
+      <link rel="stylesheet" href="../assets/stylesheets/modern/main.10763589.min.css">
+      
+        
+          
+        
+        <link rel="stylesheet" href="../assets/stylesheets/modern/palette.812a03bb.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,500,500i,700,700i%7CJetBrains+Mono:400,400i,700,700i&amp;display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_scope.pathname.endsWith("/")||(__md_scope=new URL(__md_scope.pathname+"/",location)),__md_hash=e=>[...e].reduce(((e,t)=>(e<<5)-e+t.charCodeAt(0)),0),__md_get=(e,t=localStorage,_=__md_scope)=>JSON.parse(t.getItem(_.pathname+"."+e)),__md_set=(e,t,_=localStorage,a=__md_scope)=>{try{_.setItem(a.pathname+"."+e,JSON.stringify(t))}catch(e){}},document.documentElement.setAttribute("data-platform",navigator.platform)</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer" aria-label="Navigation"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#moneta-cloud-sync-api-integration" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="./.." title="Moneta Wealth" class="md-header__button md-logo" aria-label="Moneta Wealth" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 5v16M20.001 19A2 2 0 0 0 22 17V5a2 2 0 0 0-1.999-2L16 3.002A5 5 0 0 0 12 5a5 5 0 0 0-4-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 1.999 2H8a5 5 0 0 1 4 2 5 5 0 0 1 4-2z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer" aria-label="Navigation">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-menu" viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h16"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Moneta Wealth
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Odoo Sync & API Integration
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="none" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="none" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-moon" viewBox="0 0 24 24"><path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search" aria-label="Search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-search" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog" aria-label="Search">
+  <button type="button" class="md-search__button">
+    Search
+  </button>
+</div>
+      
+    
+    <div class="md-header__source">
+      
+        <a href="https://github.com/lohwswilson/Moneta_Wealth" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2026 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    lohwswilson/Moneta_Wealth
+  </div>
+</a>
+      
+    </div>
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="./.." class="md-tabs__link">
+        
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+      
+    
+    
+    
+      <li class="md-tabs__item">
+        <a href="../user-guide/" class="md-tabs__link">
+          
+  
+  User Guide
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+      
+    
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../01_GETTING_STARTED/" class="md-tabs__link">
+          
+  
+  Architecture & Specs
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="./.." title="Moneta Wealth" class="md-nav__button md-logo" aria-label="Moneta Wealth" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 5v16M20.001 19A2 2 0 0 0 22 17V5a2 2 0 0 0-1.999-2L16 3.002A5 5 0 0 0 12 5a5 5 0 0 0-4-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 1.999 2H8a5 5 0 0 1 4 2 5 5 0 0 1 4-2z"/></svg>
+
+    </a>
+    Moneta Wealth
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/lohwswilson/Moneta_Wealth" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2026 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    lohwswilson/Moneta_Wealth
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="./.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Home
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  User Guide
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        
+          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_2">
+              <span class="md-nav__icon md-icon"></span>
+              
+  
+  User Guide
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Overview
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/01-getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Getting Started & UI Tour
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/02-accounts-and-banking/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Accounts, Register & Reconciliation
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/03-statement-import-and-rules/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Statement Import & Rules Engine
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/04-budgeting-and-bills/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Zero-Based Budgeting & Bills
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/05-cash-flow-and-analytics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Cash Flow & Payee Intelligence
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/06-wealth-and-goals/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Net Worth, FIRE & Goals
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/07-investments-and-property/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Investments, Mortgages & Landlord
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/08-database-and-backups/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Database Manager & Backups
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+            </ul>
+          </nav>
+        
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Architecture & Specs
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        
+          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+            <label class="md-nav__title" for="__nav_3">
+              <span class="md-nav__icon md-icon"></span>
+              
+  
+  Architecture & Specs
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../01_GETTING_STARTED/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Getting Started (Dev)
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../02_BANKING_AND_CHECKBOOK_REGISTER/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Banking & Checkbook Register
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../03_BANK_STATEMENT_WIZARD_AND_RULES/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Statement Wizard & Rules Engine
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../04_LOCAL_SQLITE_AND_OFFLINE_STORAGE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Local SQLite & Offline Storage
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Odoo Sync & API Integration
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="././" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Odoo Sync & API Integration
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-local-first-data-layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        1. Local-First Data Layer
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-sync-direction-the-write-endpoint-gap" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        2. Sync Direction &amp; the Write-Endpoint Gap
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-odoo-18-rest-controller-endpoints" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        3. Odoo 18 REST Controller Endpoints
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Odoo 18 REST Controller Endpoints">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#core" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Core
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#transactions" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Transactions
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bills-budgets-subscriptions" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Bills, budgets &amp; subscriptions
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#goals-investments-property-loans" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Goals, investments, property, loans
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#payees" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Payees
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-bearer-pat-authentication" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        4. Bearer PAT Authentication
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-cross-origin-cors-network-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        5. Cross-Origin (CORS) &amp; Network Architecture
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Cross-Origin (CORS) &amp; Network Architecture">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#vite-dev-proxy-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Vite Dev Proxy Configuration
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tauri-native-rust-adapter" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Tauri Native Rust Adapter
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../06_COMMAND_CENTER_AND_FIRE_ANALYTICS/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Command Center & FIRE Analytics
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../07_ROADMAP_AND_FEATURE_PARITY/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Roadmap & Parity Audit
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../08_PLANNING_AND_FORECASTING_HUBS/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Planning & Forecasting Hubs
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../09_PAYEE_INTELLIGENCE_AND_DIRECTORY/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Payee Intelligence & Directory
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../10_STOCK_PORTFOLIO_AND_TAX_LOTS/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Stock Portfolio & Tax Lots
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../11_PROPERTY_MORTGAGES_AND_RENTAL/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Property, Mortgages & Rental
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+            </ul>
+          </nav>
+        
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  
+                    
+                    
+                    
+                      
+                    
+                    
+                      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+                      <div class="md-sidebar-button__wrapper">
+                        <label class="md-sidebar-button" for="__toc"></label>
+                      </div>
+                    
+                  
+                  <div class="md-sidebar__inner">
+                    
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-local-first-data-layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        1. Local-First Data Layer
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-sync-direction-the-write-endpoint-gap" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        2. Sync Direction &amp; the Write-Endpoint Gap
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-odoo-18-rest-controller-endpoints" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        3. Odoo 18 REST Controller Endpoints
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Odoo 18 REST Controller Endpoints">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#core" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Core
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#transactions" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Transactions
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bills-budgets-subscriptions" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Bills, budgets &amp; subscriptions
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#goals-investments-property-loans" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Goals, investments, property, loans
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#payees" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Payees
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-bearer-pat-authentication" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        4. Bearer PAT Authentication
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-cross-origin-cors-network-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        5. Cross-Origin (CORS) &amp; Network Architecture
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Cross-Origin (CORS) &amp; Network Architecture">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#vite-dev-proxy-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Vite Dev Proxy Configuration
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tauri-native-rust-adapter" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Tauri Native Rust Adapter
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+  
+  
+
+
+<h1 id="moneta-cloud-sync-api-integration">Moneta Cloud Sync &amp; API Integration<a class="headerlink" href="#moneta-cloud-sync-api-integration" title="Permanent link">&para;</a></h1>
+<p>Moneta Wealth runs completely standalone — a local SQLite database on your machine — or optionally connects to a <strong>Moneta Cloud</strong> backend (a self-hosted Odoo 18 server running the <a href="https://github.com/lohwswilson/moneta_core"><code>moneta_core</code></a> module).</p>
+<hr />
+<h2 id="1-local-first-data-layer">1. Local-First Data Layer<a class="headerlink" href="#1-local-first-data-layer" title="Permanent link">&para;</a></h2>
+<p>All data access is mediated through the <a href="file:///opt/moneta_wealth/src/lib/data/repository.ts"><code>IMonetaRepository</code></a> interface, but <strong>the repository is always the local store</strong>:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Adapter</th>
+<th style="text-align: left;">Role</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>SqliteAdapter</code></td>
+<td style="text-align: left;">The real ledger. Embedded WebAssembly SQLite, persisted to IndexedDB.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>MockAdapter</code></td>
+<td style="text-align: left;">In-memory sandbox, selected by <code>dataSource: 'sandbox'</code>. Never syncs.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>OdooAdapter</code></td>
+<td style="text-align: left;"><strong>Not a repository driver.</strong> Reached only by explicit operations — settings sync and the one-time migration.</td>
+</tr>
+</tbody>
+</table>
+<p><code>OdooAdapter</code> is never the source of ordinary reads and writes. That is the local-first model; see <code>ARCHITECTURE.md</code> §6.</p>
+<p>The interface declares optional capabilities with <code>?</code>, so an adapter that does not implement one degrades to an empty list rather than throwing:</p>
+<div class="highlight"><pre><span></span><code><span class="k">export</span><span class="w"> </span><span class="kd">interface</span><span class="w"> </span><span class="nx">IMonetaRepository</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="c1">// Core ledger — required</span>
+<span class="w">  </span><span class="nx">getAccounts</span><span class="p">()</span><span class="o">:</span><span class="w"> </span><span class="nb">Promise</span><span class="o">&lt;</span><span class="nx">MonetaAccount</span><span class="p">[]</span><span class="o">&gt;</span><span class="p">;</span>
+<span class="w">  </span><span class="nx">getAccountTransactions</span><span class="p">(</span><span class="nx">accountId</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="kt">number</span><span class="p">,</span><span class="w"> </span><span class="nx">limit?</span><span class="o">:</span><span class="w"> </span><span class="kt">number</span><span class="p">)</span><span class="o">:</span><span class="w"> </span><span class="nb">Promise</span><span class="o">&lt;</span><span class="nx">MonetaTransaction</span><span class="p">[]</span><span class="o">&gt;</span><span class="p">;</span>
+<span class="w">  </span><span class="nx">createTransaction</span><span class="p">(</span><span class="nx">payload</span><span class="o">:</span><span class="w"> </span><span class="kt">Partial</span><span class="o">&lt;</span><span class="nx">MonetaTransaction</span><span class="o">&gt;</span><span class="p">)</span><span class="o">:</span><span class="w"> </span><span class="nb">Promise</span><span class="o">&lt;</span><span class="nx">MonetaTransaction</span><span class="o">&gt;</span><span class="p">;</span>
+
+<span class="w">  </span><span class="c1">// Optional capabilities</span>
+<span class="w">  </span><span class="nx">getGoals</span><span class="o">?</span><span class="p">()</span><span class="o">:</span><span class="w"> </span><span class="nb">Promise</span><span class="o">&lt;</span><span class="nx">FinancialGoal</span><span class="p">[]</span><span class="o">&gt;</span><span class="p">;</span>
+<span class="w">  </span><span class="nx">createGoal</span><span class="o">?</span><span class="p">(</span><span class="nx">payload</span><span class="o">:</span><span class="w"> </span><span class="kt">Partial</span><span class="o">&lt;</span><span class="nx">FinancialGoal</span><span class="o">&gt;</span><span class="p">)</span><span class="o">:</span><span class="w"> </span><span class="nb">Promise</span><span class="o">&lt;</span><span class="nx">FinancialGoal</span><span class="o">&gt;</span><span class="p">;</span>
+<span class="w">  </span><span class="nx">getProperties</span><span class="o">?</span><span class="p">()</span><span class="o">:</span><span class="w"> </span><span class="nb">Promise</span><span class="o">&lt;</span><span class="nx">PropertyAsset</span><span class="p">[]</span><span class="o">&gt;</span><span class="p">;</span>
+<span class="w">  </span><span class="nx">getPendingChanges</span><span class="o">?</span><span class="p">(</span><span class="nx">limit?</span><span class="o">:</span><span class="w"> </span><span class="kt">number</span><span class="p">)</span><span class="o">:</span><span class="w"> </span><span class="nb">Promise</span><span class="o">&lt;</span><span class="nx">SyncChange</span><span class="p">[]</span><span class="o">&gt;</span><span class="p">;</span>
+<span class="w">  </span><span class="c1">// …51 endpoints across the domains documented in §3</span>
+<span class="p">}</span>
+</code></pre></div>
+<hr />
+<h2 id="2-sync-direction-the-write-endpoint-gap">2. Sync Direction &amp; the Write-Endpoint Gap<a class="headerlink" href="#2-sync-direction-the-write-endpoint-gap" title="Permanent link">&para;</a></h2>
+<p>Odoo was originally reached as a <strong>query target</strong>: the app asked it for data and displayed it. Sync requires the opposite — Odoo as a <strong>replication target</strong>, with SQLite as the always-present local copy that is periodically pushed to and pulled from.</p>
+<p>That inversion has a consequence the endpoint list makes visible: <strong>the API was built for a read-mostly client, and sync is bidirectional.</strong> Every entity the client can change locally needs a <em>push</em> path.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Entity</th>
+<th style="text-align: left;">Server write endpoints</th>
+<th style="text-align: center;">Can sync?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">transactions, bills, goals, property, tenants, loans, budgets</td>
+<td style="text-align: left;"><code>create</code> · <code>update</code> · <code>delete</code></td>
+<td style="text-align: center;">✅</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>accounts</strong></td>
+<td style="text-align: left;"><code>list</code>, <code>verify_balance</code> only</td>
+<td style="text-align: center;">❌</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>rent payments</strong></td>
+<td style="text-align: left;"><code>list</code>, <code>mark_paid</code> only</td>
+<td style="text-align: center;">❌</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>payees</strong></td>
+<td style="text-align: left;"><code>list</code>, <code>update</code> — no create</td>
+<td style="text-align: center;">⚠️</td>
+</tr>
+<tr>
+<td style="text-align: left;">investments</td>
+<td style="text-align: left;">read + <code>trade</code> only</td>
+<td style="text-align: center;">⚠️</td>
+</tr>
+</tbody>
+</table>
+<p>Full parity has been achieved for budgets (<code>createBudget</code>, <code>updateBudget</code>, <code>deleteBudget</code>) and batch transaction operations across the Odoo REST API and client adapters.</p>
+<p><strong>Deletions need explicit support too.</strong> Odoo's <code>unlink</code> removes rows, so a deleted record is simply absent from a query — indistinguishable from one never pushed from this client. Without server-side tombstones, a record deleted on one device is <strong>resurrected</strong> by the next pull from a device that still has it. Odoo's built-in <code>active</code> flag (archive rather than unlink) is the natural mechanism.</p>
+<hr />
+<h2 id="3-odoo-18-rest-controller-endpoints">3. Odoo 18 REST Controller Endpoints<a class="headerlink" href="#3-odoo-18-rest-controller-endpoints" title="Permanent link">&para;</a></h2>
+<p>All 51 endpoints live in <code>moneta_core/controllers/api_mobile.py</code>. The authoritative list of what the client calls is <a href="../../src/lib/api/odooApi.ts"><code>src/lib/api/odooApi.ts</code></a> — <strong>route parity between the two is a verification step</strong> (<code>AGENTS.md</code> §5 step 4), because a client call with no server route fails only when connected to Moneta Cloud.</p>
+<h3 id="core">Core<a class="headerlink" href="#core" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Endpoint</th>
+<th style="text-align: left;">Purpose</th>
+<th style="text-align: left;">Key parameters</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>/api/v1/mobile/ping</code></td>
+<td style="text-align: left;">Connection test &amp; user identity</td>
+<td style="text-align: left;">—</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>/api/v1/mobile/dashboard/summary</code></td>
+<td style="text-align: left;">Consolidated wealth &amp; FIRE metrics</td>
+<td style="text-align: left;">—</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>/api/v1/mobile/accounts/list</code></td>
+<td style="text-align: left;">All accounts, including tangible properties</td>
+<td style="text-align: left;">—</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>/api/v1/mobile/accounts/verify_balance</code></td>
+<td style="text-align: left;">Recompute and verify account running balance</td>
+<td style="text-align: left;"><code>account_id</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>/api/v1/mobile/settings</code></td>
+<td style="text-align: left;">Base currency, FX rates, categorization rules</td>
+<td style="text-align: left;">—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="transactions">Transactions<a class="headerlink" href="#transactions" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Endpoint</th>
+<th style="text-align: left;">Purpose</th>
+<th style="text-align: left;">Key parameters</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>/api/v1/mobile/transactions/register</code></td>
+<td style="text-align: left;">Account register rows</td>
+<td style="text-align: left;"><code>account_id</code>, <code>limit</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>/api/v1/mobile/transactions/create</code></td>
+<td style="text-align: left;">Create a transaction</td>
+<td style="text-align: left;"><code>account_id</code>, <code>date</code>, <code>payee_name</code>, <code>amount</code>, <code>memo</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>/api/v1/mobile/transactions/batch_create</code></td>
+<td style="text-align: left;">Atomic batch transaction creation</td>
+<td style="text-align: left;"><code>transactions</code> (list)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>/api/v1/mobile/transactions/update</code></td>
+<td style="text-align: left;">Edit an existing transaction</td>
+<td style="text-align: left;"><code>id</code>, plus any changed fields</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>/api/v1/mobile/transactions/delete</code></td>
+<td style="text-align: left;">Delete a transaction</td>
+<td style="text-align: left;"><code>id</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>/api/v1/mobile/transactions/reconcile</code></td>
+<td style="text-align: left;">Cycle reconciliation state</td>
+<td style="text-align: left;"><code>transaction_id</code>, <code>reconciliation_state</code></td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>Note the register endpoint is <code>register</code>, <strong>not</strong> <code>list</code>. An earlier revision of this document recorded <code>transactions/list</code>, which has never existed on the server — the same error that once shipped in the client and 404'd the register when connected to Moneta Cloud.</p>
+</blockquote>
+<h3 id="bills-budgets-subscriptions">Bills, budgets &amp; subscriptions<a class="headerlink" href="#bills-budgets-subscriptions" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Endpoint</th>
+<th style="text-align: left;">Purpose</th>
+<th style="text-align: left;">Key parameters</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>/api/v1/mobile/budgets/list</code> · <code>create</code> · <code>update</code> · <code>delete</code></td>
+<td style="text-align: left;">Envelope budget CRUD</td>
+<td style="text-align: left;">budget fields · <code>budget_id</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>/api/v1/mobile/bills/upcoming</code></td>
+<td style="text-align: left;">Bills due within N days</td>
+<td style="text-align: left;"><code>days</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>/api/v1/mobile/bills/create</code> · <code>update</code> · <code>delete</code></td>
+<td style="text-align: left;">Recurring bill CRUD</td>
+<td style="text-align: left;">bill fields · <code>bill_id</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>/api/v1/mobile/bills/mark_paid</code></td>
+<td style="text-align: left;">Post the expense and advance the due date</td>
+<td style="text-align: left;"><code>bill_id</code>, <code>account_id</code>, <code>date</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>/api/v1/mobile/subscriptions/detect</code></td>
+<td style="text-align: left;">Infer recurring charges from history</td>
+<td style="text-align: left;">—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="goals-investments-property-loans">Goals, investments, property, loans<a class="headerlink" href="#goals-investments-property-loans" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Endpoint</th>
+<th style="text-align: left;">Purpose</th>
+<th style="text-align: left;">Key parameters</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>/api/v1/mobile/goals/list</code> · <code>create</code> · <code>update</code> · <code>delete</code></td>
+<td style="text-align: left;">Financial goal CRUD</td>
+<td style="text-align: left;">goal fields · <code>goal_id</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>/api/v1/mobile/goals/fund</code></td>
+<td style="text-align: left;">Deposit into or withdraw from a goal</td>
+<td style="text-align: left;"><code>goal_id</code>, <code>amount</code>, <code>action_type</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>/api/v1/mobile/investments/holdings</code></td>
+<td style="text-align: left;">Portfolio positions</td>
+<td style="text-align: left;"><code>account_id</code> (optional)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>/api/v1/mobile/investments/lots</code></td>
+<td style="text-align: left;">Open tax lots</td>
+<td style="text-align: left;"><code>symbol</code>, <code>account_id</code>, <code>state</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>/api/v1/mobile/investments/disposals</code></td>
+<td style="text-align: left;">Realized capital-gains schedule</td>
+<td style="text-align: left;"><code>year</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>/api/v1/mobile/investments/trade</code></td>
+<td style="text-align: left;">Execute a buy or sell</td>
+<td style="text-align: left;">account, symbol, action, quantity, price, strategy</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>/api/v1/mobile/investments/summary</code></td>
+<td style="text-align: left;">Totals, TWR/MWR, allocation</td>
+<td style="text-align: left;"><code>account_id</code> (optional)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>/api/v1/mobile/property/list</code> · <code>create</code> · <code>update</code> · <code>delete</code></td>
+<td style="text-align: left;">Property CRUD</td>
+<td style="text-align: left;">property fields · <code>property_id</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>/api/v1/mobile/property/valuation</code></td>
+<td style="text-align: left;">Record an appraisal</td>
+<td style="text-align: left;"><code>property_id</code>, <code>valuation_date</code>, <code>appraised_value</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>/api/v1/mobile/tenants/list</code> · <code>create</code> · <code>update</code> · <code>delete</code></td>
+<td style="text-align: left;">Tenant &amp; lease CRUD</td>
+<td style="text-align: left;">tenant fields · <code>tenant_id</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>/api/v1/mobile/tenants/generate_rent</code></td>
+<td style="text-align: left;">Generate the rent schedule (idempotent)</td>
+<td style="text-align: left;"><code>tenant_id</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>/api/v1/mobile/rent/list</code></td>
+<td style="text-align: left;">Rent roll</td>
+<td style="text-align: left;"><code>tenant_id</code> (optional)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>/api/v1/mobile/rent/mark_paid</code></td>
+<td style="text-align: left;">Settle a rent payment</td>
+<td style="text-align: left;"><code>payment_id</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>/api/v1/mobile/loans/list</code> · <code>create</code> · <code>update</code> · <code>delete</code></td>
+<td style="text-align: left;">Loan scenario CRUD</td>
+<td style="text-align: left;">scenario fields · <code>scenario_id</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>/api/v1/mobile/loans/infer_rates</code></td>
+<td style="text-align: left;">Infer rate changes from interest payments</td>
+<td style="text-align: left;"><code>scenario_id</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="payees">Payees<a class="headerlink" href="#payees" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Endpoint</th>
+<th style="text-align: left;">Purpose</th>
+<th style="text-align: left;">Key parameters</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>/api/v1/mobile/payees/list</code></td>
+<td style="text-align: left;">Merchant intelligence</td>
+<td style="text-align: left;">—</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>/api/v1/mobile/payees/update</code></td>
+<td style="text-align: left;">Update payee metadata</td>
+<td style="text-align: left;"><code>payee_id</code>, plus changed fields</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>One server route has no client caller:</strong> <code>/api/v1/mobile/action/undo</code>, which exposes the Odoo action-history undo engine. It is intentionally unused — there is no Desktop UI for it yet.</p>
+</blockquote>
+<p>All requests follow the Odoo 18 JSON-RPC envelope:</p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">"jsonrpc"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2.0"</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"params"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">"account_id"</span><span class="p">:</span><span class="w"> </span><span class="mi">14</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">"limit"</span><span class="p">:</span><span class="w"> </span><span class="mi">100</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+<hr />
+<h2 id="4-bearer-pat-authentication">4. Bearer PAT Authentication<a class="headerlink" href="#4-bearer-pat-authentication" title="Permanent link">&para;</a></h2>
+<p>Authentication uses Odoo's native <strong>Personal Access Token (PAT)</strong> system (<code>res.users.apikeys</code>):</p>
+<ol>
+<li><strong>Headers</strong>: Requests pass the authorization header:
+   <div class="highlight"><pre><span></span><code><span class="err">Authorization: Bearer &lt;API_KEY&gt;</span>
+</code></pre></div></li>
+<li><strong>Scoping</strong>: Odoo scopes every database query to <code>request.env.user</code> corresponding to the token owner, applying all multi-tenant security rules.</li>
+<li><strong>Prefix Normalization</strong>: Moneta Wealth's API client (<a href="file:///opt/moneta_wealth/src/lib/api/client.ts"><code>src/lib/api/client.ts</code></a>) automatically strips redundant <code>"Bearer "</code> prefixes to prevent malformed auth headers.</li>
+</ol>
+<hr />
+<h2 id="5-cross-origin-cors-network-architecture">5. Cross-Origin (CORS) &amp; Network Architecture<a class="headerlink" href="#5-cross-origin-cors-network-architecture" title="Permanent link">&para;</a></h2>
+<p>Connecting a desktop webview or browser app to an external Odoo server faces browser Cross-Origin Resource Sharing (CORS) restrictions. Moneta Wealth solves this with a <strong>dual-architecture network bridge</strong>:</p>
+<div class="highlight"><pre><span></span><code>+-------------------------------------------------------------------------+
+|                  DUAL-ARCHITECTURE NETWORK BRIDGE                       |
+|                                                                         |
+|  [ Environment A: Local Development (Vite Dev Server) ]                |
+|  ├── Requests route to relative path: "/api/v1/mobile/..."             |
+|  ├── Vite reverse proxy forwards traffic to remote server               |
+|  └── Same-origin request: Bypasses browser CORS preflight entirely      |
+|                                                                         |
+|  [ Environment B: Standalone Tauri Desktop App (Production) ]          |
+|  ├── Axios configured with Tauri HTTP Plugin (@tauri-apps/plugin-http)  |
+|  ├── HTTP calls execute via native Rust reqwest networking core         |
+|  └── Native OS execution: Zero CORS restrictions or preflight blocks    |
++-------------------------------------------------------------------------+
+</code></pre></div>
+<h3 id="vite-dev-proxy-configuration">Vite Dev Proxy Configuration<a class="headerlink" href="#vite-dev-proxy-configuration" title="Permanent link">&para;</a></h3>
+<p>In <a href="file:///opt/moneta_wealth/vite.config.ts"><code>vite.config.ts</code></a>:
+<div class="highlight"><pre><span></span><code><span class="nx">server</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">proxy</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="s1">'/api'</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="nx">target</span><span class="o">:</span><span class="w"> </span><span class="s1">'https://weeseng.dev8.ansis.com.sg'</span><span class="p">,</span>
+<span class="w">      </span><span class="nx">changeOrigin</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="p">,</span>
+<span class="w">      </span><span class="nx">secure</span><span class="o">:</span><span class="w"> </span><span class="kt">false</span><span class="p">,</span>
+<span class="w">    </span><span class="p">},</span>
+<span class="w">  </span><span class="p">},</span>
+<span class="p">}</span>
+</code></pre></div></p>
+<h3 id="tauri-native-rust-adapter">Tauri Native Rust Adapter<a class="headerlink" href="#tauri-native-rust-adapter" title="Permanent link">&para;</a></h3>
+<p>In <a href="file:///opt/moneta_wealth/src/lib/api/client.ts"><code>src/lib/api/client.ts</code></a>:
+<div class="highlight"><pre><span></span><code><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="ow">typeof</span><span class="w"> </span><span class="nb">window</span><span class="w"> </span><span class="o">!==</span><span class="w"> </span><span class="s1">'undefined'</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="s1">'__TAURI_INTERNALS__'</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="nb">window</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="c1">// Use Tauri's native Rust HTTP client to bypass browser CORS</span>
+<span class="w">  </span><span class="nx">client</span><span class="p">.</span><span class="nx">defaults</span><span class="p">.</span><span class="nx">adapter</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">createTauriAdapter</span><span class="p">();</span>
+<span class="p">}</span>
+</code></pre></div></p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-circle-arrow-up" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m16 12-4-4-4 4M12 16V8"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../04_LOCAL_SQLITE_AND_OFFLINE_STORAGE/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Local SQLite &amp; Offline Storage">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-arrow-left" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7M19 12H5"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Local SQLite & Offline Storage
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../06_COMMAND_CENTER_AND_FIRE_ANALYTICS/" class="md-footer__link md-footer__link--next" aria-label="Next: Command Center &amp; FIRE Analytics">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Command Center & FIRE Analytics
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-arrow-right" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://zensical.org/" target="_blank" rel="noopener">
+      Zensical
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      
+      
+        
+        
+      <script id="__config" type="application/json">{"annotate":null,"base":"..","features":["navigation.instant","navigation.instant.prefetch","navigation.tracking","navigation.tabs","navigation.tabs.sticky","navigation.top","navigation.footer","search.highlight","search.suggest","content.code.copy"],"redirect":null,"search":"../assets/javascripts/workers/search.7d14d953.min.js","tags":null,"translations":{"clipboard.copied":"Copied to clipboard","clipboard.copy":"Copy to clipboard","search.result.more.one":"1 more on this page","search.result.more.other":"# more on this page","search.result.none":"No matching documents","search.result.one":"1 matching document","search.result.other":"# matching documents","search.result.placeholder":"Type to start searching","search.result.term.missing":"Missing","select.version":"Select version"},"version":null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.8dcc8e9c.min.js"></script>
+      
+    
+  </body>
+</html>
