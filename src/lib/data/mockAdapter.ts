@@ -349,6 +349,11 @@ export class MockAdapter implements IMonetaRepository {
     return false;
   }
 
+  async resetDatabase(): Promise<void> {
+    mockAccounts.length = 0;
+    mockTransactions.length = 0;
+  }
+
   async getAccountTransactions(
     accountId: string | number,
     _limit?: number

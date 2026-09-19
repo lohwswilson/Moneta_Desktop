@@ -60,8 +60,8 @@ function migrateSavedConfig(parsed: any): ConnectionConfig {
 class FinanceStore {
   // Svelte 5 Runes state
   config = $state<ConnectionConfig>({
-    dataSource: 'sandbox',
-    serverUrl: 'https://weeseng.dev8.ansis.com.sg',
+    dataSource: 'local',
+    serverUrl: '',
     apiToken: '',
   });
 
@@ -241,20 +241,9 @@ class FinanceStore {
       if (this.cloudConfigured) {
         await this.testCurrentConnection();
 
-        // Settings are pulled every launch: base currency, FX rates and rules
+        // Settings are pulled every launch if cloud is connected: base currency, FX rates and rules
         // are canonical on the server and cheap to refresh.
         await this.syncOdooSettingsToSqlite();
-
-        // Bootstrap: an empty local database on a configured cloud is a first
-        // connect, so pull the ledger down once.
-        try {
-          const localAccounts = await this.sqliteAdapter.getAccounts();
-          if (localAccounts.length === 0) {
-            await this.migrateFromOdoo(this.config.serverUrl, this.config.apiToken);
-          }
-        } catch (err) {
-          console.warn('Cloud bootstrap skipped:', err);
-        }
       } else {
         await this.testCurrentConnection();
       }
@@ -1338,11 +1327,40 @@ class FinanceStore {
   async resetLocalDatabase(): Promise<{ success: boolean; message: string }> {
     this.isLoading = true;
     try {
+      // 1. Reset SQLite
       await this.sqliteAdapter.resetDatabase();
+
+      // 2. Clear all local store collections immediately
+      this.accounts = [];
+      this.transactions = [];
+      this.selectedAccountId = null;
+      this.budgets = [];
+      this.bills = [];
+      this.goals = [];
+      this.properties = [];
+      this.holdings = [];
+      this.taxLots = [];
+      this.taxLotDisposals = [];
+      this.metrics = null;
+      this.activeView = 'command_center';
+
+      // 3. Ensure we are in local store mode
+      if (this.config.dataSource !== 'local') {
+        this.config.dataSource = 'local';
+        this.saveConfig(this.config);
+      }
+
+      // 4. Also reset mock repository if active
+      if (this.repository.resetDatabase) {
+        await this.repository.resetDatabase();
+      }
+
+      // 5. Reload clean state
       await this.refreshAll();
+
       return {
         success: true,
-        message: 'Database has been reset to a clean state.',
+        message: 'Database has been reset. All accounts and records have been cleared.',
       };
     } catch (err: any) {
       console.error('Failed to reset database:', err);

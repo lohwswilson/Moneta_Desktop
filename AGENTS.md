@@ -1,6 +1,8 @@
 # AGENTS.md: Developer & AI Assistant Operating Guide
 
-This document defines the canonical architecture rules, coding standards, and operational workflows for AI coding assistants (Antigravity, Claude Code, Hermes, Cursor) working within the **`Moneta Wealth`** repository at `/opt/moneta_wealth`.
+This document defines the canonical architecture rules, coding standards, and operational workflows for AI coding assistants (Antigravity, Claude Code, Hermes, Cursor) working within the **`Moneta Wealth`** repository.
+
+All paths here are **relative to the repository root**. On the current machine that root is `/Users/wsloh/moneta_wealth`, which is also reachable as `/opt/moneta_wealth` — a **symlink, not a second copy**. Prefer the relative form in anything you write, so the guide survives a clone or a moved checkout.
 
 > **Naming — do not "fix" these.** The project was renamed from **Moneta Desktop** to **Moneta Wealth** on 2026-09-19, across the repository, package, app title and documentation. Two classes of old string remain **deliberately** and must be left alone:
 >
@@ -53,11 +55,13 @@ This document defines the canonical architecture rules, coding standards, and op
 ## 2. Directory Layout & Key Files
 
 ```
-/opt/moneta_wealth/
+moneta_wealth/                       # Repo root — /opt/moneta_wealth symlinks here
 ├── ARCHITECTURE.md                  # Detailed system architecture specification
 ├── AGENTS.md                        # This developer guide
+├── CONTRIBUTING.md                  # Two-repo model, licence & PR conventions
 ├── README.md                        # Repository overview & quickstart
 ├── ROADMAP.md                       # Phase-by-phase feature parity roadmap
+├── run_desktop.sh                   # `npm run start` launcher (Vite + Tauri, browser fallback)
 ├── docs/                            # Numbered documentation suite
 │   ├── index.md                     # Documentation overview
 │   ├── 01_GETTING_STARTED.md        # Setup, dev & desktop launch options
@@ -70,7 +74,8 @@ This document defines the canonical architecture rules, coding standards, and op
 │   ├── 08_PLANNING_AND_FORECASTI... # Budgets, bills, cash flow & goals hubs
 │   ├── 09_PAYEE_INTELLIGENCE_A...   # Merchant memory & spend analytics
 │   ├── 10_STOCK_PORTFOLIO_AND_T...  # Holdings, disposal strategies, TWR/MWR
-│   └── 11_PROPERTY_MORTGAGES_AN...  # Equity, amortization, prepayment, rent roll
+│   ├── 11_PROPERTY_MORTGAGES_AN...  # Equity, amortization, prepayment, rent roll
+│   └── adr/                         # Architecture Decision Records 0001–0006 (0006 = sync conflict policy)
 ├── scripts/
 │   ├── verify_goal_math.ts          # Goal progress maths assertions
 │   ├── verify_portfolio_math.ts     # Lot / disposal / TWR-MWR assertions
@@ -128,11 +133,11 @@ This document defines the canonical architecture rules, coding standards, and op
 ## 3. SQLite Schema Evolution Protocol
 
 When modifying or extending the SQLite database:
-1. Update table creation DDL in the `runMigrations()` method in [`src/lib/data/sqliteAdapter.ts`](file:///opt/moneta_wealth/src/lib/data/sqliteAdapter.ts).
+1. Update table creation DDL in the `runMigrations()` method in [`src/lib/data/sqliteAdapter.ts`](src/lib/data/sqliteAdapter.ts).
 2. Ensure new tables include `IF NOT EXISTS`.
 3. If seeding new default records, check table row counts first before inserting.
 4. Always invoke `await this.persist()` after executing write transactions to flush binary database buffers into IndexedDB.
-5. **If the table holds user data, add it to `SYNC_TRACKED_TABLES`** in [`src/lib/data/syncSchema.ts`](file:///opt/moneta_wealth/src/lib/data/syncSchema.ts) so its changes are recorded for sync. Settings-like tables that are canonical on the server (`app_settings`, `currency_rates`) stay out of that list — a local edit to them is not something to push.
+5. **If the table holds user data, add it to `SYNC_TRACKED_TABLES`** in [`src/lib/data/syncSchema.ts`](src/lib/data/syncSchema.ts) so its changes are recorded for sync. Settings-like tables that are canonical on the server (`app_settings`, `currency_rates`) stay out of that list — a local edit to them is not something to push.
 6. **Never create sync triggers before the seed block.** `buildSyncSchemaDDL()` runs at the *end* of `runMigrations()` deliberately; attaching triggers first queued ~48 seeded default rows as pending changes, which a first sync would push as though the user had entered them.
 
 ---
@@ -170,20 +175,14 @@ npm run check
 # 2. Verify production bundle compilation
 npm run build
 
-# 3. Run domain-maths assertions
-node --experimental-strip-types scripts/verify_goal_math.ts
-node --experimental-strip-types scripts/verify_portfolio_math.ts
-node --experimental-strip-types scripts/verify_loan_math.ts
-node --experimental-strip-types scripts/verify_property_math.ts
-
-# 3b. Sync change-tracking schema (runs a real SQLite engine)
-node --experimental-strip-types scripts/verify_sync_tracking.ts
-
-# 3c. Sync conflict policy (pure logic — see ADR 0006)
-node --experimental-strip-types scripts/verify_sync_conflict.ts
-
-# 3d. Database backup & restore verification (WASM SQLite)
-node --experimental-strip-types scripts/verify_backup_restore.ts
+# 3. Run every assertion script: domain maths, sync change-tracking (real SQLite
+#    engine), sync conflict policy (ADR 0006), and backup/restore (WASM SQLite).
+#    The glob is deliberate — §4 step 7 adds scripts to this directory, and a
+#    hand-maintained list would silently stop running the new ones.
+for f in scripts/verify_*.ts; do
+  echo "── $(basename "$f")"
+  node --experimental-strip-types "$f" || exit 1
+done
 
 # 4. Route parity — every client call must have a server route.
 #    Client calls:   src/lib/api/odooApi.ts
