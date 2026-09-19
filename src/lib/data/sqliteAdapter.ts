@@ -27,7 +27,7 @@ import type {
   SyncOp,
 } from '../types/moneta';
 import type { VerifyBalanceResult } from './repository';
-import { buildSyncSchemaDDL } from './syncSchema';
+import { buildSyncSchemaDDL, SYNC_NOW_EXPR } from './syncSchema';
 import initSqlJs, { type Database, type SqlJsStatic } from 'sql.js';
 import { DEFAULT_RULES } from './rulesEngine';
 import { computeGoalMetrics, toDateOnlyString, todayDateOnly } from './goalMath';
@@ -3807,7 +3807,7 @@ export class SqliteAdapter implements IMonetaRepository {
       .join(',');
     if (!list) return 0;
 
-    this.db.run(`UPDATE sync_changes SET synced_at = datetime('now') WHERE id IN (${list});`);
+    this.db.run(`UPDATE sync_changes SET synced_at = ${SYNC_NOW_EXPR} WHERE id IN (${list});`);
     await this.persist();
     return ids.length;
   }

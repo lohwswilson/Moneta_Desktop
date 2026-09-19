@@ -211,13 +211,15 @@ CREATE TABLE IF NOT EXISTS sync_changes (
   entity TEXT NOT NULL,
   entity_id TEXT NOT NULL,
   op TEXT NOT NULL,
-  changed_at TEXT NOT NULL DEFAULT (datetime('now')),
+  changed_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   synced_at TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_sync_changes_pending
   ON sync_changes (synced_at, id);
 ```
+
+> **Milliseconds, not seconds.** `datetime('now')` has one-second resolution, so two changes in the same second compare equal and the conflict tie-break decides arbitrarily. The fixed-width UTC format also sorts lexicographically, so plain string comparison is a correct chronological ordering.
 
 Three triggers — `AFTER INSERT`, `AFTER UPDATE`, `AFTER DELETE` — are created for each of the 18 user-data tables listed in `SYNC_TRACKED_TABLES`. `app_settings` and `currency_rates` are deliberately excluded: they are canonical on the server and pulled *down*, so a local edit is not something to push.
 

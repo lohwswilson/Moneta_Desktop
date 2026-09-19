@@ -70,13 +70,24 @@ export const SYNC_TABLE_DDL = `
     entity TEXT NOT NULL,
     entity_id TEXT NOT NULL,
     op TEXT NOT NULL,
-    changed_at TEXT NOT NULL DEFAULT (datetime('now')),
+    changed_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
     synced_at TEXT
   );
 
   CREATE INDEX IF NOT EXISTS idx_sync_changes_pending
     ON sync_changes (synced_at, id);
 `;
+
+/**
+ * SQLite expression for the current time, in ISO-8601 with **milliseconds**.
+ *
+ * `datetime('now')` has one-second resolution, so two changes in the same
+ * second compare equal and a timestamp tie-break decides arbitrarily. Conflict
+ * resolution orders by timestamp (ADR 0006 §1), so the log must be able to
+ * distinguish changes within a second. The trailing `Z` marks the value UTC,
+ * and the format sorts lexicographically — plain string comparison is correct.
+ */
+export const SYNC_NOW_EXPR = `strftime('%Y-%m-%dT%H:%M:%fZ','now')`;
 
 /**
  * One insert, update and delete trigger per tracked table.

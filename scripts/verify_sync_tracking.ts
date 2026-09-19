@@ -124,5 +124,19 @@ console.log('\n6. Pending queue semantics');
   check('editing a synced row re-queues it', requeued, [['g2'], ['g1']]);
 }
 
+console.log('\n7. Timestamps carry milliseconds (ADR 0006 §5)');
+{
+  const db = makeDb();
+  db.run(`INSERT INTO goals (id, name) VALUES ('g1', 'a');`);
+  const ts = rows(db, `SELECT changed_at FROM sync_changes;`)[0][0] as string;
+  // Second resolution would make two changes in the same second compare equal,
+  // leaving the conflict tie-break to decide arbitrarily.
+  check('ISO-8601 with milliseconds and a UTC marker',
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(ts), true);
+  // Fixed-width UTC means plain string comparison is a correct ordering.
+  check('lexicographic order == chronological order',
+    '2026-01-01T00:00:00.999Z' < '2026-01-01T00:00:01.000Z', true);
+}
+
 console.log(`\n${'='.repeat(55)}\n${pass} passed, ${fail} failed\n${'='.repeat(55)}`);
 process.exit(fail === 0 ? 0 : 1);

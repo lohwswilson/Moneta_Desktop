@@ -76,7 +76,8 @@ This document defines the canonical architecture rules, coding standards, and op
 │   ├── verify_portfolio_math.ts     # Lot / disposal / TWR-MWR assertions
 │   ├── verify_loan_math.ts          # Amortization & prepayment assertions
 │   ├── verify_property_math.ts      # Equity / rental / rent-roll assertions
-│   └── verify_sync_tracking.ts      # Change-log triggers against real SQLite
+│   ├── verify_sync_tracking.ts      # Change-log triggers against real SQLite
+│   └── verify_sync_conflict.ts      # Conflict-resolution policy assertions
 ├── src/
 │   ├── App.svelte                   # Root application shell & view routing
 │   ├── lib/
@@ -96,6 +97,7 @@ This document defines the canonical architecture rules, coding standards, and op
 │   │   │   ├── loanMath.ts          # Shared amortization / prepayment derivation
 │   │   │   ├── propertyMath.ts      # Shared equity / rental / rent-roll derivation
 │   │   │   ├── syncSchema.ts        # Change-tracking table & triggers
+│   │   │   ├── syncConflict.ts      # Conflict-resolution policy (ADR 0006)
 │   │   │   └── importers/
 │   │   │       └── bankStatementParser.ts # CSV & QIF statement parser
 │   │   └── components/
@@ -174,6 +176,9 @@ node --experimental-strip-types scripts/verify_property_math.ts
 
 # 3b. Sync change-tracking schema (runs a real SQLite engine)
 node --experimental-strip-types scripts/verify_sync_tracking.ts
+
+# 3c. Sync conflict policy (pure logic — see ADR 0006)
+node --experimental-strip-types scripts/verify_sync_conflict.ts
 
 # 4. Route parity — every client call must have a server route.
 #    Client calls:   src/lib/api/odooApi.ts

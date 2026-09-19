@@ -177,3 +177,4 @@ It operates completely **100% offline-first** using an embedded WebAssembly SQLi
 | [0003](adr/0003-licence-and-billing-topology.md) | Licence and billing topology — one licence database, local token verification, enforcement via the sync service, ANSIS accounting linkage |
 | [0004](adr/0004-entitlement-matrix-and-lifecycle.md) | Entitlement matrix and customer lifecycle — what each tier can access, pricing, the upgrade path, and cancellation |
 | [0005](adr/0005-open-source-and-licence.md) | Open source and licence choice — Apache-2.0 for the desktop app, proprietary server, and the reasoning for each |
+| [0006](adr/0006-sync-conflict-policy.md) | Sync conflict policy — server-arrival last-write-wins, tombstones, and why the clock is not consulted |
