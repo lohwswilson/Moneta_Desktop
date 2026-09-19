@@ -104,6 +104,37 @@ export const OdooApi = {
   },
 
   /**
+   * 10-Second Verify Balance workflow with atomic promotion and optional adjustment
+   */
+  async verifyAccountBalance(
+    accountId: string | number,
+    confirmedBalance: number,
+    adjustmentAmount?: number
+  ): Promise<{
+    success: boolean;
+    reconciled_count: number;
+    cleared_balance: number;
+    current_balance?: number;
+    adjustment_transaction?: MonetaTransaction;
+  }> {
+    const response = await getApiClient().post('/api/v1/mobile/accounts/verify_balance', {
+      jsonrpc: '2.0',
+      params: {
+        account_id: accountId,
+        confirmed_balance: confirmedBalance,
+        adjustment_amount: adjustmentAmount || 0.0,
+      },
+    });
+    return (
+      response.data?.result || {
+        success: false,
+        reconciled_count: 0,
+        cleared_balance: confirmedBalance,
+      }
+    );
+  },
+
+  /**
    * Create a new expense or income transaction
    */
   async createTransaction(payload: Partial<MonetaTransaction>): Promise<MonetaTransaction> {

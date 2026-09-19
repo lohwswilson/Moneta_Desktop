@@ -28,7 +28,7 @@ This document defines the canonical architecture rules, coding standards, and op
 8. **Wire Names, Not ORM Names**:
    The Odoo mobile API translates field names. The ORM field is `transaction_date`; the JSON key is `date`. A client type must match the **wire** name — see [`docs/07`](docs/07_ROADMAP_AND_FEATURE_PARITY.md) for the layer table. "Correcting" a client field to match the ORM breaks it.
 9. **Two-Sided Feature Delivery (Full Parity)**:
-   Every feature ships on **both** sides — `Moneta_Desktop` and the `moneta_finance` Odoo module — implementing the same behaviour and deriving the same figures. A Desktop-only feature is **incomplete**, because subscribers log into the Odoo backend directly and must find a complete system there (see [ADR 0001](docs/adr/0001-subscription-tiers-and-cloud-sync.md)).
+   Every feature ships on **both** sides — `Moneta_Wealth` and the `moneta_finance` Odoo module — implementing the same behaviour and deriving the same figures. A Desktop-only feature is **incomplete**, because subscribers log into the Odoo backend directly and must find a complete system there (see [ADR 0001](docs/adr/0001-subscription-tiers-and-cloud-sync.md)).
 
    This is a deliberate, accepted cost: each feature has two implementations to keep in step. [`docs/07`](docs/07_ROADMAP_AND_FEATURE_PARITY.md) tracks the state of each.
 
