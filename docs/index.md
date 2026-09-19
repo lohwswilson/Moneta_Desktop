@@ -4,7 +4,7 @@
 
 **Moneta Wealth** is a standalone, portable personal finance application combining the checkbook ledger precision of **Quicken Premier**, the zero-based budgeting discipline of **YNAB**, and modern fintech visuals. Built with **Tauri v2**, **Svelte 5 (Runes-native)**, **TypeScript**, **Tailwind CSS v4**, and **SQLite**.
 
-It operates completely **100% offline-first** using an embedded WebAssembly SQLite database with persistent IndexedDB auto-save, while seamlessly offering a pluggable data adapter to synchronize with live self-hosted **Odoo 18 (`moneta_finance`)** servers via Personal Access Token (PAT) authentication.
+It operates completely **100% offline-first** using an embedded WebAssembly SQLite database with persistent IndexedDB auto-save, while seamlessly offering a pluggable data adapter to synchronize with live self-hosted **Odoo 18 (`moneta_wealth`)** servers via Personal Access Token (PAT) authentication.
 
 ---
 
@@ -85,7 +85,7 @@ It operates completely **100% offline-first** using an embedded WebAssembly SQLi
 ### 6. 🗄️ Offline-First SQLite with 1-Click Moneta Cloud Migration
 - **Zero-Server Standalone**: WebAssembly SQLite (`sql.js`) stores data locally with automatic persistence to browser IndexedDB.
 - **Binary Backup Export**: 1-click `.sqlite` file export for external backups or analysis in SQLite tools.
-- **1-Click Moneta Cloud Migration**: Connects to a Moneta Cloud backend (Odoo 18 `moneta_finance`), downloads accounts and historical transactions, and populates the local database automatically.
+- **1-Click Moneta Cloud Migration**: Connects to a Moneta Cloud backend (Odoo 18 `moneta_wealth`), downloads accounts and historical transactions, and populates the local database automatically.
 
 ### 7. 🎯 Zero-Based Envelope Budgets
 - **Category Envelopes**: Monthly income allocation across Needs, Wants and Savings with a live burn-pace indicator.
@@ -130,7 +130,7 @@ It operates completely **100% offline-first** using an embedded WebAssembly SQLi
 
 ## 📊 Feature Comparison Matrix
 
-| Feature / Capability | Moneta Wealth | Quicken Premier | YNAB | Monarch Money | Odoo moneta_finance |
+| Feature / Capability | Moneta Wealth | Quicken Premier | YNAB | Monarch Money | Odoo moneta_wealth |
 | :--- | :---: | :---: | :---: | :---: | :---: |
 | **100% Offline Standalone** | **✔ Native SQLite** | ✖ Requires Login | ✖ Cloud Only | ✖ Cloud Only | ✖ Server Required |
 | **Portable Single-Binary App** | **✔ Tauri v2 (~35 MB)** | ✖ Heavyweight (~500MB) | ✖ Electron (~300MB) | ✖ Electron (~250MB) | ✖ Web Browser |
@@ -162,7 +162,7 @@ It operates completely **100% offline-first** using an embedded WebAssembly SQLi
 4. **[Local SQLite & Offline Storage](04_LOCAL_SQLITE_AND_OFFLINE_STORAGE.md)**: WebAssembly SQLite, IndexedDB persistence, the full DDL schema, and `.sqlite` export.
 5. **[Moneta Cloud Sync & API Integration](05_ODOO_SYNC_AND_API_INTEGRATION.md)**: Pluggable repository, `/api/v1/mobile/*` endpoints, Bearer PAT auth, and CORS handling.
 6. **[Wealth Command Center & Analytics](06_COMMAND_CENTER_AND_FIRE_ANALYTICS.md)**: Net worth calculations, emergency runway, burn rates, and 4% FIRE tracking.
-7. **[Product Roadmap & Parity Plan](07_ROADMAP_AND_FEATURE_PARITY.md)**: Phase-by-phase parity audit against Odoo `moneta_finance`.
+7. **[Product Roadmap & Parity Plan](07_ROADMAP_AND_FEATURE_PARITY.md)**: Phase-by-phase parity audit against Odoo `moneta_wealth`.
 8. **[Planning, Budgeting & Forecasting Hubs](08_PLANNING_AND_FORECASTING_HUBS.md)**: Envelope budgets, recurring bills, cash flow forecasting and financial goals.
 9. **[Payee Intelligence & Directory](09_PAYEE_INTELLIGENCE_AND_DIRECTORY.md)**: Merchant memory, cadence detection and spend analytics.
 10. **[Stock Portfolio & Tax-Lot Accounting](10_STOCK_PORTFOLIO_AND_TAX_LOTS.md)**: Holdings register, disposal strategies, TWR/MWR, and the two Phase 4 boundaries.

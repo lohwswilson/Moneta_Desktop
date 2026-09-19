@@ -9,7 +9,7 @@
 
 ## Context
 
-Moneta Cloud is the hosted backend for Moneta Wealth and Moneta Mobile. ADR 0001 established that it is the existing Odoo 18 `moneta_finance` deployment rather than a new service, and dropped Supabase.
+Moneta Cloud is the hosted backend for Moneta Wealth and Moneta Mobile. ADR 0001 established that it is the existing Odoo 18 `moneta_wealth` deployment rather than a new service, and dropped Supabase.
 
 This ADR records the platform decision and — importantly — the **narrowed role** Odoo plays in the product.
 
@@ -23,29 +23,28 @@ This ADR records the platform decision and — importantly — the **narrowed ro
 
 | Factor | Assessment |
 | :--- | :--- |
-| **Existing asset** | `moneta_finance` ships a 45-route `/api/v1/mobile/*` surface and models every entity (accounts, transactions, budgets, bills, goals, securities, lots, properties, tenants, rent payments, loans) plus SG/MY satellites |
+| **Existing asset** | `moneta_wealth` ships a 45-route `/api/v1/mobile/*` surface and models every entity (accounts, transactions, budgets, bills, goals, securities, lots, properties, tenants, rent payments, loans) plus SG/MY satellites |
 | **Existing competence** | ANSIS already runs Odoo hosting with SLA, backups and security patching. Moneta Cloud is a new instance of an operating business, not a new capability |
 | **Migration experience** | BYQ6, SYC, SG07, SYC5 and `odoo_migrator` — the team knows where Odoo hurts before committing rather than after |
 | **Multi-database is Odoo's design centre** | Odoo's own SaaS is many databases on shared infrastructure |
 | **Accounting reuse** | Subscription invoicing, revenue recognition, dunning and tax handling come from Odoo Accounting rather than being rebuilt |
 
-### 2. Odoo's role: sync store, billing, and full feature parity
+### 2. Odoo's role: headless engine, sync store, billing, and admin console
 
-Odoo is responsible for three things:
+Odoo is responsible for four things:
 
-1. **Sync store** — the canonical copy of subscriber data, so Desktop and Mobile agree
-2. **Licensing and billing** — subscriptions, entitlement, invoicing (see ADR 0003)
-3. **Full feature parity** — every feature is implemented in the `moneta_finance` module as well as in Desktop
+1. **Headless domain engine** — all data models, ORM constraints, multi-currency handling, and scheduled automations (quotes, recurring rules) live in `moneta_core`
+2. **Sync store** — the canonical cloud copy of subscriber data via `/api/v1/mobile/*`
+3. **Licensing and billing** — subscriptions, entitlement, invoicing (see ADR 0003)
+4. **Admin and audit console** — standard Odoo list/form views for system administration, debugging, and customer support
 
-> **Amended 2026-09-19.** This ADR originally narrowed Odoo to a data store, reasoning that all features live in Desktop so the cross-system parity burden could be dropped. **That was changed.** Subscribers log into the Odoo backend directly and must find a complete system there, so full parity is required — recorded as AGENTS.md invariant 9.
+> **Amended 2026-09-19.** Decoupled consumer UI/UX from Odoo. **Moneta Wealth (Desktop & Mobile) is the exclusive consumer product surface.** Custom OWL dashboards and consumer web UI development in Odoo are retired. This eliminates the dual-frontend maintenance burden while strictly retaining data model, calculation, and API parity (recorded as revised AGENTS.md Invariant 9).
 
-The cost is accepted deliberately, and should be understood rather than discovered:
+The division of responsibility is clean:
 
-- **Every feature now has two implementations to keep in step.** This is the maintenance burden the original text claimed to remove. It is reinstated, not avoided.
-- **Figures that can silently disagree are the real risk.** Amortization, tax lots, goal progress and rental yield all render a wrong number without erroring, in either codebase. AGENTS.md invariant 9 names each Desktop shared module's Odoo counterpart as a **maintenance contract** — changing one obliges changing the other — and the `scripts/verify_*.ts` suites pin the Desktop side of each pair.
-- **The Odoo web UI is a first-class subscriber surface**, not an optional power-user view. Its presentation still reads as Odoo rather than Moneta — Desktop and Mobile remain the brand — but the *functionality* there must be complete.
-
-Desktop remains the reference implementation for new work: build there first, then mirror into Odoo. That ordering keeps the wire contract (which the client is typed against) settled before the server side is written.
+- **Consumer UI/UX**: 100% in Moneta Wealth (Svelte 5 + WebAssembly SQLite). Fast, modern, offline-first.
+- **Data & Computation Parity**: Shared math modules (`goalMath.ts`, `loanMath.ts`, `portfolioMath.ts`, `propertyMath.ts`) mirror their Python counterparts in `moneta_core/models/`.
+- **Odoo Web UI**: Strictly standard admin views for inspecting tables, managing PATs, running cron jobs, and resolving customer support issues.
 
 ### 3. Many subscriber databases on shared instances — never per-tenant provisioning
 
@@ -71,7 +70,7 @@ Odoo ships a major version annually. With N subscriber databases, every upgrade 
 
 ### 5. LGPL position
 
-Odoo Community is **LGPLv3**, which has **no network copyleft** — that is AGPL, which Odoo does not use. Running Odoo Community as a commercial service does **not** require publishing your work. `moneta_finance` is ANSIS's own code and may be licensed as ANSIS chooses.
+Odoo Community is **LGPLv3**, which has **no network copyleft** — that is AGPL, which Odoo does not use. Running Odoo Community as a commercial service does **not** require publishing your work. `moneta_wealth` is ANSIS's own code and may be licensed as ANSIS chooses.
 
 The obligation attaches only if **Odoo core itself** is modified. Keep all customisation in addons, never in core — which the codebase already does.
 

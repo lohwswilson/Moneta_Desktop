@@ -32,10 +32,10 @@ This document defines the canonical architecture rules, coding standards, and op
    If a figure is derived from stored data and Odoo also computes it, implement that derivation **once** in a shared module and call it from every adapter. Never reimplement it per adapter. Two independent derivations drift, and the same record then reads differently on two screens — the failure mode the Odoo roadmap names in its scheduled-occurrence contract (Track 2.25). Current example: `goalMath.ts::computeGoalMetrics()`, which mirrors `goal.py::_compute_goal_progress` and is shared by the SQLite and Mock adapters.
 8. **Wire Names, Not ORM Names**:
    The Odoo mobile API translates field names. The ORM field is `transaction_date`; the JSON key is `date`. A client type must match the **wire** name — see [`docs/07`](docs/07_ROADMAP_AND_FEATURE_PARITY.md) for the layer table. "Correcting" a client field to match the ORM breaks it.
-9. **Two-Sided Feature Delivery (Full Parity)**:
-   Every feature ships on **both** sides — `Moneta_Wealth` and the `moneta_finance` Odoo module — implementing the same behaviour and deriving the same figures. A Desktop-only feature is **incomplete**, because subscribers log into the Odoo backend directly and must find a complete system there (see [ADR 0001](docs/adr/0001-subscription-tiers-and-cloud-sync.md)).
-
-   This is a deliberate, accepted cost: each feature has two implementations to keep in step. [`docs/07`](docs/07_ROADMAP_AND_FEATURE_PARITY.md) tracks the state of each.
+9. **Headless Engine & Single-Surface UX (Data & API Parity)**:
+   `Moneta Wealth` (Desktop and future Mobile) is the **exclusive consumer-facing client**. The Odoo backend (`moneta_core`) operates as the **Headless Personal Finance Engine, Sync Store, Background Worker, and Admin Console**.
+   Every domain capability must be backed by Odoo models and exposed via `/api/v1/mobile/*`, and shared math derivations (`goalMath.ts`, `loanMath.ts`, `portfolioMath.ts`, `propertyMath.ts`) must stay strictly synchronized with their Python counterparts.
+   However, **consumer UI/UX (dashboards, charts, visual wizards) is built exclusively in Moneta Wealth**. Odoo views are standard, low-maintenance `<list>` and `<form>` views reserved for administrative audit, debugging, and customer support.
 
    **Cross-system parity contract.** Where a Desktop shared module mirrors an Odoo computation, its docstring names the Odoo function — that citation is a **maintenance contract, not a comment**. Changing one obliges you to change the other. Existing pairs:
 
@@ -66,7 +66,7 @@ This document defines the canonical architecture rules, coding standards, and op
 │   ├── 04_LOCAL_SQLITE_AND_OFFLINE..# SQLite WASM, IndexedDB & full DDL
 │   ├── 05_ODOO_SYNC_AND_API_INTEG.. # Odoo 18 REST & CORS architecture
 │   ├── 06_COMMAND_CENTER_AND_FIRE.. # Net worth & financial metrics
-│   ├── 07_ROADMAP_AND_FEATURE_PA..  # Parity audit against moneta_finance
+│   ├── 07_ROADMAP_AND_FEATURE_PA..  # Parity audit against moneta_wealth
 │   ├── 08_PLANNING_AND_FORECASTI... # Budgets, bills, cash flow & goals hubs
 │   ├── 09_PAYEE_INTELLIGENCE_A...   # Merchant memory & spend analytics
 │   ├── 10_STOCK_PORTFOLIO_AND_T...  # Holdings, disposal strategies, TWR/MWR
@@ -143,7 +143,7 @@ Invariant 9 requires every feature on both sides. Work the list top to bottom �
 | :--: | :--- | :--- |
 | 1 | **Models** — fields, computed values, constraints | `moneta_core/models/` |
 | 2 | **Endpoints + serializer** | `moneta_core/controllers/api_mobile.py` |
-| 3 | **Views** — list/form, when subscriber-visible | `moneta_core/views/` |
+| 3 | **Views** — standard list/form (admin inspection & audit) | `moneta_core/views/` |
 | 4 | **Types, repository methods, all three adapters** | `src/lib/types/`, `src/lib/data/` |
 | 5 | **Shared math module**, if anything is derived — Rule 7 | `src/lib/data/*Math.ts` |
 | 6 | **Store state, component, navigation** | `src/lib/stores/`, `src/lib/components/` |

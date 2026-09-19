@@ -144,4 +144,4 @@ Moneta Wealth is licensed under the **Apache License 2.0** — see [`LICENSE`](L
 
 The two are separable by design. See [ADR 0001](docs/adr/0001-subscription-tiers-and-cloud-sync.md) and [ADR 0004](docs/adr/0004-entitlement-matrix-and-lifecycle.md) for the reasoning.
 
-`moneta_finance`, the Odoo 18 backend module, is licensed separately under [LGPL-3.0](https://github.com/lohwswilson/moneta_finance).
+`moneta_wealth`, the Odoo 18 backend module, is licensed separately under [LGPL-3.0](https://github.com/lohwswilson/moneta_wealth).

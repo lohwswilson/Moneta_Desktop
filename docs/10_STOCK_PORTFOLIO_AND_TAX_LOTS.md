@@ -19,7 +19,7 @@ current_price REAL DEFAULT 0.0,
 last_quote_date TEXT
 ```
 
-`current_price` is written by hand (the adapter runs a plain `UPDATE securities SET current_price = :price`), and `last_quote_date` records when that happened. Upstream `moneta_finance` syncs quotes hourly via Yahoo; until the Desktop gains a quote provider, every price is only as fresh as the last time someone typed it.
+`current_price` is written by hand (the adapter runs a plain `UPDATE securities SET current_price = :price`), and `last_quote_date` records when that happened. Upstream `moneta_wealth` syncs quotes hourly via Yahoo; until the Desktop gains a quote provider, every price is only as fresh as the last time someone typed it.
 
 The consequence is specific rather than vague: unrealized gain, day change, portfolio value, TWR and MWR are all functions of `current_price`. **None of those figures is more current than the price behind it.** `PortfolioSummary` deliberately does not carry a "prices are stale" flag — treat that as a known gap, not as a guarantee of freshness.
 
