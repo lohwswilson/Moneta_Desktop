@@ -34,6 +34,9 @@ export interface IMonetaRepository {
   testConnection(): Promise<{ success: boolean; message: string; user?: string }>;
   getDashboardSummary(): Promise<DashboardMetrics>;
   getAccounts(): Promise<MonetaAccount[]>;
+  createAccount?(payload: Partial<MonetaAccount>): Promise<MonetaAccount>;
+  updateAccount?(id: string | number, payload: Partial<MonetaAccount>): Promise<MonetaAccount>;
+  deleteAccount?(id: string | number): Promise<boolean>;
   getAccountTransactions(accountId: string | number, limit?: number): Promise<MonetaTransaction[]>;
   updateReconciliationState(
     transactionId: string | number,
@@ -128,5 +131,21 @@ export interface IMonetaRepository {
   getPendingChangeCount?(): Promise<number>;
   /** Marks changes as pushed. Returns how many were marked. */
   markChangesSynced?(ids: number[]): Promise<number>;
+
+  // --- Database Management & Backup/Restore (local store only) ---
+  /** Restore full database from binary SQLite bytes. */
+  restoreDatabaseFromBytes?(bytes: Uint8Array): Promise<{
+    success: boolean;
+    message?: string;
+    counts?: Record<string, number>;
+  }>;
+  /** Inspect local database file size and table statistics. */
+  getDatabaseInfo?(): Promise<{
+    sizeBytes: number;
+    tables: { name: string; rowCount: number }[];
+    totalRows: number;
+  }>;
+  /** Reset local SQLite database to fresh clean state. */
+  resetDatabase?(): Promise<void>;
 }
 

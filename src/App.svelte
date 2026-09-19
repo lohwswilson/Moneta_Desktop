@@ -8,6 +8,7 @@
   import ConnectionModal from './lib/components/ConnectionModal.svelte';
   import StatementImportModal from './lib/components/StatementImportModal.svelte';
   import VerifyBalanceModal from './lib/components/VerifyBalanceModal.svelte';
+  import AddAccountModal from './lib/components/AddAccountModal.svelte';
   import BudgetHub from './lib/components/BudgetHub.svelte';
   import RecurringBillsHub from './lib/components/RecurringBillsHub.svelte';
   import CashFlowHub from './lib/components/CashFlowHub.svelte';
@@ -66,4 +67,5 @@
   <ConnectionModal />
   <StatementImportModal />
   <VerifyBalanceModal />
+  <AddAccountModal />
 </main>

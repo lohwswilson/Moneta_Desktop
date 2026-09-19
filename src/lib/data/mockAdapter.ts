@@ -313,6 +313,42 @@ export class MockAdapter implements IMonetaRepository {
     return [...mockAccounts];
   }
 
+  async createAccount(payload: Partial<MonetaAccount>): Promise<MonetaAccount> {
+    const newAcc: MonetaAccount = {
+      id: payload.id || `acc-mock-${Date.now()}`,
+      name: payload.name || 'New Account',
+      account_type: payload.account_type || 'checking',
+      institution_name: payload.institution_name,
+      account_number_mask: payload.account_number_mask,
+      currency_code: payload.currency_code || 'SGD',
+      current_balance: payload.current_balance || 0,
+      cleared_balance: payload.cleared_balance || (payload.current_balance || 0),
+      reconciled_balance: payload.reconciled_balance || 0,
+      interest_rate: payload.interest_rate,
+      monthly_payment: payload.monthly_payment,
+      credit_limit: payload.credit_limit,
+      active: payload.active !== undefined ? payload.active : true,
+    };
+    mockAccounts.push(newAcc);
+    return { ...newAcc };
+  }
+
+  async updateAccount(id: string | number, payload: Partial<MonetaAccount>): Promise<MonetaAccount> {
+    const acc = mockAccounts.find((a) => String(a.id) === String(id));
+    if (!acc) throw new Error(`Account ${id} not found`);
+    Object.assign(acc, payload);
+    return { ...acc };
+  }
+
+  async deleteAccount(id: string | number): Promise<boolean> {
+    const idx = mockAccounts.findIndex((a) => String(a.id) === String(id));
+    if (idx !== -1) {
+      mockAccounts[idx].active = false;
+      return true;
+    }
+    return false;
+  }
+
   async getAccountTransactions(
     accountId: string | number,
     _limit?: number

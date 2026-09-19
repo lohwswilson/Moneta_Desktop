@@ -37,6 +37,18 @@ export class OdooAdapter implements IMonetaRepository {
     return OdooApi.getAccounts();
   }
 
+  async createAccount(payload: Partial<MonetaAccount>): Promise<MonetaAccount> {
+    throw new Error('Account creation via Odoo remote API is not supported. Use Local SQLite.');
+  }
+
+  async updateAccount(id: string | number, payload: Partial<MonetaAccount>): Promise<MonetaAccount> {
+    throw new Error('Account update via Odoo remote API is not supported. Use Local SQLite.');
+  }
+
+  async deleteAccount(id: string | number): Promise<boolean> {
+    throw new Error('Account deletion via Odoo remote API is not supported. Use Local SQLite.');
+  }
+
   async getAccountTransactions(
     accountId: string | number,
     limit?: number

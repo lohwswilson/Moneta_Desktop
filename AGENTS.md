@@ -77,7 +77,8 @@ This document defines the canonical architecture rules, coding standards, and op
 │   ├── verify_loan_math.ts          # Amortization & prepayment assertions
 │   ├── verify_property_math.ts      # Equity / rental / rent-roll assertions
 │   ├── verify_sync_tracking.ts      # Change-log triggers against real SQLite
-│   └── verify_sync_conflict.ts      # Conflict-resolution policy assertions
+│   ├── verify_sync_conflict.ts      # Conflict-resolution policy assertions
+│   └── verify_backup_restore.ts     # Database binary export/restore assertions
 ├── src/
 │   ├── App.svelte                   # Root application shell & view routing
 │   ├── lib/
@@ -117,7 +118,8 @@ This document defines the canonical architecture rules, coding standards, and op
 │   │       ├── QuickAddModal.svelte # Transaction capture & split allocations
 │   │       ├── StatementImportModal.svelte # Drag-and-drop statement wizard
 │   │       ├── VerifyBalanceModal.svelte # 10-second balance verification & adjustment
-│   │       └── ConnectionModal.svelte # Mode switcher & Odoo migration
+│   │       ├── AddAccountModal.svelte # Native account creation & editing modal
+│   │       └── ConnectionModal.svelte # Database backup/restore & cloud sync manager
 └── src-tauri/                       # Tauri v2 native Rust desktop wrapper
 ```
 
@@ -179,6 +181,9 @@ node --experimental-strip-types scripts/verify_sync_tracking.ts
 
 # 3c. Sync conflict policy (pure logic — see ADR 0006)
 node --experimental-strip-types scripts/verify_sync_conflict.ts
+
+# 3d. Database backup & restore verification (WASM SQLite)
+node --experimental-strip-types scripts/verify_backup_restore.ts
 
 # 4. Route parity — every client call must have a server route.
 #    Client calls:   src/lib/api/odooApi.ts

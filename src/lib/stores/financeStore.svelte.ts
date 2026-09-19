@@ -139,6 +139,8 @@ class FinanceStore {
   isLoanModalOpen = $state<boolean>(false);
   editingLoan = $state<LoanScenario | null>(null);
   isVerifyBalanceModalOpen = $state<boolean>(false);
+  isAddAccountOpen = $state<boolean>(false);
+  editingAccount = $state<MonetaAccount | null>(null);
 
   public sqliteAdapter: SqliteAdapter = new SqliteAdapter();
   private repository: IMonetaRepository = new MockAdapter();
@@ -325,6 +327,68 @@ class FinanceStore {
     this.selectedAccountId = accountId;
     this.activeView = 'register';
     await this.loadRegister(accountId);
+  }
+
+  openAddAccountModal() {
+    this.editingAccount = null;
+    this.isAddAccountOpen = true;
+  }
+
+  openEditAccountModal(account: MonetaAccount) {
+    this.editingAccount = { ...account };
+    this.isAddAccountOpen = true;
+  }
+
+  async saveAccount(payload: Partial<MonetaAccount>) {
+    this.isLoading = true;
+    try {
+      let saved: MonetaAccount;
+      if (payload.id && this.repository.updateAccount) {
+        saved = await this.repository.updateAccount(payload.id, payload);
+      } else if (this.repository.createAccount) {
+        saved = await this.repository.createAccount(payload);
+      } else {
+        throw new Error('Account operations not supported by current adapter');
+      }
+      this.accounts = await this.repository.getAccounts();
+      this.metrics = await this.repository.getDashboardSummary();
+      this.isAddAccountOpen = false;
+      this.editingAccount = null;
+      if (!payload.id) {
+        await this.selectAccount(saved.id);
+      } else if (this.selectedAccountId === payload.id) {
+        await this.loadRegister(payload.id);
+      }
+      return saved;
+    } catch (err) {
+      console.error('Failed to save account:', err);
+      throw err;
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  async deleteAccount(id: string | number) {
+    this.isLoading = true;
+    try {
+      if (this.repository.deleteAccount) {
+        await this.repository.deleteAccount(id);
+      }
+      this.accounts = await this.repository.getAccounts();
+      this.metrics = await this.repository.getDashboardSummary();
+      if (this.selectedAccountId === id) {
+        if (this.accounts.length > 0) {
+          await this.selectAccount(this.accounts[0].id);
+        } else {
+          this.navigateToOverview();
+        }
+      }
+    } catch (err) {
+      console.error('Failed to delete account:', err);
+      throw err;
+    } finally {
+      this.isLoading = false;
+    }
   }
 
   navigateToOverview() {
@@ -1217,20 +1281,85 @@ class FinanceStore {
   }
 
   /**
-   * Export the local SQLite database as a downloadable .sqlite file
+   * Export the local SQLite database as a downloadable .sqlite file with timestamp
    */
   downloadSqliteBackup() {
     const blob = this.sqliteAdapter.exportDatabaseFile();
     if (!blob) return;
 
+    const now = new Date();
+    const dateStr = now.toISOString().slice(0, 10);
+    const timeStr = now.toTimeString().slice(0, 8).replace(/:/g, '');
+    const filename = `moneta-wealth-backup-${dateStr}-${timeStr}.sqlite`;
+
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `moneta-backup-${new Date().toISOString().split('T')[0]}.sqlite`;
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  }
+
+  /**
+   * Restore the local SQLite database from an uploaded .sqlite backup file
+   */
+  async restoreSqliteBackup(file: File): Promise<{
+    success: boolean;
+    message: string;
+    counts?: Record<string, number>;
+  }> {
+    this.isLoading = true;
+    try {
+      const buffer = await file.arrayBuffer();
+      const bytes = new Uint8Array(buffer);
+      const res = await this.sqliteAdapter.restoreDatabaseFromBytes(bytes);
+      await this.refreshAll();
+      return {
+        success: res.success,
+        message: res.message || 'Database restored successfully.',
+        counts: res.counts,
+      };
+    } catch (err: any) {
+      console.error('Failed to restore database backup:', err);
+      return {
+        success: false,
+        message: err?.message || 'Database restore failed.',
+      };
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  /**
+   * Reset the local SQLite database to clean empty state
+   */
+  async resetLocalDatabase(): Promise<{ success: boolean; message: string }> {
+    this.isLoading = true;
+    try {
+      await this.sqliteAdapter.resetDatabase();
+      await this.refreshAll();
+      return {
+        success: true,
+        message: 'Database has been reset to a clean state.',
+      };
+    } catch (err: any) {
+      console.error('Failed to reset database:', err);
+      return {
+        success: false,
+        message: err?.message || 'Failed to reset database.',
+      };
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  /**
+   * Inspect current SQLite database size and table metrics
+   */
+  async getDatabaseStats() {
+    return this.sqliteAdapter.getDatabaseInfo();
   }
 }
 

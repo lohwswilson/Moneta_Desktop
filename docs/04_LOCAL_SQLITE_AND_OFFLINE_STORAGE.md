@@ -264,14 +264,28 @@ On launch, Moneta Wealth queries `moneta_main_db`. If an existing database is fo
 
 ---
 
-## 4. Backups & Database Portability
+## 4. Backups, Restores & Database Portability
 
 ### Exporting `.sqlite` Files
-Clicking **Download .sqlite Backup** triggers:
+Clicking **Download .sqlite Backup** in `ConnectionModal.svelte` triggers:
 ```typescript
 const blob = financeStore.sqliteAdapter.exportDatabaseFile();
-// Creates downloadable standard SQLite 3 binary file
+// Creates downloadable standard SQLite 3 binary file with timestamp
 ```
+
+### Restoring `.sqlite` Files
+Users can restore a prior database snapshot via the **Restore from Backup** interface in `ConnectionModal.svelte`. The restore pipeline:
+1. Validates the 16-byte magic header (`SQLite format 3\000`).
+2. Audits the schema for essential tables (`accounts`, `transactions`, `budgets`, etc.).
+3. Computes entity counts before swapping instances.
+4. Atomically replaces the in-memory SQLite database and updates IndexedDB.
+5. Triggers a full reactive refresh across all Svelte 5 stores.
+
+### Account Lifecycle Management
+New financial accounts can be provisioned or edited natively in local SQLite via `AddAccountModal.svelte`:
+- Types: Checking, Savings, Cash Wallet, Credit Card, Loan, Mortgage, Brokerage, Asset.
+- Multi-currency support (SGD, USD, MYR, EUR, GBP, AUD, HKD, JPY, CAD, CNY).
+- Opening balance initialization automatically generates initial ledger entry.
 
 ### Inspecting Backups Locally
 Exported `.sqlite` files are standard SQLite 3 databases compatible with any SQLite tool:

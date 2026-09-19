@@ -667,6 +667,165 @@ export class SqliteAdapter implements IMonetaRepository {
     });
   }
 
+  async createAccount(payload: Partial<MonetaAccount>): Promise<MonetaAccount> {
+    await this.init();
+    if (!this.db) throw new Error('Database not initialized');
+
+    const id = payload.id ? String(payload.id) : `acc-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    const name = payload.name || 'New Account';
+    const accountType = payload.account_type || 'checking';
+    const instName = payload.institution_name || null;
+    const mask = payload.account_number_mask || null;
+    const curr = payload.currency_code || 'SGD';
+    const initialBalance = Number(payload.current_balance || 0.0);
+    const clearedBal = Number(payload.cleared_balance || initialBalance);
+    const reconciledBal = Number(payload.reconciled_balance || 0.0);
+    const interestRate = payload.interest_rate !== undefined ? Number(payload.interest_rate) : null;
+    const monthlyPayment = payload.monthly_payment !== undefined ? Number(payload.monthly_payment) : null;
+    const creditLimit = payload.credit_limit !== undefined ? Number(payload.credit_limit) : null;
+    const active = payload.active !== undefined ? (payload.active ? 1 : 0) : 1;
+
+    this.db.run(
+      `INSERT INTO accounts (id, name, account_type, institution_name, account_number_mask, currency_code,
+                             current_balance, cleared_balance, reconciled_balance, interest_rate, monthly_payment, credit_limit, active)
+       VALUES (:id, :name, :type, :inst, :mask, :curr, :curBal, :clrBal, :recBal, :rate, :pmt, :limit, :act);`,
+      {
+        ':id': id,
+        ':name': name,
+        ':type': accountType,
+        ':inst': instName,
+        ':mask': mask,
+        ':curr': curr,
+        ':curBal': initialBalance,
+        ':clrBal': clearedBal,
+        ':recBal': reconciledBal,
+        ':rate': interestRate,
+        ':pmt': monthlyPayment,
+        ':limit': creditLimit,
+        ':act': active,
+      }
+    );
+
+    // If initial balance is non-zero, create an opening balance transaction
+    if (initialBalance !== 0) {
+      const today = new Date().toISOString().split('T')[0];
+      const txId = `tx-init-${id}`;
+      const isPositive = initialBalance > 0;
+      this.db.run(
+        `INSERT INTO transactions (id, account_id, date, payee_name, category_name, amount, transaction_type, reconciliation_state, running_balance, memo)
+         VALUES (:id, :accId, :date, :payee, :cat, :amt, :txType, 'cleared', :bal, :memo);`,
+        {
+          ':id': txId,
+          ':accId': id,
+          ':date': today,
+          ':payee': 'Opening Balance',
+          ':cat': isPositive ? 'Income' : 'Other Expense',
+          ':amt': initialBalance,
+          ':txType': isPositive ? 'income' : 'expense',
+          ':bal': initialBalance,
+          ':memo': 'Starting Account Balance',
+        }
+      );
+    }
+
+    await this.persist();
+
+    return {
+      id,
+      name,
+      account_type: accountType,
+      institution_name: instName || undefined,
+      account_number_mask: mask || undefined,
+      currency_code: curr,
+      current_balance: initialBalance,
+      cleared_balance: clearedBal,
+      reconciled_balance: reconciledBal,
+      interest_rate: interestRate !== null ? interestRate : undefined,
+      monthly_payment: monthlyPayment !== null ? monthlyPayment : undefined,
+      credit_limit: creditLimit !== null ? creditLimit : undefined,
+      active: Boolean(active),
+    };
+  }
+
+  async updateAccount(
+    id: string | number,
+    payload: Partial<MonetaAccount>
+  ): Promise<MonetaAccount> {
+    await this.init();
+    if (!this.db) throw new Error('Database not initialized');
+
+    const accIdStr = String(id);
+    const existing = this.db.exec(`SELECT id, name, account_type, institution_name, account_number_mask, currency_code, current_balance, cleared_balance, reconciled_balance, interest_rate, monthly_payment, credit_limit, active FROM accounts WHERE id = '${accIdStr}';`);
+    if (!existing || existing.length === 0 || existing[0].values.length === 0) {
+      throw new Error(`Account ${id} not found`);
+    }
+
+    const row = existing[0].values[0];
+    const targetName = payload.name !== undefined ? payload.name : String(row[1]);
+    const targetType = payload.account_type !== undefined ? payload.account_type : (row[2] as any);
+    const targetInst = payload.institution_name !== undefined ? payload.institution_name : (row[3] as string);
+    const targetMask = payload.account_number_mask !== undefined ? payload.account_number_mask : (row[4] as string);
+    const targetCurr = payload.currency_code !== undefined ? payload.currency_code : String(row[5]);
+    const targetCurBal = payload.current_balance !== undefined ? Number(payload.current_balance) : Number(row[6]);
+    const targetClrBal = payload.cleared_balance !== undefined ? Number(payload.cleared_balance) : Number(row[7]);
+    const targetRecBal = payload.reconciled_balance !== undefined ? Number(payload.reconciled_balance) : Number(row[8]);
+    const targetRate = payload.interest_rate !== undefined ? Number(payload.interest_rate) : (row[9] !== null ? Number(row[9]) : null);
+    const targetPmt = payload.monthly_payment !== undefined ? Number(payload.monthly_payment) : (row[10] !== null ? Number(row[10]) : null);
+    const targetLimit = payload.credit_limit !== undefined ? Number(payload.credit_limit) : (row[11] !== null ? Number(row[11]) : null);
+    const targetActive = payload.active !== undefined ? (payload.active ? 1 : 0) : Number(row[12]);
+
+    this.db.run(
+      `UPDATE accounts
+       SET name = :name, account_type = :type, institution_name = :inst, account_number_mask = :mask,
+           currency_code = :curr, current_balance = :curBal, cleared_balance = :clrBal, reconciled_balance = :recBal,
+           interest_rate = :rate, monthly_payment = :pmt, credit_limit = :limit, active = :act
+       WHERE id = :id;`,
+      {
+        ':id': accIdStr,
+        ':name': targetName,
+        ':type': targetType,
+        ':inst': targetInst,
+        ':mask': targetMask,
+        ':curr': targetCurr,
+        ':curBal': targetCurBal,
+        ':clrBal': targetClrBal,
+        ':recBal': targetRecBal,
+        ':rate': targetRate,
+        ':pmt': targetPmt,
+        ':limit': targetLimit,
+        ':act': targetActive,
+      }
+    );
+
+    await this.persist();
+
+    return {
+      id: accIdStr,
+      name: targetName,
+      account_type: targetType,
+      institution_name: targetInst || undefined,
+      account_number_mask: targetMask || undefined,
+      currency_code: targetCurr,
+      current_balance: targetCurBal,
+      cleared_balance: targetClrBal,
+      reconciled_balance: targetRecBal,
+      interest_rate: targetRate !== null ? targetRate : undefined,
+      monthly_payment: targetPmt !== null ? targetPmt : undefined,
+      credit_limit: targetLimit !== null ? targetLimit : undefined,
+      active: Boolean(targetActive),
+    };
+  }
+
+  async deleteAccount(id: string | number): Promise<boolean> {
+    await this.init();
+    if (!this.db) throw new Error('Database not initialized');
+
+    const accIdStr = String(id);
+    this.db.run(`UPDATE accounts SET active = 0 WHERE id = :id;`, { ':id': accIdStr });
+    await this.persist();
+    return true;
+  }
+
   async getAccountTransactions(
     accountId: string | number,
     limit: number = 200
@@ -3819,5 +3978,143 @@ export class SqliteAdapter implements IMonetaRepository {
     if (!this.db) return null;
     const data = this.db.export();
     return new Blob([data as unknown as BlobPart], { type: 'application/x-sqlite3' });
+  }
+
+  /**
+   * Restore full database from binary SQLite bytes.
+   * Validates header, checks schema integrity, swaps db instance, runs migrations, and flushes to IndexedDB.
+   */
+  async restoreDatabaseFromBytes(bytes: Uint8Array): Promise<{
+    success: boolean;
+    message?: string;
+    counts?: Record<string, number>;
+  }> {
+    await this.init();
+    if (!this.SQL) throw new Error('SQLite WASM not loaded');
+
+    // 1. Validate SQLite 3 magic header (first 16 bytes: "SQLite format 3\000")
+    if (bytes.length < 100) {
+      throw new Error('File too small to be a valid SQLite database.');
+    }
+    const header = new TextDecoder().decode(bytes.slice(0, 15));
+    if (!header.startsWith('SQLite format 3')) {
+      throw new Error('Invalid file format: Not a valid SQLite 3 database file.');
+    }
+
+    // 2. Instantiate temporary database to audit table structure
+    let tempDb: Database;
+    try {
+      tempDb = new this.SQL.Database(bytes);
+    } catch (err: any) {
+      throw new Error(`Failed to read database bytes: ${err?.message || err}`);
+    }
+
+    // 3. Verify required tables exist
+    const masterRes = tempDb.exec(`SELECT name FROM sqlite_master WHERE type='table';`);
+    const tableNames = (masterRes[0]?.values?.map((v) => String(v[0])) || []);
+    if (!tableNames.includes('accounts') || !tableNames.includes('transactions')) {
+      tempDb.close();
+      throw new Error('Invalid database: Missing essential Moneta tables (accounts, transactions).');
+    }
+
+    // 4. Gather record counts
+    const getCount = (table: string): number => {
+      if (!tableNames.includes(table)) return 0;
+      try {
+        const cRes = tempDb.exec(`SELECT count(*) FROM ${table};`);
+        return Number(cRes[0]?.values?.[0]?.[0]) || 0;
+      } catch {
+        return 0;
+      }
+    };
+
+    const counts: Record<string, number> = {
+      accounts: getCount('accounts'),
+      transactions: getCount('transactions'),
+      transaction_splits: getCount('transaction_splits'),
+      budgets: getCount('budgets'),
+      recurring_bills: getCount('recurring_bills'),
+      payees: getCount('payees'),
+      goals: getCount('goals'),
+      securities: getCount('securities'),
+      holdings: getCount('holdings'),
+      properties: getCount('properties'),
+      tenants: getCount('tenants'),
+      loan_scenarios: getCount('loan_scenarios'),
+    };
+
+    // 5. Replace current database instance safely
+    if (this.db) {
+      try {
+        this.db.close();
+      } catch (e) {
+        console.warn('Error closing previous database instance:', e);
+      }
+    }
+    this.db = tempDb;
+
+    // 6. Run migrations to ensure any newer triggers/tables are attached
+    this.runMigrations();
+
+    // 7. Persist restored binary bytes to IndexedDB
+    await saveDatabaseBytes(bytes);
+
+    return {
+      success: true,
+      message: `Database successfully restored (${counts.accounts} accounts, ${counts.transactions} transactions)`,
+      counts,
+    };
+  }
+
+  /**
+   * Inspect local database file size and table statistics.
+   */
+  async getDatabaseInfo(): Promise<{
+    sizeBytes: number;
+    tables: { name: string; rowCount: number }[];
+    totalRows: number;
+  }> {
+    await this.init();
+    if (!this.db) return { sizeBytes: 0, tables: [], totalRows: 0 };
+
+    const exported = this.db.export();
+    const masterRes = this.db.exec(`SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';`);
+    const tableNames = (masterRes[0]?.values?.map((v) => String(v[0])) || []);
+
+    let totalRows = 0;
+    const tables = tableNames.map((name) => {
+      try {
+        const cRes = this.db!.exec(`SELECT count(*) FROM ${name};`);
+        const count = Number(cRes[0]?.values?.[0]?.[0]) || 0;
+        totalRows += count;
+        return { name, rowCount: count };
+      } catch {
+        return { name, rowCount: 0 };
+      }
+    });
+
+    return {
+      sizeBytes: exported.length,
+      tables,
+      totalRows,
+    };
+  }
+
+  /**
+   * Reset local SQLite database to fresh clean state.
+   */
+  async resetDatabase(): Promise<void> {
+    await this.init();
+    if (!this.SQL) return;
+    if (this.db) {
+      try {
+        this.db.close();
+      } catch (e) {
+        console.warn('Error closing database during reset:', e);
+      }
+    }
+    this.db = new this.SQL.Database();
+    this.runMigrations();
+    await this.persist();
   }
 }

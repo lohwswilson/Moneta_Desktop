@@ -16,7 +16,8 @@
     ChevronRight,
     PanelLeftClose,
     PanelLeftOpen,
-    Layers
+    Layers,
+    Pencil
   } from '@lucide/svelte';
 
   const formatCurrency = (amount: number, currency: string = 'SGD') => {
@@ -270,6 +271,14 @@
       <div class="flex items-center justify-between px-1">
         <div class="flex items-center gap-1.5">
           <span class="text-[11px] font-bold text-zinc-300 uppercase tracking-wider">Accounts</span>
+          <button
+            type="button"
+            onclick={() => financeStore.openAddAccountModal()}
+            title="Add New Account"
+            class="p-0.5 rounded text-zinc-400 hover:text-emerald-400 hover:bg-zinc-800 transition-colors cursor-pointer"
+          >
+            <Plus class="w-3 h-3" />
+          </button>
           <button
             type="button"
             onclick={toggleAllGroups}
