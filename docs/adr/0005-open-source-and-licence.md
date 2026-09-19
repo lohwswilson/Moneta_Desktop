@@ -13,7 +13,7 @@ The question posed was whether to open source Moneta Desktop. Inspection showed 
 
 | Repository | Visibility | Licence at the time |
 | :--- | :--- | :--- |
-| `Moneta_Desktop` | **Public** | **None** — `licenseInfo: null`, no `LICENSE` file |
+| `Moneta_Wealth` | **Public** | **None** — `licenseInfo: null`, no `LICENSE` file |
 | `moneta_finance` | Public | LGPL-3.0, with a `LICENSE` file |
 
 So the code was **already publicly visible**. The README additionally claimed *"licensed under the MIT License"* while no such file existed — a claim that granted nothing.

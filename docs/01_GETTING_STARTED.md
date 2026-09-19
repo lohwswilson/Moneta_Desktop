@@ -23,8 +23,8 @@ To run the application immediately with instant Vite Hot Module Reloading (HMR):
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/lohwswilson/Moneta_Desktop.git
-cd Moneta_Desktop
+git clone https://github.com/lohwswilson/Moneta_Wealth.git
+cd Moneta_Wealth
 
 # 2. Install dependencies
 npm install

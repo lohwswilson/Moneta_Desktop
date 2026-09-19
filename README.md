@@ -54,8 +54,8 @@ Built with **Tauri v2**, **Svelte 5 (Runes-Native)**, **TypeScript**, **Tailwind
 
 ### Quickstart (Development Mode)
 ```bash
-git clone https://github.com/lohwswilson/Moneta_Desktop.git
-cd Moneta_Desktop
+git clone https://github.com/lohwswilson/Moneta_Wealth.git
+cd Moneta_Wealth
 npm install
 
 # Run as standalone desktop app window
