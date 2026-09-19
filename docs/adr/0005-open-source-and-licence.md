@@ -9,7 +9,7 @@
 
 ## Context
 
-The question posed was whether to open source Moneta Desktop. Inspection showed the question was already partly answered:
+The question posed was whether to open source Moneta Wealth. Inspection showed the question was already partly answered:
 
 | Repository | Visibility | Licence at the time |
 | :--- | :--- | :--- |
@@ -26,7 +26,7 @@ A second inconsistency: the Desktop README and `docs/index.md` advertised **"Zer
 
 ## Decision
 
-### 1. Moneta Desktop is licensed under Apache-2.0
+### 1. Moneta Wealth is licensed under Apache-2.0
 
 A `LICENSE` file carrying the canonical Apache License 2.0 text is added, with the copyright notice the appendix prescribes (`Copyright 2026 ANSIS Pte Ltd`), and `"license": "Apache-2.0"` declared in `package.json`.
 

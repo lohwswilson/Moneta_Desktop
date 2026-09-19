@@ -1,6 +1,6 @@
 # Bank Statement Import Wizard & Categorization Rules
 
-Moneta Desktop includes an interactive bank statement import wizard with drag-and-drop support for **CSV** and **Quicken QIF** statement files, combined with an automated categorization rules engine tailored for Singapore and regional merchants.
+Moneta Wealth includes an interactive bank statement import wizard with drag-and-drop support for **CSV** and **Quicken QIF** statement files, combined with an automated categorization rules engine tailored for Singapore and regional merchants.
 
 ---
 
@@ -55,7 +55,7 @@ The parser ([`src/lib/data/importers/bankStatementParser.ts`](file:///opt/moneta
 
 ## 3. Intelligent Duplicate Detection
 
-Before presenting parsed rows for import, Moneta Desktop cross-references the incoming file against transactions already recorded in your active account:
+Before presenting parsed rows for import, Moneta Wealth cross-references the incoming file against transactions already recorded in your active account:
 
 - **Matching Logic**:
   $$\text{Duplicate Flag} = \text{true} \iff (\text{Date}_{\text{import}} = \text{Date}_{\text{ledger}}) \;\land\; (|\text{Amount}_{\text{import}} - \text{Amount}_{\text{ledger}}| < 0.001)$$
@@ -96,4 +96,4 @@ Custom categorization rules can be added with custom priorities. The evaluator e
    - Select or deselect individual rows using checkboxes.
 4. **Commit to Ledger**:
    - Click **Import Selected Transactions**.
-   - Moneta Desktop commits the records directly into SQLite (or the active adapter), updates account balances, and refreshes the register.
+   - Moneta Wealth commits the records directly into SQLite (or the active adapter), updates account balances, and refreshes the register.

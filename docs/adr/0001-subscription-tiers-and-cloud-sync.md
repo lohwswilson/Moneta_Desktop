@@ -9,7 +9,7 @@
 
 ## Context
 
-Moneta Desktop is an offline-first personal finance application with a pluggable repository: a local SQLite store (`SqliteAdapter`), a live Odoo adapter against `moneta_finance` (`OdooAdapter`), and a demo sandbox (`MockAdapter`). Phases 1–5 are complete — ledger, banking, planning hubs, portfolio and property/rental.
+Moneta Wealth is an offline-first personal finance application with a pluggable repository: a local SQLite store (`SqliteAdapter`), a live Odoo adapter against `moneta_finance` (`OdooAdapter`), and a demo sandbox (`MockAdapter`). Phases 1–5 are complete — ledger, banking, planning hubs, portfolio and property/rental.
 
 **Moneta Cloud** is the existing self-hosted Odoo 18 `moneta_finance` backend. It is not a new service: it already models every entity the Desktop app does (accounts, transactions, budgets, bills, goals, securities, lots, properties, tenants, rent payments, loans) via `/api/v1/mobile/*`.
 
@@ -63,9 +63,9 @@ This preserves the offline-first invariant, keeps the existing rental/loan/portf
 
 ### 3. Enforcement: the service is the gate
 
-> **Amended 2026-09-19** after the scope decision that **all product features are implemented in Moneta Desktop**, with Odoo serving only as a sync store plus licensing and billing (ADR 0002 §2). The original text assumed subscriber-only logic ran server-side; it does not. See [ADR 0003 §5](0003-licence-and-billing-topology.md) for the full position.
+> **Amended 2026-09-19** after the scope decision that **all product features are implemented in Moneta Wealth**, with Odoo serving only as a sync store plus licensing and billing (ADR 0002 §2). The original text assumed subscriber-only logic ran server-side; it does not. See [ADR 0003 §5](0003-licence-and-billing-topology.md) for the full position.
 
-Moneta Desktop is a Tauri binary — **its JavaScript ships to the user and can be patched.** With no server-side feature logic, a local licence check is a **speed bump, not a lock**, and the team should not over-invest in defeating tampering. Someone who patches a paid app was not a customer.
+Moneta Wealth is a Tauri binary — **its JavaScript ships to the user and can be patched.** With no server-side feature logic, a local licence check is a **speed bump, not a lock**, and the team should not over-invest in defeating tampering. Someone who patches a paid app was not a customer.
 
 What *is* enforceable is the service itself:
 

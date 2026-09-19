@@ -1,4 +1,4 @@
-# Contributing to Moneta Desktop
+# Contributing to Moneta Wealth
 
 Thanks for considering a contribution. This is a personal finance application, so correctness matters more than speed — a wrong balance is worse than a missing feature.
 
@@ -6,7 +6,7 @@ Thanks for considering a contribution. This is a personal finance application, s
 
 ## The two-repository model
 
-Moneta Desktop is one half of a pair. **Every feature ships on both sides** — that is a hard rule, not a preference:
+Moneta Wealth is one half of a pair. **Every feature ships on both sides** — that is a hard rule, not a preference:
 
 | Repository | Role | Licence |
 | :--- | :--- | :--- |
@@ -75,7 +75,7 @@ The [feature delivery checklist](AGENTS.md#4-feature-delivery-checklist) in `AGE
 
 ## Licensing of contributions
 
-Moneta Desktop is licensed under **Apache-2.0**. By submitting a pull request you agree that your contribution is licensed under the same terms — which is what allows the project to accept contributions without a separate contributor agreement.
+Moneta Wealth is licensed under **Apache-2.0**. By submitting a pull request you agree that your contribution is licensed under the same terms — which is what allows the project to accept contributions without a separate contributor agreement.
 
 Please only submit work you have the right to contribute. If you are porting from another project, check its licence first: code under a copyleft licence incompatible with Apache-2.0 cannot be merged into the desktop app. The Odoo module is LGPL-3.0 and follows Odoo's own conventions.
 

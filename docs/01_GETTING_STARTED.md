@@ -1,6 +1,6 @@
-# Getting Started with Moneta Desktop
+# Getting Started with Moneta Wealth
 
-This guide covers installing, launching, and configuring **Moneta Desktop** on macOS, Windows, and Linux.
+This guide covers installing, launching, and configuring **Moneta Wealth** on macOS, Windows, and Linux.
 
 ---
 
@@ -39,7 +39,7 @@ This runs Vite on `http://127.0.0.1:5173/` and opens a lightweight standalone br
 
 ### Option B: Native Tauri v2 Desktop Build
 
-To compile and run Moneta Desktop as a native binary (macOS `.app` / `.dmg`, Windows `.exe` / `.msi`, Linux `.AppImage`):
+To compile and run Moneta Wealth as a native binary (macOS `.app` / `.dmg`, Windows `.exe` / `.msi`, Linux `.AppImage`):
 
 ```bash
 # Run in native Tauri developer mode (launches native OS window)
@@ -55,7 +55,7 @@ The compiled native executable will be located in `src-tauri/target/release/bund
 
 ## ⚙️ Connection Modes
 
-Moneta Desktop features a pluggable data architecture supporting three distinct operational modes, accessible by clicking the **Connection Status** badge in the bottom-left of the sidebar:
+Moneta Wealth features a pluggable data architecture supporting three distinct operational modes, accessible by clicking the **Connection Status** badge in the bottom-left of the sidebar:
 
 ```
 +-------------------------------------------------------------------------+
@@ -82,7 +82,7 @@ Moneta Desktop features a pluggable data architecture supporting three distinct 
 
 ## 🔄 1-Click Odoo Migration (Odoo $\rightarrow$ SQLite)
 
-If you currently use the **Odoo 18 `moneta_finance`** module, Moneta Desktop includes an automated migration tool to transition your financial records into standalone local SQLite:
+If you currently use the **Odoo 18 `moneta_finance`** module, Moneta Wealth includes an automated migration tool to transition your financial records into standalone local SQLite:
 
 1. Click the **Connection Status** badge in the bottom-left sidebar.
 2. Select **Live Odoo 18 Server**.
@@ -95,7 +95,7 @@ If you currently use the **Odoo 18 `moneta_finance`** module, Moneta Desktop inc
    - Generate a new key and copy the token string.
 5. Click **Test Connection** to verify authorization.
 6. Under the migration banner, click **Migrate Odoo Data to SQLite**.
-7. Moneta Desktop will:
+7. Moneta Wealth will:
    - Query all accounts from Odoo.
    - Fetch historical transaction registers.
    - Insert all records into local SQLite tables with running balances.
@@ -111,7 +111,7 @@ To create an offline binary backup of your financial data:
 1. Click the **Connection Status** badge in the sidebar.
 2. Scroll to the **Local SQLite Database** card.
 3. Click **Download .sqlite Backup**.
-4. Moneta Desktop will export a binary file named:
+4. Moneta Wealth will export a binary file named:
    ```
    moneta-backup-YYYY-MM-DD.sqlite
    ```

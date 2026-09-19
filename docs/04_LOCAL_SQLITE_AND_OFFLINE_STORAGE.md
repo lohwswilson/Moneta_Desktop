@@ -1,6 +1,6 @@
 # Local SQLite & Offline-First Storage
 
-Moneta Desktop implements a true **offline-first storage model** using an embedded WebAssembly compilation of SQLite 3 via `sql.js`, paired with persistent browser IndexedDB storage.
+Moneta Wealth implements a true **offline-first storage model** using an embedded WebAssembly compilation of SQLite 3 via `sql.js`, paired with persistent browser IndexedDB storage.
 
 ---
 
@@ -28,7 +28,7 @@ Moneta Desktop implements a true **offline-first storage model** using an embedd
 ```
 
 ### Key Offline Guarantees
-- **Zero Server Requirement**: Moneta Desktop does not depend on cloud servers, external databases, or network connections.
+- **Zero Server Requirement**: Moneta Wealth does not depend on cloud servers, external databases, or network connections.
 - **Air-Gapped Privacy**: Your financial accounts, balances, and transaction history never leave your personal computer.
 - **Persistence Across Restarts**: Database bytes are written to IndexedDB after every ledger mutation, ensuring instant state recovery when restarting the application.
 
@@ -36,7 +36,7 @@ Moneta Desktop implements a true **offline-first storage model** using an embedd
 
 ## 2. Relational Database Schemas (DDL)
 
-Moneta Desktop executes automatic DDL migrations upon database initialization ([`src/lib/data/sqliteAdapter.ts`](file:///opt/moneta_wealth/src/lib/data/sqliteAdapter.ts)):
+Moneta Wealth executes automatic DDL migrations upon database initialization ([`src/lib/data/sqliteAdapter.ts`](file:///opt/moneta_wealth/src/lib/data/sqliteAdapter.ts)):
 
 ### Table: `accounts`
 Stores financial accounts, current balances, and institutional metadata:
@@ -235,7 +235,7 @@ const saveDatabaseBytes = (data: Uint8Array): Promise<void> => {
 };
 ```
 
-On launch, Moneta Desktop queries `moneta_main_db`. If an existing database is found, it instantiates `new SQL.Database(savedBytes)`. If no database exists, it provisions a fresh database and seeds initial accounts.
+On launch, Moneta Wealth queries `moneta_main_db`. If an existing database is found, it instantiates `new SQL.Database(savedBytes)`. If no database exists, it provisions a fresh database and seeds initial accounts.
 
 ---
 

@@ -136,7 +136,7 @@ node --experimental-strip-types scripts/verify_property_math.ts
 
 ## 📄 License
 
-Moneta Desktop is licensed under the **Apache License 2.0** — see [`LICENSE`](LICENSE).
+Moneta Wealth is licensed under the **Apache License 2.0** — see [`LICENSE`](LICENSE).
 
 **The desktop application is free and open source, permanently.** Use it offline, unmodified and unrestricted: no account, no login, no subscription, no telemetry. Fork it, audit it, build on it.
 

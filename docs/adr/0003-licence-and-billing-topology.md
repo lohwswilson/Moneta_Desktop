@@ -14,7 +14,7 @@ ADR 0001 established subscription tiers and a locally-verified licence token. AD
 Two facts shape this ADR:
 
 - **Moneta is a product of ANSIS Pte Ltd**, not a separate legal entity. ANSIS's books are already in Odoo.
-- **All product features live in Moneta Desktop.** The server computes no features — it stores synced data and administers subscriptions.
+- **All product features live in Moneta Wealth.** The server computes no features — it stores synced data and administers subscriptions.
 
 The second fact has a consequence that must be confronted, not glossed: **there is no server-side feature logic to enforce.** See §5.
 
@@ -70,7 +70,7 @@ The licence database issues signed tokens. **Every verifier validates the signat
               ┌────────────────┼────────────────┐
               ▼                ▼                ▼
      ┌────────────────┐ ┌─────────────┐ ┌──────────────────┐
-     │ Moneta Desktop │ │ Moneta      │ │ Subscriber Odoo  │
+     │ Moneta Wealth │ │ Moneta      │ │ Subscriber Odoo  │
      │ (verify local) │ │ Mobile      │ │ (verify local)   │
      └────────────────┘ └─────────────┘ └──────────────────┘
 ```
@@ -83,7 +83,7 @@ Prefer **Ed25519** over HMAC: verifiers then need only a public key and hold no 
 
 This is the direct consequence of features living in the client.
 
-**Moneta Desktop is a Tauri binary — its JavaScript ships to the user and can be patched.** With no server-side feature logic, there is nothing on the server to refuse a premium operation. A local licence check is therefore a **speed bump, not a lock**, and pretending otherwise would misdirect engineering effort.
+**Moneta Wealth is a Tauri binary — its JavaScript ships to the user and can be patched.** With no server-side feature logic, there is nothing on the server to refuse a premium operation. A local licence check is therefore a **speed bump, not a lock**, and pretending otherwise would misdirect engineering effort.
 
 The honest position:
 

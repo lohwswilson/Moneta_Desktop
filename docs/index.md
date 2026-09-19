@@ -1,8 +1,8 @@
-# Moneta Desktop
+# Moneta Wealth
 
 ### **High-Performance, Offline-First Personal Finance & Wealth Desktop Application**
 
-**Moneta Desktop** is a standalone, portable personal finance application combining the checkbook ledger precision of **Quicken Premier**, the zero-based budgeting discipline of **YNAB**, and modern fintech visuals. Built with **Tauri v2**, **Svelte 5 (Runes-native)**, **TypeScript**, **Tailwind CSS v4**, and **SQLite**.
+**Moneta Wealth** is a standalone, portable personal finance application combining the checkbook ledger precision of **Quicken Premier**, the zero-based budgeting discipline of **YNAB**, and modern fintech visuals. Built with **Tauri v2**, **Svelte 5 (Runes-native)**, **TypeScript**, **Tailwind CSS v4**, and **SQLite**.
 
 It operates completely **100% offline-first** using an embedded WebAssembly SQLite database with persistent IndexedDB auto-save, while seamlessly offering a pluggable data adapter to synchronize with live self-hosted **Odoo 18 (`moneta_finance`)** servers via Personal Access Token (PAT) authentication.
 
@@ -130,7 +130,7 @@ It operates completely **100% offline-first** using an embedded WebAssembly SQLi
 
 ## 📊 Feature Comparison Matrix
 
-| Feature / Capability | Moneta Desktop | Quicken Premier | YNAB | Monarch Money | Odoo moneta_finance |
+| Feature / Capability | Moneta Wealth | Quicken Premier | YNAB | Monarch Money | Odoo moneta_finance |
 | :--- | :---: | :---: | :---: | :---: | :---: |
 | **100% Offline Standalone** | **✔ Native SQLite** | ✖ Requires Login | ✖ Cloud Only | ✖ Cloud Only | ✖ Server Required |
 | **Portable Single-Binary App** | **✔ Tauri v2 (~35 MB)** | ✖ Heavyweight (~500MB) | ✖ Electron (~300MB) | ✖ Electron (~250MB) | ✖ Web Browser |

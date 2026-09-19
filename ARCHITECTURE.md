@@ -1,6 +1,6 @@
-# Moneta Desktop: Technical Architecture Specification
+# Moneta Wealth: Technical Architecture Specification
 
-This document defines the software engineering architecture, state management patterns, and data layer abstractions of the **Moneta Desktop** application.
+This document defines the software engineering architecture, state management patterns, and data layer abstractions of the **Moneta Wealth** application.
 
 ---
 
@@ -36,7 +36,7 @@ This document defines the software engineering architecture, state management pa
 
 ## 3. Svelte 5 Runes State Management
 
-Moneta Desktop is built natively using **Svelte 5 Runes**, avoiding legacy Svelte 3/4 stores in favor of fine-grained reactive primitives:
+Moneta Wealth is built natively using **Svelte 5 Runes**, avoiding legacy Svelte 3/4 stores in favor of fine-grained reactive primitives:
 
 ### Reactive State in `FinanceStore` ([`src/lib/stores/financeStore.svelte.ts`](file:///opt/moneta_wealth/src/lib/stores/financeStore.svelte.ts))
 ```typescript
@@ -158,7 +158,7 @@ import { simulatePrepayment, detectRateChanges } from './loanMath';
 
 Each module has a matching assertion suite under `scripts/` — 175 assertions in total across the four at the time of writing. They exist because the maths is the part that fails *silently*: a wrong amortization figure still renders, and nothing else in the stack would catch it.
 
-The alternative — each adapter deriving its own numbers — produces a record that reads differently depending on which data source is active. The Odoo roadmap documents this failure mode in its scheduled-occurrence contract track as the largest single architectural gap in the upstream module; Moneta Desktop does not reintroduce it.
+The alternative — each adapter deriving its own numbers — produces a record that reads differently depending on which data source is active. The Odoo roadmap documents this failure mode in its scheduled-occurrence contract track as the largest single architectural gap in the upstream module; Moneta Wealth does not reintroduce it.
 
 ---
 

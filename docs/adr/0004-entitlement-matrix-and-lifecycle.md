@@ -13,9 +13,9 @@ ADR 0001 defined which *features* sit in which tier. This ADR defines what a tie
 
 The model was confirmed 2026-09-19:
 
-> **Non-subscriber:** Moneta Desktop only. Some features unavailable without a subscription. No Moneta Cloud login.
+> **Non-subscriber:** Moneta Wealth only. Some features unavailable without a subscription. No Moneta Cloud login.
 >
-> **Subscriber:** Moneta Desktop with full features, plus Moneta Cloud login.
+> **Subscriber:** Moneta Wealth with full features, plus Moneta Cloud login.
 
 ---
 
@@ -25,10 +25,10 @@ The model was confirmed 2026-09-19:
 
 | Capability | Non-subscriber | Subscriber |
 | :--- | :---: | :---: |
-| Moneta Desktop — core ledger, register, reconciliation | ✅ | ✅ |
-| Moneta Desktop — manual statement import (CSV/QIF), rules, payee intelligence | ✅ | ✅ |
-| Moneta Desktop — recurring bills, net worth, property equity, loans, reports | ✅ | ✅ |
-| Moneta Desktop — budgets, goals, cash flow, Landlord Hub, portfolio analytics, tax packs | ❌ | ✅ |
+| Moneta Wealth — core ledger, register, reconciliation | ✅ | ✅ |
+| Moneta Wealth — manual statement import (CSV/QIF), rules, payee intelligence | ✅ | ✅ |
+| Moneta Wealth — recurring bills, net worth, property equity, loans, reports | ✅ | ✅ |
+| Moneta Wealth — budgets, goals, cash flow, Landlord Hub, portfolio analytics, tax packs | ❌ | ✅ |
 | **Local `.sqlite` export** | ✅ | ✅ |
 | Moneta Cloud login (web) | ❌ | ✅ |
 | Sync (Desktop ↔ Cloud) | ❌ | ✅ |

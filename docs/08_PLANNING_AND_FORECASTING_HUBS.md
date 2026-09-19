@@ -1,6 +1,6 @@
 # Planning, Budgeting & Forecasting Hubs
 
-This document covers the four **Phase 3** planning hubs in Moneta Desktop — Envelope Budgets, Recurring Bills, Cash Flow Forecasting and Financial Goals — plus the shared conventions that keep them consistent across data sources.
+This document covers the four **Phase 3** planning hubs in Moneta Wealth — Envelope Budgets, Recurring Bills, Cash Flow Forecasting and Financial Goals — plus the shared conventions that keep them consistent across data sources.
 
 ---
 
@@ -40,7 +40,7 @@ if (this.repository.getGoals) {
 
 ### Navigation
 
-Moneta Desktop has two navigation surfaces, both driven by `financeStore.activeView`, rendered in `App.svelte`.
+Moneta Wealth has two navigation surfaces, both driven by `financeStore.activeView`, rendered in `App.svelte`.
 
 **`TopMenuBar.svelte`** groups the eleven views into **domain centers** and derives the active center from `activeView`:
 

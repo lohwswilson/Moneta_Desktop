@@ -2,6 +2,11 @@
 
 This document defines the canonical architecture rules, coding standards, and operational workflows for AI coding assistants (Antigravity, Claude Code, Hermes, Cursor) working within the **`Moneta Wealth`** repository at `/opt/moneta_wealth`.
 
+> **Naming — do not "fix" these.** The project was renamed from **Moneta Desktop** to **Moneta Wealth** on 2026-09-19, across the repository, package, app title and documentation. Two classes of old string remain **deliberately** and must be left alone:
+>
+> 1. **Historical records** — `moneta_desktop` in old transcripts, commits and archived notes. They describe what was true at the time; rewriting them destroys the record.
+> 2. **The `moneta_desktop_config` localStorage key** in `financeStore.svelte.ts`. This is a **persistence identifier, not a display name** — renaming it orphans every existing install's saved connection settings. If it ever must change, it needs a migration that reads the old key first.
+
 ---
 
 ## 1. Core Operating Invariants

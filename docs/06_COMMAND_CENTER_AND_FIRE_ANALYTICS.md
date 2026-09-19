@@ -1,6 +1,6 @@
 # Wealth Command Center & FIRE Analytics
 
-The **Wealth Command Center** ([`src/lib/components/CommandCenter.svelte`](file:///opt/moneta_wealth/src/lib/components/CommandCenter.svelte)) is Moneta Desktop's executive overview screen, synthesizing balance sheets, cash flow ratios, and retirement progress into live financial metrics.
+The **Wealth Command Center** ([`src/lib/components/CommandCenter.svelte`](file:///opt/moneta_wealth/src/lib/components/CommandCenter.svelte)) is Moneta Wealth's executive overview screen, synthesizing balance sheets, cash flow ratios, and retirement progress into live financial metrics.
 
 ---
 
@@ -40,13 +40,13 @@ Calculated dynamically across current calendar month transactions:
 
 ## 3. FIRE Milestones & The 4% Rule
 
-Moneta Desktop implements the **Trinity Study 4% Safe Withdrawal Rate (SWR)** framework:
+Moneta Wealth implements the **Trinity Study 4% Safe Withdrawal Rate (SWR)** framework:
 
 ### A. FIRE Target Amount
 $$\text{FIRE Target} = \text{Monthly Burn Rate} \times 12 \times 25$$
 
 - **Rationale**: Based on the 4% annual withdrawal rule, an individual requires an investment portfolio equal to 25 times their annual living expenses to sustain retirement indefinitely without depleting capital.
-- **Baseline**: If historical expenses are low or unrecorded, Moneta Desktop uses a default floor burn rate of `$3,000 / month` ($900,000 FIRE Target).
+- **Baseline**: If historical expenses are low or unrecorded, Moneta Wealth uses a default floor burn rate of `$3,000 / month` ($900,000 FIRE Target).
 
 ### B. FIRE Progress Percentage
 $$\text{FIRE Progress \%} = \min\left(100, \frac{\text{Net Worth}}{\text{FIRE Target}} \times 100\right)$$

@@ -8,7 +8,7 @@ This document covers the **Phase 2** payee intelligence layer: merchant analytic
 
 ## 1. Overview
 
-Moneta Desktop treats a payee as more than a name on a line. Each payee accumulates **memory** — the category you habitually file it under, how often it recurs, what it typically costs — and that memory is used to pre-fill the next transaction rather than asking you to re-decide.
+Moneta Wealth treats a payee as more than a name on a line. Each payee accumulates **memory** — the category you habitually file it under, how often it recurs, what it typically costs — and that memory is used to pre-fill the next transaction rather than asking you to re-decide.
 
 ```
 +---------------------------------------------------------------------------+

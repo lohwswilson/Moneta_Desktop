@@ -1,6 +1,6 @@
 # Banking, Checkbook Registers & Split Transactions
 
-Moneta Desktop incorporates the checkbook register architecture of **Quicken Premier**, featuring point-in-time running balance recalculation, 1-click `Clr` reconciliation toggles, and multi-category split transactions.
+Moneta Wealth incorporates the checkbook register architecture of **Quicken Premier**, featuring point-in-time running balance recalculation, 1-click `Clr` reconciliation toggles, and multi-category split transactions.
 
 ---
 
@@ -41,7 +41,7 @@ Selecting an account from the sidebar opens the **Checkbook Register**:
 Running balances are calculated dynamically from transaction history.
 
 ### Chronological Tiebreaker Ordering
-When multiple transactions share the exact same calendar date, Moneta Desktop enforces a **credit-before-debit tiebreaker ordering**:
+When multiple transactions share the exact same calendar date, Moneta Wealth enforces a **credit-before-debit tiebreaker ordering**:
 
 $$\text{ORDER BY: } \text{date DESC}, \quad \text{amount ASC}, \quad \text{id DESC}$$
 

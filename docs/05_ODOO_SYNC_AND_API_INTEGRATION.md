@@ -1,6 +1,6 @@
 # Odoo 18 Sync & API Integration
 
-Moneta Desktop can operate completely standalone or connect directly to a live, self-hosted **Odoo 18 server** running the [`moneta_finance`](https://github.com/lohwswilson/moneta_finance) module.
+Moneta Wealth can operate completely standalone or connect directly to a live, self-hosted **Odoo 18 server** running the [`moneta_finance`](https://github.com/lohwswilson/moneta_finance) module.
 
 ---
 
@@ -120,13 +120,13 @@ Authentication uses Odoo's native **Personal Access Token (PAT)** system (`res.u
    Authorization: Bearer <API_KEY>
    ```
 2. **Scoping**: Odoo scopes every database query to `request.env.user` corresponding to the token owner, applying all multi-tenant security rules.
-3. **Prefix Normalization**: Moneta Desktop's API client ([`src/lib/api/client.ts`](file:///opt/moneta_wealth/src/lib/api/client.ts)) automatically strips redundant `"Bearer "` prefixes to prevent malformed auth headers.
+3. **Prefix Normalization**: Moneta Wealth's API client ([`src/lib/api/client.ts`](file:///opt/moneta_wealth/src/lib/api/client.ts)) automatically strips redundant `"Bearer "` prefixes to prevent malformed auth headers.
 
 ---
 
 ## 4. Cross-Origin (CORS) & Network Architecture
 
-Connecting a desktop webview or browser app to an external Odoo server faces browser Cross-Origin Resource Sharing (CORS) restrictions. Moneta Desktop solves this with a **dual-architecture network bridge**:
+Connecting a desktop webview or browser app to an external Odoo server faces browser Cross-Origin Resource Sharing (CORS) restrictions. Moneta Wealth solves this with a **dual-architecture network bridge**:
 
 ```
 +-------------------------------------------------------------------------+

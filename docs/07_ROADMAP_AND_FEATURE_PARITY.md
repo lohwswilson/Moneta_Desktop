@@ -1,14 +1,14 @@
 # Roadmap & Feature Parity Plan
 
-This document details the feature parity comparison between the **Odoo `moneta_finance`** backend suite and the standalone **Moneta Desktop App**.
+This document details the feature parity comparison between the **Odoo `moneta_finance`** backend suite and the standalone **Moneta Wealth App**.
 
-> **Phase numbering note:** Moneta Desktop and the Odoo `moneta_finance` module maintain **separate** roadmaps with **different** phase numbering. Desktop Phase 3 is not Odoo Phase 3. Where a Desktop feature mirrors an upstream track, this document names the Odoo track explicitly (e.g. *Odoo Track 5.7*). The authoritative Desktop roadmap is [`ROADMAP.md`](../ROADMAP.md); this page is the parity audit against it.
+> **Phase numbering note:** Moneta Wealth and the Odoo `moneta_finance` module maintain **separate** roadmaps with **different** phase numbering. Desktop Phase 3 is not Odoo Phase 3. Where a Desktop feature mirrors an upstream track, this document names the Odoo track explicitly (e.g. *Odoo Track 5.7*). The authoritative Desktop roadmap is [`ROADMAP.md`](../ROADMAP.md); this page is the parity audit against it.
 
 ---
 
 ## 📊 Feature Parity Audit Matrix
 
-| Domain / Capability | Odoo moneta_finance | Moneta Desktop Status | Parity State |
+| Domain / Capability | Odoo moneta_finance | Moneta Wealth Status | Parity State |
 | :--- | :--- | :--- | :---: |
 | **Checkbook Register** | Window-partitioned running balances | Interactive register with credit-before-debit tiebreaker | **100% Parity** |
 | **Reconciliation Toggles** | 1-Click `Clr` (`UNC`, `CLR`, `REC`) | 1-Click interactive `Clr` badge cycling | **100% Parity** |
@@ -131,7 +131,7 @@ See [`10_STOCK_PORTFOLIO_AND_TAX_LOTS.md`](10_STOCK_PORTFOLIO_AND_TAX_LOTS.md).
 
 ## 🔗 Cross-Repository Contract
 
-Moneta Desktop consumes the Odoo **mobile REST surface**, not the ORM. This distinction matters when reading the two codebases side by side:
+Moneta Wealth consumes the Odoo **mobile REST surface**, not the ORM. This distinction matters when reading the two codebases side by side:
 
 | Layer | Naming | Example |
 | :--- | :--- | :--- |

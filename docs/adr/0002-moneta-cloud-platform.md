@@ -9,7 +9,7 @@
 
 ## Context
 
-Moneta Cloud is the hosted backend for Moneta Desktop and Moneta Mobile. ADR 0001 established that it is the existing Odoo 18 `moneta_finance` deployment rather than a new service, and dropped Supabase.
+Moneta Cloud is the hosted backend for Moneta Wealth and Moneta Mobile. ADR 0001 established that it is the existing Odoo 18 `moneta_finance` deployment rather than a new service, and dropped Supabase.
 
 This ADR records the platform decision and — importantly — the **narrowed role** Odoo plays in the product.
 
