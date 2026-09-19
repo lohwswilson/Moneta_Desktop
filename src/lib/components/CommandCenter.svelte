@@ -11,7 +11,10 @@
     Percent,
     Eye,
     EyeOff,
-    Gem
+    Gem,
+    Wallet,
+    CreditCard,
+    Building2
   } from '@lucide/svelte';
 
   let hideAmounts = $state(false);
@@ -26,9 +29,10 @@
   };
 
   let m = $derived(financeStore.metrics);
+  let totalAssets = $derived(m ? (m.liquid_cash + m.investments + (m.tangible_assets || 0)) : 0);
 </script>
 
-<div class="p-4 sm:p-6 lg:p-8 space-y-6 overflow-y-auto h-screen max-w-7xl mx-auto">
+<div class="flex-1 h-full overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
   <!-- Header Bar -->
   <div class="flex items-center justify-between">
     <div>
@@ -67,9 +71,9 @@
       <!-- Net Worth Card -->
       <div class="p-5 rounded-xl bg-gradient-to-br from-zinc-900/90 to-zinc-900/40 border border-zinc-800/80 relative overflow-hidden flex flex-col justify-between">
         <div>
-          <div class="flex items-center justify-between text-xs text-zinc-400 font-medium">
+          <div class="flex items-center justify-between text-xs text-zinc-400 font-medium h-7">
             <span>Total Net Worth</span>
-            <span class="p-1.5 rounded-md bg-emerald-500/10 text-emerald-400">
+            <span class="p-1.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shrink-0">
               <TrendingUp class="w-4 h-4" />
             </span>
           </div>
@@ -77,16 +81,16 @@
             {formatCurrency(m.net_worth)}
           </div>
         </div>
-        <div class="mt-3 pt-2.5 border-t border-zinc-800/70 space-y-1.5 text-xs">
+        <div class="mt-4 pt-2.5 border-t border-zinc-800/70 space-y-1 text-[11px]">
           <div class="flex items-center justify-between">
-            <span class="text-zinc-400">Assets:</span>
-            <span class="font-mono font-semibold text-emerald-400">
-              +{formatCurrency(m.liquid_cash + m.investments + (m.tangible_assets || 0))}
+            <span class="text-zinc-500">Total Assets</span>
+            <span class="font-mono font-medium text-emerald-400">
+              +{formatCurrency(totalAssets)}
             </span>
           </div>
           <div class="flex items-center justify-between">
-            <span class="text-zinc-400">Debt:</span>
-            <span class="font-mono font-semibold text-rose-400">
+            <span class="text-zinc-500">Liabilities</span>
+            <span class="font-mono font-medium text-rose-400">
               -{formatCurrency(m.total_liabilities)}
             </span>
           </div>
@@ -96,32 +100,44 @@
       <!-- Liquid Cash Card -->
       <div class="p-5 rounded-xl bg-zinc-900/40 border border-zinc-800/80 flex flex-col justify-between">
         <div>
-          <div class="flex items-center justify-between text-xs text-zinc-400 font-medium">
+          <div class="flex items-center justify-between text-xs text-zinc-400 font-medium h-7">
             <span>Liquid Cash Buffer</span>
-            <span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+            <span class="p-1.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shrink-0">
+              <Wallet class="w-4 h-4" />
+            </span>
           </div>
           <div class="text-xl sm:text-2xl font-bold font-mono text-emerald-400 mt-2.5 tracking-tight truncate" title={formatCurrency(m.liquid_cash)}>
             {formatCurrency(m.liquid_cash)}
           </div>
         </div>
-        <div class="text-[11px] text-zinc-500 mt-3 pt-2.5 border-t border-zinc-800/40">
-          Checking, High-Yield Savings & CPF
+        <div class="mt-4 pt-2.5 border-t border-zinc-800/70 space-y-1 text-[11px]">
+          <div class="text-zinc-400 truncate">Checking, High-Yield & CPF</div>
+          <div class="flex items-center justify-between text-zinc-500">
+            <span>Asset Share</span>
+            <span class="font-mono font-medium text-zinc-300">{totalAssets > 0 ? Math.round((m.liquid_cash / totalAssets) * 100) : 0}%</span>
+          </div>
         </div>
       </div>
 
       <!-- Total Investments Card -->
       <div class="p-5 rounded-xl bg-zinc-900/40 border border-zinc-800/80 flex flex-col justify-between">
         <div>
-          <div class="flex items-center justify-between text-xs text-zinc-400 font-medium">
+          <div class="flex items-center justify-between text-xs text-zinc-400 font-medium h-7">
             <span>Investments & Brokerage</span>
-            <span class="w-2.5 h-2.5 rounded-full bg-sky-400"></span>
+            <span class="p-1.5 rounded-md bg-sky-500/10 text-sky-400 border border-sky-500/20 shrink-0">
+              <PieChart class="w-4 h-4" />
+            </span>
           </div>
           <div class="text-xl sm:text-2xl font-bold font-mono text-sky-400 mt-2.5 tracking-tight truncate" title={formatCurrency(m.investments)}>
             {formatCurrency(m.investments)}
           </div>
         </div>
-        <div class="text-[11px] text-zinc-500 mt-3 pt-2.5 border-t border-zinc-800/40">
-          Equities, Index ETFs & Retirement
+        <div class="mt-4 pt-2.5 border-t border-zinc-800/70 space-y-1 text-[11px]">
+          <div class="text-zinc-400 truncate">Equities, Index ETFs & SRS</div>
+          <div class="flex items-center justify-between text-zinc-500">
+            <span>Asset Share</span>
+            <span class="font-mono font-medium text-zinc-300">{totalAssets > 0 ? Math.round((m.investments / totalAssets) * 100) : 0}%</span>
+          </div>
         </div>
       </div>
 
@@ -129,16 +145,22 @@
       {#if (m.tangible_assets || 0) > 0}
         <div class="p-5 rounded-xl bg-zinc-900/40 border border-zinc-800/80 flex flex-col justify-between">
           <div>
-            <div class="flex items-center justify-between text-xs text-zinc-400 font-medium">
+            <div class="flex items-center justify-between text-xs text-zinc-400 font-medium h-7">
               <span>Tangible Assets</span>
-              <span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
+              <span class="p-1.5 rounded-md bg-amber-500/10 text-amber-400 border border-amber-500/20 shrink-0">
+                <Building2 class="w-4 h-4" />
+              </span>
             </div>
             <div class="text-xl sm:text-2xl font-bold font-mono text-amber-400 mt-2.5 tracking-tight truncate" title={formatCurrency(m.tangible_assets || 0)}>
               {formatCurrency(m.tangible_assets || 0)}
             </div>
           </div>
-          <div class="text-[11px] text-zinc-500 mt-3 pt-2.5 border-t border-zinc-800/40">
-            Real Estate, Vehicles & Valuables
+          <div class="mt-4 pt-2.5 border-t border-zinc-800/70 space-y-1 text-[11px]">
+            <div class="text-zinc-400 truncate">Real Estate & Property</div>
+            <div class="flex items-center justify-between text-zinc-500">
+              <span>Asset Share</span>
+              <span class="font-mono font-medium text-zinc-300">{totalAssets > 0 ? Math.round(((m.tangible_assets || 0) / totalAssets) * 100) : 0}%</span>
+            </div>
           </div>
         </div>
       {/if}
@@ -146,16 +168,22 @@
       <!-- Liabilities Card -->
       <div class="p-5 rounded-xl bg-zinc-900/40 border border-zinc-800/80 flex flex-col justify-between">
         <div>
-          <div class="flex items-center justify-between text-xs text-zinc-400 font-medium">
+          <div class="flex items-center justify-between text-xs text-zinc-400 font-medium h-7">
             <span>Total Liabilities</span>
-            <span class="w-2.5 h-2.5 rounded-full bg-rose-400"></span>
+            <span class="p-1.5 rounded-md bg-rose-500/10 text-rose-400 border border-rose-500/20 shrink-0">
+              <CreditCard class="w-4 h-4" />
+            </span>
           </div>
           <div class="text-xl sm:text-2xl font-bold font-mono text-rose-400 mt-2.5 tracking-tight truncate" title={formatCurrency(m.total_liabilities)}>
             {formatCurrency(m.total_liabilities)}
           </div>
         </div>
-        <div class="text-[11px] text-zinc-500 mt-3 pt-2.5 border-t border-zinc-800/40">
-          Mortgage loans & Credit cards
+        <div class="mt-4 pt-2.5 border-t border-zinc-800/70 space-y-1 text-[11px]">
+          <div class="text-zinc-400 truncate">Mortgages & Credit Cards</div>
+          <div class="flex items-center justify-between text-zinc-500">
+            <span>Debt / Asset</span>
+            <span class="font-mono font-medium text-zinc-300">{totalAssets > 0 ? Math.round((m.total_liabilities / totalAssets) * 100) : 0}%</span>
+          </div>
         </div>
       </div>
     </div>
