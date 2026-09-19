@@ -1,6 +1,6 @@
 # Moneta Wealth: Product Roadmap & Feature Parity Plan
 
-This roadmap defines the multi-phase engineering plan for **Moneta Wealth** — an offline-first desktop personal finance suite synthesizing the checkbook ledger precision of **Quicken Premier**, the proactive zero-based cash discipline of **YNAB**, and the modern financial architecture of **Monize** (`/opt/monize`).
+This roadmap defines the engineering plan for **Moneta Wealth** — the exclusive consumer-facing desktop client for the **`moneta_core`** headless finance engine. It synthesizes the checkbook ledger precision of **Quicken Premier**, the proactive zero-based cash discipline of **YNAB**, the modern financial architecture of **Monize** (`/opt/monize`), and the Southeast Asian wealth engines of **`moneta_core`**.
 
 ---
 
@@ -8,34 +8,41 @@ This roadmap defines the multi-phase engineering plan for **Moneta Wealth** — 
 
 | Phase & Milestone | Domain Area | Status | Progress | Key Target / Deliverable |
 | :--- | :--- | :---: | :---: | :--- |
-| [**Phase 1**](#phase-1-foundation--local-sqlite-engine-100-complete) | Foundation & Local SQLite | ✅ Complete | **100%** (8/8) | Tauri v2, Svelte 5 runes, WASM SQLite, binary backup/restore, native accounts |
-| [**Phase 2**](#phase-2-advanced-banking--register-ergonomics-75-complete) | Banking & Register Ergonomics | 🟡 Active | **75%** (6/8) | Split transactions, 33 SG rules, import wizard, payee directory, calendar view |
+| [**Phase 1**](#phase-1-foundation--local-sqlite-engine-100-complete) | Foundation & Local SQLite | ✅ Complete | **100%** (8/8) | Tauri v2, Svelte 5 runes, WASM SQLite, binary backup/restore, native accounts CRUD |
+| [**Phase 2**](#phase-2-advanced-banking--register-ergonomics-60-complete) | Banking & Register Ergonomics | 🟡 Active | **60%** (6/10) | Split transactions, 33 SG rules, import wizard, payee directory, calendar view, undo |
 | [**Phase 3**](#phase-3-envelope-budgeting--cash-flow-planning-45-complete) | Envelope Budgeting & Cash Flow | 🟡 Active | **45%** (5/11) | Zero-based envelopes, "Can I Spend?", RTA banner, credit card shift, Sankey |
-| [**Phase 4**](#phase-4-stock-portfolio--tax-lot-accounting-75-complete) | Stock Portfolio & Tax Lots | ✅ Core Done | **75%** (3/4) | Holdings, FIFO/LIFO/SpecID tax lots, TWR/XIRR returns, MS Money metrics |
-| [**Phase 5**](#phase-5-real-estate-mortgages--landlord-hub-100-complete) | Real Estate, Loans & Rental | ✅ Complete | **100%** (4/4) | Net home equity, 360-month amortization, prepayment simulator, rent roll |
-| [**Phase 6**](#phase-6-regional-financial-ecosystems-0-complete) | Regional Ecosystems (SG / MY) | ⬜ Planned | **0%** (0/2) | Singapore CPF (OA/SA/MA/RA, 2.5% accrued refund) & Malaysia EPF/KWSP Hub |
-| [**Phase 7**](#phase-7-ai-advisor--stochastic-simulators-0-complete) | AI Advisor & Stochastic Sim | ⬜ Planned | **0%** (0/3) | 1,000-path Monte Carlo engine, 100-year historical crisis stress-tester, local AI |
-| [**Phase 8**](#phase-8-moneta-cloud-sync--subscriptions-50-complete) | Cloud Sync & Subscriptions | 🔄 In Progress | **50%** (3/6) | Client SQLite triggers, conflict policy (ADR 0006), server write endpoints |
+| [**Phase 4**](#phase-4-stock-portfolio--quantitative-markets-43-complete) | Stock Portfolio & Quant Markets | 🟡 Active | **43%** (3/7) | Holdings, FIFO/LIFO/SpecID tax lots, TWR/XIRR, RSI/MACD, GEM momentum, DCF |
+| [**Phase 5**](#phase-5-real-estate-mortgages--landlord-hub-100-complete) | Real Estate, Loans & Rental | ✅ Complete | **4/4** (100%) | Net home equity, 360-month amortization, prepayment simulator, rent roll |
+| [**Phase 6**](#phase-6-singapore-regional-wealth-pack-0-complete) | Singapore Regional Wealth Pack | ⬜ Planned | **0%** (0/5) | CPF Hub, CPF LIFE Simulator, CPF Housing Accrued Interest (2.5%), IRAS Tax, SSB |
+| [**Phase 7**](#phase-7-malaysia-regional-wealth-pack-0-complete) | Malaysia Regional Wealth Pack | ⬜ Planned | **0%** (0/4) | KWSP 3-Account Hub, LHDN Borang BE Tax, Flexi-Loan SBR Offset, PRS/ASNB |
+| [**Phase 8**](#phase-8-autonomous-intelligence-simulation--safety-0-complete) | Simulation, AI & Safety | ⬜ Planned | **0%** (0/6) | 1,000-Path Monte Carlo, 100-Yr Crisis Stress-Tester, Insights, Digital Will, AI |
+| [**Phase 9**](#phase-9-moneta-cloud-sync--subscriptions-50-complete) | Cloud Sync & Subscriptions | 🔄 In Progress | **50%** (3/6) | Client SQLite triggers, conflict policy (ADR 0006), server write endpoints |
 | [**Tooling & Docs**](#tooling-documentation--cicd-100-complete) | Documentation & CI/CD | ✅ Complete | **100%** (4/4) | 8-Chapter User Guide, Zensical static engine, GitHub Pages workflow |
-| **TOTAL SUITE PROGRESS** | | | **66%** (33/50) | **Active Desktop Suite + Standalone Ledger** |
+| **TOTAL SUITE PROGRESS** | | | **56%** (33/59) | **Active Desktop Suite + Standalone Ledger** |
 
 ---
 
-## 🏛️ Architectural Synthesis: Quicken + YNAB + Monize
+## 🏛️ Comprehensive Architecture & Domain Crosswalk
 
 ```
-+--------------------------------------------------------------------------------------------------------+
-|                                    PERSONAL FINANCE SYNTHESIS                                          |
++────────────────────────────────────────────────────────────────────────────────────────────────────────+
+|                             MONETA WEALTH (Desktop Client) & MONETA_CORE                               |
++────────────────────────────────────────────────────────────────────────────────────────────────────────+
 |                                                                                                        |
-|   QUICKEN PREMIER          YNAB                      MONIZE (/opt/monize)      MONETA WEALTH           |
-|   (Historical Ledger)      (Proactive Envelope)      (MS Money Successor)      (The Unified Synthesis) |
-|   ───────────────────      ────────────────────      ────────────────────      ─────────────────────── |
-|   • Meticulous register    • Zero-based envelopes    • Full balance sheet      • Offline-First WASM    |
-|   • Tax-lot accounting     • Credit card reserves    • Calendar view ledger    • Quicken Ledger + Clr  |
-|   • Loan amortizations     • Ready to Assign (RTA)   • Dense stock tables      • YNAB Envelopes + RTA  |
-|   • Split transactions     • Roll with punches       • 30-yr MS Money parity   • Monize Calendar & MS  |
-|   • Desktop privacy        • Strict cash-on-hand     • Postgres / Next.js      • SG/MY Regional Hubs   |
-+--------------------------------------------------------------------------------------------------------+
+|  [ CORE DOMAINS ]                                                                                      |
+|  • Phase 1: Local SQLite WASM, IndexedDB, Binary Backup & Restore Engine, Wealth Command Center        |
+|  • Phase 2: Checkbook Register, Split Transactions, Statement Import, 33 SG Rules, Payee Directory     |
+|  • Phase 3: Zero-Based Envelope Budgeting, "Can I Spend?", Bills Radar, 365d Cash Flow & Sankey        |
+|  • Phase 4: Stock Holdings, Tax Lots (FIFO/LIFO/HIFO/SpecID), Realized Gains, TWR/XIRR                 |
+|  • Phase 5: Property Equity, 360-Mo Amortization Schedule, Prepayment Simulator, Landlord Rent Roll   |
+|                                                                                                        |
+|  [ INCOMING PORTS FROM MONETA_CORE ]                                                                   |
+|  • Phase 6 (Singapore): cpf.py, singapore_property.py, iras_tax.py, singapore_fixed_income.py, srs.py  |
+|  • Phase 7 (Malaysia):  epf.py, lhdn_tax.py, malaysia_property_loan.py, malaysia_investments.py        |
+|  • Phase 8 (Quant & AI):monte_carlo.py, gem_strategy.py, technical_indicators.py, security_analysis.py|
+|  • Phase 8 (Safety):    action_history.py, emergency_access.py, account_share.py, insight.py           |
+|  • Phase 9 (Cloud):     api_mobile.py write endpoints, deletion tombstones, sync cursors (ADR 0006)    |
++────────────────────────────────────────────────────────────────────────────────────────────────────────+
 ```
 
 ---
@@ -58,27 +65,22 @@ This roadmap defines the multi-phase engineering plan for **Moneta Wealth** — 
 
 ---
 
-### Phase 2: Advanced Banking & Register Ergonomics (75% Complete)
-*Checkbook ledger precision inspired by Quicken Premier and Monize.*
+### Phase 2: Advanced Banking & Register Ergonomics (60% Complete)
+*Checkbook ledger precision inspired by Quicken Premier and Monize (`/opt/monize`).*
 
-- [x] **Interactive Checkbook Register (`CheckbookRegister.svelte`):**
-  - Point-in-time running balance calculation.
-  - 1-Click `Clr` reconciliation lifecycle: `'unreconciled'` $\rightarrow$ `'cleared'` $\rightarrow$ `'reconciled'`.
-- [x] **Split Transactions:**
-  - Multi-category transaction allocation with live remainder calculation in [`QuickAddModal.svelte`](src/lib/components/QuickAddModal.svelte).
-  - Register `[SPLIT (N)]` badges with nested breakdown views.
-- [x] **Bank Statement Import Wizard (`StatementImportModal.svelte`):**
-  - Drag-and-drop CSV and Quicken QIF statement parser.
-  - Built-in recognition for Singapore banks (DBS/POSB, OCBC, UOB, StanChart).
-  - Fingerprint-based duplicate transaction prevention.
+- [x] **Interactive Checkbook Register (`CheckbookRegister.svelte`):** Point-in-time running balance calculation and 1-click `Clr` reconciliation (`unreconciled` $\rightarrow$ `cleared` $\rightarrow$ `reconciled`).
+- [x] **Split Transactions:** Multi-category transaction allocation with live remainder calculation in [`QuickAddModal.svelte`](src/lib/components/QuickAddModal.svelte) and register `[SPLIT (N)]` badges.
+- [x] **Bank Statement Import Wizard (`StatementImportModal.svelte`):** Drag-and-drop CSV/QIF statement parser, Singapore bank recognition (DBS/POSB, OCBC, UOB, StanChart), and duplicate prevention.
 - [x] **33 Singapore Merchant Auto-Categorization Rules:** Priority regex engine auto-categorizing FairPrice, Grab, Singtel, SP Group, foodpanda, Sheng Siong, Shopee, and insurance premiums.
-- [x] **Payee Intelligence Directory (`PayeeDirectoryHub.svelte`):** Historical spend analytics, 180-day interval clustering, and cadence detection (`weekly`, `monthly`, `quarterly`, `yearly`).
+- [x] **Payee Intelligence Directory (`PayeeDirectoryHub.svelte`):** Historical spend analytics, 180-day interval clustering, and cadence detection.
 - [x] **10-Second Statement Balance Verification (`VerifyBalanceModal.svelte`):** Register balance reconciliation against bank statement ending balances with auto-adjusting ledger entries.
 - [ ] `[Monize / Quicken]` **Register Calendar View (Transactions & Balances):**
-  - Month/Week/Day visual calendar grid toggle on the checkbook register.
+  - Month/Week/Day visual calendar grid toggle on the checkbook register (`models/cashflow_calendar.py`).
   - Transactions and scheduled bills rendered as color-coded chips with pending/overdue markers.
   - **Projected end-of-day cash balance** displayed on every single calendar day tile (Monize parity).
-- [ ] `[Quicken / Monize]` **In-App Receipt & Document Viewer:** Integrated preview modal for receipt photos (zoom/pan) and multi-page invoice PDFs attached to transactions.
+- [ ] `[Quicken / Monize]` **In-App Receipt & Document Viewer:** Integrated preview modal for receipt photos (zoom/pan) and multi-page invoice PDFs attached to transactions (`moneta_core Track 2.28`).
+- [ ] `[moneta_core Track 2.4]` **Action History & 1-Click Undo Buffer (`action_history.py`):** Mutation audit log supporting 1-click Undo / Redo for accidental deletions, bulk edits, or statement imports.
+- [ ] `[moneta_core Track 2.24]` **Collaborative "Needs Review" Inbox & Household Triage:** Review lifecycle (`needs_review` $\rightarrow$ `reviewed`) and in-line transaction comments.
 
 ---
 
@@ -90,101 +92,105 @@ This roadmap defines the multi-phase engineering plan for **Moneta Wealth** — 
 - [x] **Recurring Bills & Subscription Radar (`RecurringBillsHub.svelte`):** 14-day and 30-day countdown radar, auto-pay badges, and 1-click **"Mark as Paid"** ledgering.
 - [x] **Cash Flow Forecaster & Sankey Diagram (`CashFlowHub.svelte`):** 30/90/180/365-day balance trajectory area chart, minimum cash trough detection, and interactive personal finance Sankey flow.
 - [x] **Financial Goals & Sinking Funds (`GoalsHub.svelte`):** Target amounts, milestone dates, dedicated account linkage, and monthly savings pace derivations via shared `goalMath.ts`.
-- [ ] `[YNAB Discipline]` **Zero-Based "Ready to Assign" (RTA) Cash Guardrail Banner:**
-  - Real-time liquid cash calculation: $\text{RTA} = \text{Total Liquid Cash} - \sum \text{Allocated Envelopes}$.
-  - Visual top banner on Budget view displaying RTA status (Green when S$ 0.00, Yellow when positive cash unassigned, Red when over-allocated).
-  - Strict cash guardrail mode: prevents budgeting unreceived/projected income to enforce true cash-on-hand discipline.
-- [ ] `[YNAB Discipline]` **Automated Credit Card Payment Reserve & Shift Engine:**
-  - When recording an expense on a credit card (e.g. S$ 50 on Groceries), automatically shift S$ 50 from the `Groceries` envelope into a dedicated `Credit Card Payment Reserve` envelope.
-  - "Available for Payment" vs "Statement Balance" reconciliation indicator (Green = Paid-in-Full, Red = Carrying Debt).
-  - 1-Click credit card payment transfer paying statement balance from reserved cash without impacting expense categories.
-- [ ] `[YNAB Discipline]` **Smart Dynamic Target Types:**
-  - **Needed for Spending**: Monthly spending ceiling deducting rollover surplus ($\text{Needed} = \text{Target} - \text{Rollover}$).
-  - **Target Balance by Date**: Sinking fund auto-calculating monthly required contribution based on remaining months until target date ($\text{Monthly} = \frac{\text{Target} - \text{Current}}{\text{Months Remaining}}$).
-  - **Monthly Savings Builder**: Fixed monthly allocation regardless of account balance.
-- [ ] `[YNAB Discipline]` **"Roll with the Punches" Overspending Resolution Wizard:**
-  - Visual overspending alert badge on negative categories ($< \text{S\$} 0.00$).
-  - Interactive modal listing categories with surplus available funds for instant intra-period fund reallocation.
-- [ ] `[YNAB Discipline]` **"Age of Money" (AOM) & Days of Buffer Engine:**
-  - FIFO cash queue matching outgoing payments against historical deposit dates.
-  - Real-time Age of Money metric ($< 30\text{ days}$ paycheck-to-paycheck vs. $\ge 30\text{ days}$ living on last month's income).
-- [ ] `[Monarch / MS Money]` **12-Month Forward Cash Flow & "What-If" Scenario Forecaster:**
-  - Interactive sandbox simulating milestone scenarios (car purchase, sabbatical, bonus payout) without modifying actual ledger records.
-  - Baseline vs Alternative scenario net worth and liquidity curves.
+- [ ] `[YNAB Discipline]` **Zero-Based "Ready to Assign" (RTA) Cash Guardrail Banner:** Enforcing strict cash-on-hand discipline ($\text{RTA} = \text{Cash} - \sum \text{Envelopes}$).
+- [ ] `[YNAB Discipline]` **Automated Credit Card Payment Reserve & Shift Engine:** Shifting available cash from budgeted envelopes into the credit card payment reserve upon credit card swipe.
+- [ ] `[YNAB Discipline]` **Dynamic Sinking Fund Target Types:** "Needed for Spending" (monthly refill), "Target Balance by Date" (sinking funds), and "Monthly Savings Builder".
+- [ ] `[YNAB Discipline]` **"Roll with the Punches" Overspending Resolution Wizard:** 1-click intra-period fund reallocation from surplus categories.
+- [ ] `[YNAB Discipline]` **"Age of Money" (AOM) & Days of Buffer Engine:** FIFO cash queue estimating liquidity buffer.
+- [ ] `[Monarch / MS Money]` **12-Month Forward Cash Flow & "What-If" Scenario Forecaster:** Interactive sandbox simulating milestone scenarios without altering real ledger records.
 
 ---
 
-### Phase 4: Stock Portfolio & Tax-Lot Accounting (75% Complete)
-*Institutional-grade investment tracking and capital gains optimization.*
+### Phase 4: Stock Portfolio & Quantitative Markets (43% Complete)
+*Parity with `moneta_core`: `investment.py`, `tax_lot.py`, `technical_indicators.py`, `security_analysis.py`, `gem_strategy.py`.*
 
 - [x] **Stock & ETF Holdings Register (`PortfolioHub.svelte`):** Multi-brokerage tracking (IBKR, Tiger, Moomoo, CDP) with symbol, shares, average cost basis, current market price, and unrealized gain/loss.
-- [x] **Advanced Tax-Lot Accounting Engine (`portfolioMath.ts`):**
-  - Multiple disposal strategies: **FIFO**, **LIFO**, **HIFO**, and **Specific Lot Identification (SpecID)**.
-  - Lot purchase tracking with acquisition dates, holding days, and short-term ($< 365\text{ days}$) vs long-term ($\ge 365\text{ days}$) classification.
-  - Realized capital gains schedule with disposal dates, proceeds, and cost basis sold.
+- [x] **Advanced Tax-Lot Accounting Engine (`portfolioMath.ts`):** FIFO, LIFO, HIFO, and Specific Lot Identification (SpecID) disposal strategies with realized gain schedules.
 - [x] **Portfolio Performance Metrics:** Time-Weighted Return (TWR via Modified Dietz) and Money-Weighted Return (MWR via XIRR bisection solver).
-- [ ] `[Monize / MS Money]` **MS Money Density & Visuals:**
-  - 52-Week visual price range sliders showing current quote position.
-  - Dividend calendar schedule with projected monthly dividend income streams.
-  - Portfolio rebalancing calculator determining exact share adjustments to match target asset allocation.
+- [ ] `[moneta_core]` **Technical Indicators Overlay (`technical_indicators.py`):**
+  - 14-Day RSI (Overbought $>70$, Oversold $<30$).
+  - MACD (12, 26, 9) signal line & histogram.
+  - 50-Day & 200-Day SMA Golden Cross / Death Cross detection.
+  - Bollinger Bands ($20\text{-day SMA} \pm 2\sigma$).
+- [ ] `[moneta_core]` **Fundamental Security Analysis (`security_analysis.py`):** MS Money metrics: Trailing P/E, Forward P/E, PEG ratio, EPS, Price-to-Book, Dividend Yield, Payout Ratio, Beta, and DCF fair value model.
+- [ ] `[moneta_core]` **Global Equity Momentum / GEM Strategy (`gem_strategy.py`):** Gary Antonacci quantitative model comparing 12-month trailing returns between US Equities (S&P 500), Non-US Equities (All-World), and Aggregate Bonds to generate monthly asset allocation signals.
+- [ ] `[Monize / MS Money]` **MS Money 52-Week Range Sliders & Portfolio Rebalancer:** Visual price range sliders, dividend schedule, and portfolio rebalancing calculator.
 
 ---
 
 ### Phase 5: Real Estate, Mortgages & Landlord Hub (100% Complete)
-*Comprehensive home equity, debt payoff acceleration, and rental management.*
+*Comprehensive home equity, debt payoff acceleration, and rental management (`property.py`, `loan.py`, `rental_property.py`).*
 
 - [x] **Property Equity & Valuation Tracker (`PropertyHub.svelte`):** Real estate valuation tracking, Loan-to-Value (LTV) ratio, appraisal history, and net equity clamped at zero ($\max(\text{Value} - \text{Debt}, 0)$) mirroring Odoo.
-- [x] **Mortgage Amortization Schedule (`LoanHub.svelte`):**
-  - Full 360-month principal vs interest schedule derived via shared `loanMath.ts`.
-  - Step-rate support: effective-date rate changes and historical interest rate inference.
-  - Currency-rounded payment schedule ensuring clean 360-payment terms.
+- [x] **Mortgage Amortization Schedule (`LoanHub.svelte`):** Full 360-month principal vs interest schedule derived via shared `loanMath.ts`, with step-rate support and currency-rounded payments.
 - [x] **Debt Prepayment Simulator:** Interactive extra-monthly and lump-sum prepayment inputs calculating exact interest saved and years shaved off loan term.
-- [x] **Landlord Hub & Rent Roll (`LandlordHub.svelte`):**
-  - Tenant and lease tracking with date-driven lease status.
-  - Monthly rent roll collection schedule with overdue payment detection.
-  - 1-Click rent posting to checking account register.
-  - Net Rental Yield (NOI) calculation factoring in property tax, MCST maintenance fees, and repairs.
+- [x] **Landlord Hub & Rent Roll (`LandlordHub.svelte`):** Tenant and lease tracking, monthly rent roll collection schedule with overdue payment detection, and Net Rental Yield (NOI) calculation.
 
 ---
 
-### Phase 6: Regional Financial Ecosystems (0% Complete — Target: Q3 2027)
-*The regional competitive moat tailored for Southeast Asian wealth.*
+### Phase 6: Singapore Regional Wealth Pack (0% Complete)
+*Full parity with `moneta_core` Singapore models: `cpf.py`, `singapore_property.py`, `iras_tax.py`, `singapore_fixed_income.py`, `srs.py`.*
 
-- [ ] `[Regional Moat]` **Singapore CPF Hub:**
-  - Full account spectrum: Ordinary Account (OA), Special Account (SA), MediSave Account (MA), Retirement Account (RA), and Supplementary Retirement Scheme (SRS).
-  - Monthly CPF contribution calculator factoring in age tiers and Ordinary/Additional Wage ceilings (OW/AW).
-  - **CPF Housing Refund & Accrued Interest Calculator**: Mandatory 2.5% compounded accrued interest refund simulation upon property sale.
-  - Singapore Savings Bonds (SSB) and MAS 6-Month T-Bills ladder tracker.
-  - IRAS Personal Income Tax relief optimizer.
-- [ ] `[Regional Moat]` **Malaysia EPF / KWSP Hub:**
-  - 3-Account structure: Akaun Persaraan (1), Akaun Sejahtera (2), Akaun Fleksibel (3).
-  - LHDN Borang BE personal income tax relief planner.
-  - Private Retirement Scheme (PRS) and ASNB investment tracking.
+- [ ] `[moneta_core]` **CPF Hub & CPF LIFE Retirement Simulator (`cpf.py`):**
+  - Specialized accounts: Ordinary Account (OA - 2.5%), Special Account (SA - 4.0%), MediSave Account (MA - 4.0%), Retirement Account (RA - 4.0%).
+  - Monthly lowest-balance interest derivation + extra 1% on first $60,000 combined balances.
+  - **CPF LIFE Simulator**: Basic Retirement Sum (BRS: $106.5k), Full Retirement Sum (FRS: $213k), Enhanced Retirement Sum (ERS: $426k) with Standard, Basic, and Escalating (+2%/yr) plans, calculating monthly payouts and bequests to age 95.
+- [ ] `[moneta_core]` **CPF Housing Accrued Interest Engine (`singapore_property.py`):**
+  - Computes exact monthly 2.5% compounded interest on downpayment, monthly OA mortgage deductions, and housing grants to determine total mandatory CPF refund due upon property sale.
+  - Net cash proceeds simulator: $\text{Net Cash} = \text{Sale Price} - \text{Outstanding Mortgage} - \text{CPF Principal} - \text{CPF Accrued Interest}$.
+- [ ] `[moneta_core]` **Singapore Stamp Duties & MAS Affordability (`singapore_property.py`):**
+  - Tiered Buyer's Stamp Duty (BSD) from 1% up to 6% on properties $> \$3\text{M}$.
+  - Additional Buyer's Stamp Duty (ABSD) for Singapore Citizens, PRs, and Foreigners (1st, 2nd, 3rd+ residential properties).
+  - Total Debt Servicing Ratio (TDSR $\le 55\%$) and Mortgage Servicing Ratio (MSR $\le 30\%$).
+- [ ] `[moneta_core]` **IRAS Personal Income Tax Planner & Optimizer (`iras_tax.py`):**
+  - Singapore progressive tax brackets (0% to 24%).
+  - **$80,000 Personal Relief Cap** enforcement across Earned Income Relief, CPF Mandatory ($20,400 cap), RSTU cash top-ups ($8k self + $8k loved ones), SRS ($15,300), NSman ($1.5k–$5k), Child QCR ($4k/child), Parent relief ($5.5k–$9k), and donations (250%).
+  - Year-end tax optimization advisory showing exact dollar tax savings for top-up decisions.
+- [ ] `[moneta_core]` **Singapore Fixed Income & SRS Hub (`singapore_fixed_income.py`, `srs.py`):**
+  - **Singapore Savings Bonds (SSB)**: 10-year step-up coupon curve, average annual return compounding, penalty-free redemptions.
+  - **MAS 6-Month T-Bills**: Auction cut-off yields and maturity ladder.
+  - **SRS Tracker**: Voluntary contributions and 10-year penalty-free withdrawal tracker.
 
 ---
 
-### Phase 7: AI Advisor & Stochastic Simulators (0% Complete — Target: Q4 2027)
-*Institutional-grade wealth survivability modeling and private intelligence.*
+### Phase 7: Malaysia Regional Wealth Pack (0% Complete)
+*Full parity with `moneta_core` Malaysia models: `epf.py`, `lhdn_tax.py`, `malaysia_property_loan.py`, `malaysia_investments.py`.*
 
-- [ ] **1,000-Path Monte Carlo Wealth Simulator:**
-  - Stochastic market return engine executed via Rust / WebAssembly Worker.
+- [ ] `[moneta_core]` **KWSP / EPF 3-Account Hub (`epf.py`):**
+  - 3-Account restructuring: Akaun Persaraan (75%), Akaun Sejahtera (15%), Akaun Fleksibel (10%).
+  - Monthly contribution calculator (11% employee, 12–13% employer) and annual dividend growth modeling (5%–6% p.a.).
+- [ ] `[moneta_core]` **LHDN Borang BE Personal Income Tax Planner (`lhdn_tax.py`):**
+  - Malaysian Borang BE progressive personal income tax brackets (0% to 30%).
+  - Full relief checklists: Individual (RM 9k), Medical (RM 10k), Lifestyle (RM 2.5k), EPF + Life Insurance (RM 7k), PRS (RM 3k), SSPN (RM 8k), SOCSO/EIS, and child reliefs.
+- [ ] `[moneta_core]` **Malaysian Flexi-Home Loan SBR Offset Simulator (`malaysia_property_loan.py`):**
+  - Standardized Base Rate (SBR) interest offset calculator: depositing surplus cash in current account reduces daily loan principal interest, calculating interest saved and loan tenure shortened.
+  - Real Property Gains Tax (RPGT) holding period bands (0% to 30%).
+- [ ] `[moneta_core]` **PRS & ASNB Tracker (`malaysia_investments.py`):**
+  - Private Retirement Scheme (PRS) tax deduction tracker.
+  - ASNB (Amanah Saham Nasional Berhad) fixed-price and variable unit trust tracking.
+
+---
+
+### Phase 8: Autonomous Intelligence, Simulation & Safety (0% Complete)
+*Full parity with `moneta_core`: `monte_carlo.py`, `insight.py`, `emergency_access.py`, `account_share.py`, `ai_chat.py`.*
+
+- [ ] `[moneta_core]` **1,000-Path Monte Carlo Wealth Simulator (`monte_carlo.py`):**
+  - Stochastic market return engine executed client-side via Web Worker / WASM.
   - $P_{10} / P_{50} / P_{90}$ probability cones for retirement survival over 30–50 year horizons.
-- [ ] **100-Year Historical Crisis Stress-Tester:**
-  - Empirical stress-testing replaying portfolio survivability across landmark financial shocks:
-    - **1929 Great Crash** ($-86\%$ equity drawdown + deflation)
-    - **1973–1974 Stagflation** ($+12\%$ inflation spike with negative real returns)
-    - **1987 Black Monday** ($-22.6\%$ single-day crash)
-    - **2000–2002 Dot-Com Bust** (3-year sustained sequence risk)
-    - **2008 Global Financial Crisis** ($-50\%$ global equity & real estate contraction)
-    - **2020 Pandemic Shock & Inflationary Recovery**
+  - Dynamic inflation, safe withdrawal rates (SWR 3.0%–4.5%), and portfolio longevity survivability score.
+- [ ] `[moneta_core Track 1.1]` **100-Year Historical Crisis Stress-Tester:**
+  - Empirical return replays across landmark financial shocks: 1929 Great Crash, 1973 Stagflation, 1987 Black Monday, 2000 Dot-Com, 2008 GFC, and 2020 Pandemic.
   - Historical block bootstrapping preserving non-Gaussian fat tails.
-- [ ] **Local AI Financial Advisor:**
-  - 100% private, client-side financial audit identifying cash flow leaks and debt traps.
-  - Native integration with local LLMs (Ollama) or private user API keys (Claude / OpenAI).
+- [ ] `[moneta_core]` **Financial Health Audit & Insights (`insight.py`):**
+  - Automated anomaly detection for fee gouging, high-interest debt traps ($>6\%$), subscription price creep, and depleted runway ($<3\text{ months}$).
+- [ ] `[moneta_core Track 2.5]` **Time-Delayed Emergency Digital Estate Access (`emergency_access.py`):**
+  - Trusted contact legacy claim with configurable cooling-off period (14/30 days) and owner cancellation override (dead-man switch).
+- [ ] `[moneta_core]` **Household Privacy & Account Sharing (`account_share.py`):** Multi-user permission levels (View-only, Editor, Admin).
+- [ ] `[moneta_core]` **Local AI Financial Assistant (`ai_chat.py`, `ai_client.py`):** Privacy-preserving AI assistant integrating local Ollama LLM or user private API keys.
 
 ---
 
-### Phase 8: Moneta Cloud Sync & Subscriptions (50% Complete)
+### Phase 9: Moneta Cloud Sync, Multi-Device & Subscriptions (50% Complete)
 *Cross-device synchronization and optional self-hosted cloud custody.*
 *Governed by [ADR 0001](docs/adr/0001-subscription-tiers-and-cloud-sync.md) and [ADR 0006](docs/adr/0006-sync-conflict-policy.md).*
 
