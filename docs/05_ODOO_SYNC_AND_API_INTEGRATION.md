@@ -67,6 +67,7 @@ All 51 endpoints live in `moneta_finance/controllers/api_mobile.py`. The authori
 | `/api/v1/mobile/ping` | Connection test & user identity | — |
 | `/api/v1/mobile/dashboard/summary` | Consolidated wealth & FIRE metrics | — |
 | `/api/v1/mobile/accounts/list` | All accounts, including tangible properties | — |
+| `/api/v1/mobile/accounts/verify_balance` | Recompute and verify account running balance | `account_id` |
 | `/api/v1/mobile/settings` | Base currency, FX rates, categorization rules | — |
 
 ### Transactions
@@ -75,6 +76,7 @@ All 51 endpoints live in `moneta_finance/controllers/api_mobile.py`. The authori
 | :--- | :--- | :--- |
 | `/api/v1/mobile/transactions/register` | Account register rows | `account_id`, `limit` |
 | `/api/v1/mobile/transactions/create` | Create a transaction | `account_id`, `date`, `payee_name`, `amount`, `memo` |
+| `/api/v1/mobile/transactions/batch_create` | Atomic batch transaction creation | `transactions` (list) |
 | `/api/v1/mobile/transactions/update` | Edit an existing transaction | `id`, plus any changed fields |
 | `/api/v1/mobile/transactions/delete` | Delete a transaction | `id` |
 | `/api/v1/mobile/transactions/reconcile` | Cycle reconciliation state | `transaction_id`, `reconciliation_state` |
@@ -85,7 +87,7 @@ All 51 endpoints live in `moneta_finance/controllers/api_mobile.py`. The authori
 
 | Endpoint | Purpose | Key parameters |
 | :--- | :--- | :--- |
-| `/api/v1/mobile/budgets/list` | Envelope budgets | — |
+| `/api/v1/mobile/budgets/list` · `create` · `update` · `delete` | Envelope budget CRUD | budget fields · `budget_id` |
 | `/api/v1/mobile/bills/upcoming` | Bills due within N days | `days` |
 | `/api/v1/mobile/bills/create` · `update` · `delete` | Recurring bill CRUD | bill fields · `bill_id` |
 | `/api/v1/mobile/bills/mark_paid` | Post the expense and advance the due date | `bill_id`, `account_id`, `date` |
