@@ -24,6 +24,7 @@ import type {
   LoanRateChange,
   PropertyValuation,
 } from '../types/moneta';
+import type { VerifyBalanceResult } from './repository';
 import initSqlJs, { type Database, type SqlJsStatic } from 'sql.js';
 import { DEFAULT_RULES } from './rulesEngine';
 import { computeGoalMetrics, toDateOnlyString, todayDateOnly } from './goalMath';
@@ -736,6 +737,71 @@ export class SqliteAdapter implements IMonetaRepository {
 
     await this.persist();
     return { success: true, cleared_balance: clearedBalance };
+  }
+
+  async verifyAndReconcileAccount(
+    accountId: string | number,
+    confirmedBalance: number,
+    adjustmentAmount?: number
+  ): Promise<VerifyBalanceResult> {
+    await this.init();
+    if (!this.db) return { success: false, reconciledCount: 0, clearedBalance: 0 };
+
+    let adjustmentTx: MonetaTransaction | undefined;
+
+    // 1. If an adjustment amount is needed, create an adjustment transaction
+    if (adjustmentAmount && Math.abs(adjustmentAmount) >= 0.01) {
+      adjustmentTx = await this.createTransaction({
+        account_id: accountId,
+        date: new Date().toISOString().split('T')[0],
+        payee_name: 'Reconciliation Balance Adjustment',
+        category_name: 'Adjustment',
+        memo: 'Automatic balance adjustment to match bank statement',
+        amount: Number(adjustmentAmount),
+        reconciliation_state: 'reconciled',
+      });
+    }
+
+    // 2. Count and promote all 'cleared' transactions for this account to 'reconciled'
+    const countRes = this.db.exec(
+      `SELECT COUNT(*) FROM transactions WHERE account_id = '${accountId}' AND reconciliation_state = 'cleared';`
+    );
+    const count = (countRes[0]?.values[0]?.[0] as number) || 0;
+
+    this.db.run(
+      `UPDATE transactions SET reconciliation_state = 'reconciled' WHERE account_id = :accId AND reconciliation_state = 'cleared';`,
+      { ':accId': String(accountId) }
+    );
+
+    // 3. Recompute cleared, reconciled and total balance for account
+    const balRes = this.db.exec(
+      `SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE account_id = '${accountId}' AND reconciliation_state IN ('cleared', 'reconciled');`
+    );
+    const clearedBalance = (balRes[0]?.values[0]?.[0] as number) || 0;
+
+    const recRes = this.db.exec(
+      `SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE account_id = '${accountId}' AND reconciliation_state = 'reconciled';`
+    );
+    const reconciledBalance = (recRes[0]?.values[0]?.[0] as number) || 0;
+
+    const totRes = this.db.exec(
+      `SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE account_id = '${accountId}';`
+    );
+    const currentBalance = (totRes[0]?.values[0]?.[0] as number) || 0;
+
+    this.db.run(
+      `UPDATE accounts SET cleared_balance = :clearedBal, current_balance = :currentBal, reconciled_balance = :recBal WHERE id = :accId;`,
+      { ':clearedBal': clearedBalance, ':currentBal': currentBalance, ':recBal': reconciledBalance, ':accId': String(accountId) }
+    );
+
+    await this.persist();
+
+    return {
+      success: true,
+      reconciledCount: count + (adjustmentTx ? 1 : 0),
+      clearedBalance,
+      adjustmentTransaction: adjustmentTx,
+    };
   }
 
   async createTransaction(payload: Partial<MonetaTransaction>): Promise<MonetaTransaction> {

@@ -92,6 +92,7 @@ class FinanceStore {
   editingTenant = $state<PropertyTenant | null>(null);
   isLoanModalOpen = $state<boolean>(false);
   editingLoan = $state<LoanScenario | null>(null);
+  isVerifyBalanceModalOpen = $state<boolean>(false);
 
   public sqliteAdapter: SqliteAdapter = new SqliteAdapter();
   private repository: IMonetaRepository = new MockAdapter();
@@ -893,6 +894,66 @@ class FinanceStore {
     } catch (err) {
       tx.reconciliation_state = previousState;
       console.error('Failed to update reconciliation state:', err);
+    }
+  }
+
+  openVerifyBalanceModal() {
+    this.isVerifyBalanceModalOpen = true;
+  }
+
+  closeVerifyBalanceModal() {
+    this.isVerifyBalanceModalOpen = false;
+  }
+
+  async verifyAndReconcileAccount(confirmedBalance: number, createAdjustment: boolean = false) {
+    if (!this.selectedAccountId) return;
+    this.isLoading = true;
+    try {
+      let adjustmentAmount: number | undefined = undefined;
+      if (createAdjustment) {
+        const acc = this.accounts.find((a) => String(a.id) === String(this.selectedAccountId));
+        const currentCleared = acc?.cleared_balance ?? 0;
+        adjustmentAmount = Number((confirmedBalance - currentCleared).toFixed(2));
+      }
+
+      if (this.repository.verifyAndReconcileAccount) {
+        await this.repository.verifyAndReconcileAccount(
+          this.selectedAccountId,
+          confirmedBalance,
+          adjustmentAmount
+        );
+      } else {
+        if (adjustmentAmount && Math.abs(adjustmentAmount) >= 0.01) {
+          await this.repository.createTransaction({
+            account_id: this.selectedAccountId,
+            date: new Date().toISOString().split('T')[0],
+            payee_name: 'Reconciliation Balance Adjustment',
+            category_name: 'Adjustment',
+            memo: 'Automatic balance adjustment to match bank statement',
+            amount: Number(adjustmentAmount),
+            reconciliation_state: 'reconciled',
+          });
+        }
+        for (const tx of this.transactions) {
+          if (tx.reconciliation_state === 'cleared') {
+            await this.repository.updateReconciliationState(tx.id, 'reconciled');
+          }
+        }
+      }
+
+      this.closeVerifyBalanceModal();
+      await this.loadAccounts();
+      const updatedMetrics = await this.repository.getDashboardSummary();
+      this.metrics = updatedMetrics;
+      if (this.selectedAccountId) {
+        await this.loadRegister(this.selectedAccountId);
+      }
+      await this.loadBudgets();
+      await this.loadPayees();
+    } catch (err) {
+      console.error('Failed to verify and reconcile account:', err);
+    } finally {
+      this.isLoading = false;
     }
   }
 

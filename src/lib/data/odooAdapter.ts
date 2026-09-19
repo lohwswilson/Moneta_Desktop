@@ -1,4 +1,4 @@
-import type { IMonetaRepository } from './repository';
+import type { IMonetaRepository, VerifyBalanceResult } from './repository';
 import { OdooApi } from '../api/odooApi';
 import type {
   MonetaAccount,
@@ -49,6 +49,44 @@ export class OdooAdapter implements IMonetaRepository {
     state: ReconcileState
   ): Promise<{ success: boolean; cleared_balance?: number }> {
     return OdooApi.updateReconciliationState(transactionId, state);
+  }
+
+  async verifyAndReconcileAccount(
+    accountId: string | number,
+    confirmedBalance: number,
+    adjustmentAmount?: number
+  ): Promise<VerifyBalanceResult> {
+    let adjustmentTx: MonetaTransaction | undefined;
+
+    if (adjustmentAmount && Math.abs(adjustmentAmount) >= 0.01) {
+      adjustmentTx = await this.createTransaction({
+        account_id: accountId,
+        date: new Date().toISOString().split('T')[0],
+        payee_name: 'Reconciliation Balance Adjustment',
+        category_name: 'Adjustment',
+        memo: 'Automatic balance adjustment to match bank statement',
+        amount: Number(adjustmentAmount),
+        reconciliation_state: 'reconciled',
+      });
+    }
+
+    const txs = await this.getAccountTransactions(accountId, 500);
+    const cleared = txs.filter((t) => t.reconciliation_state === 'cleared');
+    let count = 0;
+    for (const t of cleared) {
+      const res = await this.updateReconciliationState(t.id, 'reconciled');
+      if (res.success) count++;
+    }
+
+    const accounts = await this.getAccounts();
+    const currentAcc = accounts.find((a) => String(a.id) === String(accountId));
+
+    return {
+      success: true,
+      reconciledCount: count + (adjustmentTx ? 1 : 0),
+      clearedBalance: currentAcc?.cleared_balance || confirmedBalance,
+      adjustmentTransaction: adjustmentTx,
+    };
   }
 
   async createTransaction(payload: Partial<MonetaTransaction>): Promise<MonetaTransaction> {

@@ -29,6 +29,14 @@
     financeStore.accounts.find((a) => a.id === financeStore.selectedAccountId)
   );
 
+  let clearedCount = $derived(
+    financeStore.transactions.filter(
+      (t) =>
+        String(t.account_id) === String(financeStore.selectedAccountId) &&
+        t.reconciliation_state === 'cleared'
+    ).length
+  );
+
   let filteredTransactions = $derived(
     financeStore.transactions.filter((tx) => {
       // Status filter
@@ -92,6 +100,26 @@
           {formatAmount(currentAccount?.current_balance || 0)}
         </div>
       </div>
+
+      <div class="h-8 w-px bg-zinc-800"></div>
+
+      <button
+        onclick={() => financeStore.openVerifyBalanceModal()}
+        class="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-emerald-950/60 hover:bg-emerald-900/80 border border-emerald-700/60 text-emerald-200 hover:text-white font-medium text-xs transition-all shadow-sm cursor-pointer group"
+        title="Verify cleared balance against your bank app (YNAB-style 10-second reconciliation)"
+      >
+        <div class="p-1 rounded-lg bg-emerald-900/80 text-emerald-400 group-hover:scale-105 transition-transform">
+          <CheckCheck class="w-3.5 h-3.5" />
+        </div>
+        <div class="flex flex-col text-left">
+          <span class="font-semibold text-xs leading-tight text-emerald-100">Verify Balance</span>
+          {#if clearedCount > 0}
+            <span class="text-[10px] text-emerald-400 font-mono leading-tight">{clearedCount} cleared to lock</span>
+          {:else}
+            <span class="text-[10px] text-zinc-400 leading-tight">All up to date</span>
+          {/if}
+        </div>
+      </button>
     </div>
   </header>
 

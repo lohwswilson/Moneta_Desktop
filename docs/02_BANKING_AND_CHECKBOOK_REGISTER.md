@@ -132,3 +132,21 @@ Clicking a register **row** opens a detail edit modal for that transaction.
 Both endpoints are implemented in all three adapters (`sqliteAdapter`, `mockAdapter`, `odooAdapter`), so the modal behaves identically offline, in the sandbox, and against Live Odoo.
 
 > **A note on deleting vs voiding.** The reconciliation model supports a `'void'` state (see §3), which preserves the row and excludes it from balances — the accounting-correct way to reverse a posted entry. Deletion removes the row entirely. If auditability ever matters for a given account, voiding is the safer operation; deletion is offered because a mis-keyed entry is better removed than left in the ledger as a permanent artefact.
+
+---
+
+## 7. 10-Second "Verify Balance" Workflow (`VerifyBalanceModal.svelte`)
+
+For personal finance and wealth management, traditional corporate double-entry bank reconciliation (matching line-by-line bank statement fees against corporate ledgers) creates excessive friction. Moneta Wealth implements the modern **10-Second Balance Verification** workflow popularized by YNAB:
+
+### Workflow Paths
+1. **Header Trigger**: Clicking **Verify Balance** in the register header displays the account's cleared balance and the count of cleared items awaiting lock.
+2. **Path A: Yes, Balance Matches**:
+   - The user glances at their banking mobile app or web portal.
+   - If the cleared figure matches, clicking **"Yes, It Matches"** bulk-promotes all `cleared` (`CLR`) items to `reconciled` (`REC`), locking them in under 2 seconds.
+3. **Path B: No, It's Different**:
+   - If a discrepancy exists (e.g. unrecorded interest, small bank fees, cash tips), clicking **"No, It's Different"** prompts for the actual bank balance.
+   - Moneta Wealth computes the discrepancy and offers a 1-click **"Create Adjustment & Lock"** action.
+   - A 1-line transaction titled `Reconciliation Balance Adjustment` is created with status `reconciled` for the exact difference, bringing the ledger into 100% agreement.
+   - All `cleared` items are promoted to `reconciled`.
+

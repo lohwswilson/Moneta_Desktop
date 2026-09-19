@@ -23,6 +23,7 @@ import type {
   LoanRateChange,
   PropertyValuation,
 } from '../types/moneta';
+import type { VerifyBalanceResult } from './repository';
 import { computeGoalMetrics, toDateOnlyString, todayDateOnly } from './goalMath';
 import { computeLotMetrics, disposeTaxLots, computeModifiedDietz, computeXIRR } from './portfolioMath';
 import {
@@ -329,6 +330,63 @@ export class MockAdapter implements IMonetaRepository {
       return { success: true };
     }
     return { success: false };
+  }
+
+  async verifyAndReconcileAccount(
+    accountId: string | number,
+    confirmedBalance: number,
+    adjustmentAmount?: number
+  ): Promise<VerifyBalanceResult> {
+    let adjustmentTx: MonetaTransaction | undefined;
+
+    if (adjustmentAmount && Math.abs(adjustmentAmount) >= 0.01) {
+      adjustmentTx = await this.createTransaction({
+        account_id: accountId,
+        date: new Date().toISOString().split('T')[0],
+        payee_name: 'Reconciliation Balance Adjustment',
+        category_name: 'Adjustment',
+        memo: 'Automatic balance adjustment to match bank statement',
+        amount: Number(adjustmentAmount),
+        reconciliation_state: 'reconciled',
+      });
+    }
+
+    let count = 0;
+    mockTransactions.forEach((t) => {
+      if (String(t.account_id) === String(accountId) && t.reconciliation_state === 'cleared') {
+        t.reconciliation_state = 'reconciled';
+        count++;
+      }
+    });
+
+    // Recompute cleared, reconciled and current balance
+    const acc = mockAccounts.find((a) => String(a.id) === String(accountId));
+    let clearedBal = 0;
+    let reconciledBal = 0;
+    let currentBal = 0;
+    if (acc) {
+      mockTransactions
+        .filter((t) => String(t.account_id) === String(accountId))
+        .forEach((t) => {
+          currentBal += t.amount;
+          if (t.reconciliation_state === 'cleared' || t.reconciliation_state === 'reconciled') {
+            clearedBal += t.amount;
+          }
+          if (t.reconciliation_state === 'reconciled') {
+            reconciledBal += t.amount;
+          }
+        });
+      acc.cleared_balance = clearedBal;
+      acc.reconciled_balance = reconciledBal;
+      acc.current_balance = currentBal;
+    }
+
+    return {
+      success: true,
+      reconciledCount: count + (adjustmentTx ? 1 : 0),
+      clearedBalance: clearedBal,
+      adjustmentTransaction: adjustmentTx,
+    };
   }
 
   async createTransaction(payload: Partial<MonetaTransaction>): Promise<MonetaTransaction> {

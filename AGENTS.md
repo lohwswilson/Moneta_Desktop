@@ -107,6 +107,7 @@ This document defines the canonical architecture rules, coding standards, and op
 │   │       ├── LandlordHub.svelte   # Tenants, leases & rent roll
 │   │       ├── QuickAddModal.svelte # Transaction capture & split allocations
 │   │       ├── StatementImportModal.svelte # Drag-and-drop statement wizard
+│   │       ├── VerifyBalanceModal.svelte # 10-second balance verification & adjustment
 │   │       └── ConnectionModal.svelte # Mode switcher & Odoo migration
 └── src-tauri/                       # Tauri v2 native Rust desktop wrapper
 ```

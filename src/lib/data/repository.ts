@@ -22,6 +22,13 @@ import type {
   LoanRateChange,
 } from '../types/moneta';
 
+export interface VerifyBalanceResult {
+  success: boolean;
+  reconciledCount: number;
+  clearedBalance: number;
+  adjustmentTransaction?: MonetaTransaction;
+}
+
 export interface IMonetaRepository {
   testConnection(): Promise<{ success: boolean; message: string; user?: string }>;
   getDashboardSummary(): Promise<DashboardMetrics>;
@@ -31,6 +38,11 @@ export interface IMonetaRepository {
     transactionId: string | number,
     state: ReconcileState
   ): Promise<{ success: boolean; cleared_balance?: number }>;
+  verifyAndReconcileAccount?(
+    accountId: string | number,
+    confirmedBalance: number,
+    adjustmentAmount?: number
+  ): Promise<VerifyBalanceResult>;
   createTransaction(payload: Partial<MonetaTransaction>): Promise<MonetaTransaction>;
   updateTransaction?(
     id: string | number,
