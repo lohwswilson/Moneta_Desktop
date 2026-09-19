@@ -8,7 +8,7 @@ This document defines the software engineering architecture, state management pa
 
 1. **100% Offline-First by Default**: The application must launch instantly and execute all operations (register updates, running balance calculations, statement imports, searches) without internet access.
 2. **Deterministic Financial Accuracy**: Floating-point balance drifts are prevented using rounding constraints and chronological tiebreaker algorithms.
-3. **Pluggable Data Decoupling**: Business logic and UI components interact exclusively with an abstract repository interface, decoupling presentation from whether data resides in local SQLite, a remote Odoo 18 instance, or a cloud sync database.
+3. **Local-First Data Decoupling**: Business logic and UI components interact exclusively with an abstract repository interface. That repository is **always the local store** — SQLite for real data, an in-memory sandbox for the demo. Moneta Cloud is a *replication target*, reached through an explicit adapter, never a data source. See §6.
 4. **Lightweight Native Desktop Footprint**: Leveraging **Tauri v2** and **Svelte 5** ensures minimal RAM consumption (~35 MB) and instantaneous UI response times.
 
 ---
@@ -167,3 +167,57 @@ The alternative — each adapter deriving its own numbers — produces a record 
 1. **Local Isolation**: SQLite files and IndexedDB records are scoped exclusively to the application origin. No third-party tracking, analytics, or external telemetry scripts are loaded.
 2. **Credential Security**: When connecting to Odoo 18, Bearer Personal Access Tokens (PAT) are stored locally in the user's browser `localStorage` and sent strictly across HTTPS with zero plain-text logging.
 3. **Rust Network Sandbox**: When running under Tauri, outbound HTTP requests are processed through Tauri's native Rust HTTP core, avoiding WebKit browser sandboxing constraints while maintaining strict OS-level process isolation.
+
+---
+
+## 6. Sync Architecture
+
+Moneta Cloud sync is built in stages, each independently useful and verifiable. This section describes the model; the decisions and their reasoning live in [ADR 0001](docs/adr/0001-subscription-tiers-and-cloud-sync.md) and [ADR 0006](docs/adr/0006-sync-conflict-policy.md).
+
+### 6.1 The model: local-first, sync optional
+
+```
+SQLite is ALWAYS the local store          (offline-first, unconditional)
+Moneta Cloud is an ADDITIONAL capability  (subscribers)
+```
+
+`ConnectionConfig` expresses this directly:
+
+```typescript
+interface ConnectionConfig {
+  dataSource: 'local' | 'sandbox';   // which LOCAL store
+  serverUrl: string;                 // Moneta Cloud — optional, for sync
+  apiToken: string;
+}
+```
+
+`cloudConfigured` is **derived** from the credentials rather than being a mode. `updateAdapter()` points `repository` at SQLite or the sandbox and **never** at `OdooAdapter`; `refreshAll()` never returns early on an unreachable server, so an offline launch shows the local ledger rather than a blank screen.
+
+### 6.2 Change tracking
+
+Every write to a synced table is recorded in `sync_changes` by **SQLite triggers** — declared in [`src/lib/data/syncSchema.ts`](file:///opt/moneta_wealth/src/lib/data/syncSchema.ts), applied at the *end* of `runMigrations()` so seeded defaults are not queued as user changes.
+
+Triggers rather than application logging, because (a) the app hard-deletes, so a delete needs a **tombstone** to be reportable at all, and (b) with 20 tables and dozens of write methods, one path that forgets to log is silent data loss.
+
+The log is **append-only**: editing an already-synced row inserts a new entry rather than reviving a marked one, so there is no un-mark path to get wrong. Timestamps carry milliseconds — second resolution would make same-second changes compare equal.
+
+### 6.3 Conflict resolution
+
+**Server-arrival last-write-wins, with one overriding rule: an unpushed local change always wins.** Implemented as a pure function in [`src/lib/data/syncConflict.ts`](file:///opt/moneta_wealth/src/lib/data/syncConflict.ts), so the whole policy is testable without a database or a server.
+
+Ordering uses a **server-assigned** timestamp. Comparing the client's clock would make ordering depend on every subscriber's system clock, letting one badly-set device silently overwrite good data.
+
+Deletion is an explicit signal, never inferred from absence — a record missing from a server response means "not pushed yet", not "deleted", and confusing the two either destroys unsynced data or resurrects deleted rows.
+
+### 6.4 Stage status
+
+| Stage | Scope | Status |
+| :--: | :--- | :--- |
+| 1 | Local-first refactor — SQLite always local, Odoo a sync target | ✅ Done |
+| 2 | Change tracking — trigger-written append-only log | ✅ Done |
+| 3 | Conflict policy — server-arrival LWW, tombstones | ✅ Done |
+| 4 | **Missing server write endpoints** — accounts, budgets, rent, payee-create, **plus deletion tombstones** | ⬜ Required before sync |
+| 5 | Sync engine — mutation queue and pull cursor | ⬜ Blocked on 4 |
+| 6 | Licence token — issuance, local verification, grace window | ⬜ Needs infrastructure |
+
+**Stage 4 is the blocker.** Several entities are read-only over `/api/v1/mobile/*` today and cannot be pushed, and Odoo's `unlink` makes deletions invisible — so a record deleted on one device is resurrected by the next pull from a device that still has it. See [ADR 0006 §4](docs/adr/0006-sync-conflict-policy.md).

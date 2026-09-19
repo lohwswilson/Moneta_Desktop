@@ -28,8 +28,8 @@ Built with **Tauri v2**, **Svelte 5 (Runes-Native)**, **TypeScript**, **Tailwind
 - 🏪 **Payee Intelligence:** Autocomplete that recalls a merchant's category and typical amount, plus cadence detection and lifetime spend analytics.
 - 📊 **Stock Portfolio & Tax-Lot Accounting:** Multi-brokerage holdings across four sub-views, with FIFO/LIFO/HIFO/Specific-ID disposal and TWR/MWR performance metrics from one shared engine.
 - 🏡 **Property, Mortgages & Landlord Hub:** Property equity and LTV with appraisal history, month-by-month mortgage amortization with step-rate support, a prepayment simulator, and a full tenant rent roll.
-- 🔄 **Pluggable Data Engine:** Seamlessly connects to live Odoo 18 instances via REST API with Personal Access Token (PAT), or runs completely standalone on local SQLite.
-- 🚀 **1-Click Odoo Migration:** One-click data migration tool to export accounts, categories, and historical registers from Odoo directly into local SQLite.
+- 🔄 **Local-First, Cloud-Optional:** Your ledger lives in a local SQLite database and works entirely offline. Moneta Cloud is an optional sync target — a replication destination reached with a Personal Access Token, never a data source.
+- 🚀 **1-Click Moneta Cloud Migration:** Pull accounts, categories and historical registers from Moneta Cloud straight into the local database.
 
 ---
 
@@ -89,7 +89,7 @@ See [`ROADMAP.md`](ROADMAP.md) for the detailed feature parity roadmap.
 | **5** | Property Equity, Mortgage Amortization, Prepayment Simulator & Landlord Hub | ✅ Complete |
 | **6** | Regional Financial Packs (Singapore CPF Hub & Malaysia EPF/KWSP) | Planned |
 | **7** | Monte Carlo Wealth Simulator & Local AI Advisor | Planned |
-| **8** | Cloud Synchronization (Supabase + Stripe Subscription) | Planned |
+| **8** | Moneta Cloud Sync (SQLite ↔ Odoo), Licence Tokens & Subscription | 🔶 Sync platform 3 of 6 stages |
 
 ---
 
@@ -99,11 +99,11 @@ Full documentation lives in [`docs/`](docs/index.md):
 
 | # | Document | Covers |
 | :--- | :--- | :--- |
-| 01 | [Getting Started](docs/01_GETTING_STARTED.md) | Setup, desktop vs browser mode, Odoo migration |
+| 01 | [Getting Started](docs/01_GETTING_STARTED.md) | Setup, data source configuration, Moneta Cloud migration |
 | 02 | [Banking & Checkbook Register](docs/02_BANKING_AND_CHECKBOOK_REGISTER.md) | Register mechanics, tiebreakers, reconciliation, splits |
 | 03 | [Statement Wizard & Rules Engine](docs/03_BANK_STATEMENT_WIZARD_AND_RULES.md) | CSV/QIF parsing, SG bank presets, duplicate detection |
 | 04 | [Local SQLite & Offline Storage](docs/04_LOCAL_SQLITE_AND_OFFLINE_STORAGE.md) | WASM SQLite, IndexedDB persistence, full schema DDL |
-| 05 | [Odoo 18 Sync & API Integration](docs/05_ODOO_SYNC_AND_API_INTEGRATION.md) | Pluggable repository, `/api/v1/mobile/*`, Bearer PAT |
+| 05 | [Moneta Cloud Sync & API Integration](docs/05_ODOO_SYNC_AND_API_INTEGRATION.md) | Local-first data layer, sync direction, `/api/v1/mobile/*` |
 | 06 | [Command Center & FIRE Analytics](docs/06_COMMAND_CENTER_AND_FIRE_ANALYTICS.md) | Net worth, runway, burn rate, 4% FIRE |
 | 07 | [Roadmap & Feature Parity](docs/07_ROADMAP_AND_FEATURE_PARITY.md) | Phase-by-phase parity audit vs Odoo |
 | 08 | [Planning & Forecasting Hubs](docs/08_PLANNING_AND_FORECASTING_HUBS.md) | Budgets, bills, cash flow, goals |

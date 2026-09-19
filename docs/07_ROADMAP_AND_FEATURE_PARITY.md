@@ -47,7 +47,7 @@ This document details the feature parity comparison between the **Odoo `moneta_f
 - [x] **Embedded SQLite Engine**: WebAssembly SQLite (`sql.js`) with persistent IndexedDB auto-save and `.sqlite` export.
 - [x] **Wealth Command Center**: Net Worth, Liquid Cash, Investments, Liabilities, and 4% FIRE milestone target.
 - [x] **Interactive Checkbook Register**: 1-Click `Clr` reconciliation toggle (`unreconciled` → `cleared` → `reconciled`), status filter tabs, and running balances.
-- [x] **1-Click Odoo Migration**: Instant data migration from live Odoo server into local SQLite.
+- [x] **1-Click Moneta Cloud Migration**: Instant data migration from Moneta Cloud into local SQLite.
 
 ---
 

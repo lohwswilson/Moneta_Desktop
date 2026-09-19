@@ -27,7 +27,7 @@ Odoo-module PRs target the **`18.0`** branch, as that repo's own guide describes
 
 **Correctness fixes with a test.** If you find a figure that is wrong, an assertion in the matching `scripts/verify_*.ts` plus the fix is the ideal contribution.
 
-**Bug reports with reproduction.** Include what you did, what you expected, what happened, and your connection mode (`Mock Sandbox`, local SQLite, or Live Odoo). Mode matters: a bug in one may not appear in the others.
+**Bug reports with reproduction.** Include what you did, what you expected, what happened, and your data source (`My Ledger` or `Demo Sandbox`) and whether Moneta Cloud was connected. These matter: a bug in one may not appear in the others.
 
 ---
 
@@ -42,13 +42,14 @@ node --experimental-strip-types scripts/verify_portfolio_math.ts
 node --experimental-strip-types scripts/verify_loan_math.ts
 node --experimental-strip-types scripts/verify_property_math.ts
 node --experimental-strip-types scripts/verify_sync_tracking.ts
+node --experimental-strip-types scripts/verify_sync_conflict.ts
 ```
 
 Then two checks that have both caught real defects:
 
 ```bash
 # Route parity — every client call must have a server route.
-# A mismatch fails only at runtime, and only in Live Odoo mode.
+# A mismatch fails only at runtime, and only when connected to Moneta Cloud.
 grep -o "mobile/[a-z_/]*" src/lib/api/odooApi.ts | sort -u
 
 # Doc references — every component should appear somewhere in docs/

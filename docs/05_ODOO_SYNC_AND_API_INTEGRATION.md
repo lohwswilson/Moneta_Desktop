@@ -1,41 +1,64 @@
-# Odoo 18 Sync & API Integration
+# Moneta Cloud Sync & API Integration
 
-Moneta Wealth can operate completely standalone or connect directly to a live, self-hosted **Odoo 18 server** running the [`moneta_finance`](https://github.com/lohwswilson/moneta_finance) module.
+Moneta Wealth runs completely standalone — a local SQLite database on your machine — or optionally connects to a **Moneta Cloud** backend (a self-hosted Odoo 18 server running the [`moneta_finance`](https://github.com/lohwswilson/moneta_finance) module).
 
 ---
 
-## 1. Pluggable Repository Pattern
+## 1. Local-First Data Layer
 
-All data access is mediated through the [`IMonetaRepository`](file:///opt/moneta_wealth/src/lib/data/repository.ts) interface:
+All data access is mediated through the [`IMonetaRepository`](file:///opt/moneta_wealth/src/lib/data/repository.ts) interface, but **the repository is always the local store**:
+
+| Adapter | Role |
+| :--- | :--- |
+| `SqliteAdapter` | The real ledger. Embedded WebAssembly SQLite, persisted to IndexedDB. |
+| `MockAdapter` | In-memory sandbox, selected by `dataSource: 'sandbox'`. Never syncs. |
+| `OdooAdapter` | **Not a repository driver.** Reached only by explicit operations — settings sync and the one-time migration. |
+
+`OdooAdapter` is never the source of ordinary reads and writes. That is the local-first model; see [ADR 0001 §5](adr/0001-subscription-tiers-and-cloud-sync.md) and [ARCHITECTURE.md §6](../ARCHITECTURE.md).
+
+The interface declares optional capabilities with `?`, so an adapter that does not implement one degrades to an empty list rather than throwing:
 
 ```typescript
 export interface IMonetaRepository {
-  testConnection(): Promise<{ success: boolean; message: string; user?: string }>;
-  getDashboardSummary(): Promise<DashboardMetrics>;
+  // Core ledger — required
   getAccounts(): Promise<MonetaAccount[]>;
   getAccountTransactions(accountId: string | number, limit?: number): Promise<MonetaTransaction[]>;
-  updateReconciliationState(
-    transactionId: string | number,
-    state: ReconcileState
-  ): Promise<{ success: boolean; cleared_balance?: number }>;
   createTransaction(payload: Partial<MonetaTransaction>): Promise<MonetaTransaction>;
-  batchCreateTransactions?(
-    accountId: string | number,
-    transactions: Partial<MonetaTransaction>[]
-  ): Promise<MonetaTransaction[]>;
+
+  // Optional capabilities
+  getGoals?(): Promise<FinancialGoal[]>;
+  createGoal?(payload: Partial<FinancialGoal>): Promise<FinancialGoal>;
+  getProperties?(): Promise<PropertyAsset[]>;
+  getPendingChanges?(limit?: number): Promise<SyncChange[]>;
+  // …51 endpoints across the domains documented in §3
 }
 ```
 
-The active driver is switched on the fly without page reloads:
-- `SqliteAdapter`: Embedded WebAssembly SQLite with IndexedDB storage.
-- `OdooAdapter`: Remote Odoo 18 REST / JSON-RPC server with Bearer PAT auth.
-- `MockAdapter`: In-memory sandbox for demonstration and offline testing.
+---
+
+## 2. Sync Direction & the Write-Endpoint Gap
+
+Odoo was originally reached as a **query target**: the app asked it for data and displayed it. Sync requires the opposite — Odoo as a **replication target**, with SQLite as the always-present local copy that is periodically pushed to and pulled from.
+
+That inversion has a consequence the endpoint list makes visible: **the API was built for a read-mostly client, and sync is bidirectional.** Every entity the client can change locally needs a *push* path.
+
+| Entity | Server write endpoints | Can sync? |
+| :--- | :--- | :---: |
+| transactions, bills, goals, property, tenants, loans, budgets | `create` · `update` · `delete` | ✅ |
+| **accounts** | `list`, `verify_balance` only | ❌ |
+| **rent payments** | `list`, `mark_paid` only | ❌ |
+| **payees** | `list`, `update` — no create | ⚠️ |
+| investments | read + `trade` only | ⚠️ |
+
+Full parity has been achieved for budgets (`createBudget`, `updateBudget`, `deleteBudget`) and batch transaction operations across the Odoo REST API and client adapters.
+
+**Deletions need explicit support too.** Odoo's `unlink` removes rows, so a deleted record is simply absent from a query — indistinguishable from one never pushed from this client. Without server-side tombstones, a record deleted on one device is **resurrected** by the next pull from a device that still has it. Odoo's built-in `active` flag (archive rather than unlink) is the natural mechanism. See [ADR 0006 §4](adr/0006-sync-conflict-policy.md).
 
 ---
 
-## 2. Odoo 18 REST Controller Endpoints
+## 3. Odoo 18 REST Controller Endpoints
 
-All 46 endpoints live in `moneta_finance/controllers/api_mobile.py`. The authoritative list of what the client calls is [`src/lib/api/odooApi.ts`](../src/lib/api/odooApi.ts) — **route parity between the two is a verification step** (`AGENTS.md` §5 step 4), because a client call with no server route fails only in Live Odoo mode.
+All 51 endpoints live in `moneta_finance/controllers/api_mobile.py`. The authoritative list of what the client calls is [`src/lib/api/odooApi.ts`](../src/lib/api/odooApi.ts) — **route parity between the two is a verification step** (`AGENTS.md` §5 step 4), because a client call with no server route fails only when connected to Moneta Cloud.
 
 ### Core
 
@@ -56,7 +79,7 @@ All 46 endpoints live in `moneta_finance/controllers/api_mobile.py`. The authori
 | `/api/v1/mobile/transactions/delete` | Delete a transaction | `id` |
 | `/api/v1/mobile/transactions/reconcile` | Cycle reconciliation state | `transaction_id`, `reconciliation_state` |
 
-> Note the register endpoint is `register`, **not** `list`. An earlier revision of this document recorded `transactions/list`, which has never existed on the server — the same error that once shipped in the client and 404'd the register in Live Odoo mode.
+> Note the register endpoint is `register`, **not** `list`. An earlier revision of this document recorded `transactions/list`, which has never existed on the server — the same error that once shipped in the client and 404'd the register when connected to Moneta Cloud.
 
 ### Bills, budgets & subscriptions
 
@@ -111,7 +134,7 @@ All requests follow the Odoo 18 JSON-RPC envelope:
 
 ---
 
-## 3. Bearer PAT Authentication
+## 4. Bearer PAT Authentication
 
 Authentication uses Odoo's native **Personal Access Token (PAT)** system (`res.users.apikeys`):
 
@@ -124,7 +147,7 @@ Authentication uses Odoo's native **Personal Access Token (PAT)** system (`res.u
 
 ---
 
-## 4. Cross-Origin (CORS) & Network Architecture
+## 5. Cross-Origin (CORS) & Network Architecture
 
 Connecting a desktop webview or browser app to an external Odoo server faces browser Cross-Origin Resource Sharing (CORS) restrictions. Moneta Wealth solves this with a **dual-architecture network bridge**:
 

@@ -12,7 +12,7 @@ It operates completely **100% offline-first** using an embedded WebAssembly SQLi
 
 ```
 +-------------------------------------------------------------------------+
-|                  MONETA DESKTOP (Tauri v2 + Svelte 5)                   |
+|                  MONETA WEALTH (Tauri v2 + Svelte 5)                    |
 |                                                                         |
 |  [ Svelte 5 Reactive UI Layer ]                                         |
 |  ├── Wealth Command Center (Net Worth, Runway, 4% FIRE Progress)        |
@@ -26,12 +26,12 @@ It operates completely **100% offline-first** using an embedded WebAssembly SQLi
 |  ├── Payee Intelligence Directory (Cadence & Spend Analytics)           |
 |  ├── Stock Portfolio & Tax-Lot Hub (Holdings, Lots, Gains, Alloc)       |
 |  ├── Property, Loans & Landlord Hubs (Equity, Payoff, Rent Roll)        |
-|  └── Connection & Migration Modal (Odoo 18 / Local SQLite / Sandbox)    |
+|  └── Data Source & Moneta Cloud Modal (My Ledger / Sandbox / Sync)      |
 |                                                                         |
-|  [ Pluggable Data Repository (IMonetaRepository) ]                      |
-|  ├── Driver 1: Local SQLite Adapter (sql.js WASM + IndexedDB Store)     |
-|  ├── Driver 2: Live Odoo 18 Adapter (/api/v1/mobile/* via Bearer PAT)   |
-|  └── Driver 3: Demo Sandbox Adapter (In-Memory Mock Financial State)    |
+|  [ Local-First Data Layer (IMonetaRepository) ]                         |
+|  ├── SqliteAdapter: The Ledger (sql.js WASM + IndexedDB Store)          |
+|  ├── MockAdapter: Demo Sandbox (In-Memory, Never Syncs)                 |
+|  └── OdooAdapter: Moneta Cloud Sync & Migration (not a source)          |
 |                                                                         |
 |  [ Specialized Financial Engines ]                                      |
 |  ├── Singapore Merchant Auto-Categorization Engine (33 default rules)   |
@@ -82,10 +82,10 @@ It operates completely **100% offline-first** using an embedded WebAssembly SQLi
 - **33 Default Singapore Rules**: Pre-loaded with patterns for FairPrice, Sheng Siong, Cold Storage, Grab, Gojek, Bacha Coffee, Toast Box, SP Services, Singtel, StarHub, Netflix, Apple, Salary, and Dividends.
 - **Real-Time Pre-Classification**: Suggests categories dynamically while typing payees in QuickAdd and pre-classifies all imported bank statement rows.
 
-### 6. 🗄️ Offline-First SQLite with 1-Click Odoo Migration
+### 6. 🗄️ Offline-First SQLite with 1-Click Moneta Cloud Migration
 - **Zero-Server Standalone**: WebAssembly SQLite (`sql.js`) stores data locally with automatic persistence to browser IndexedDB.
 - **Binary Backup Export**: 1-click `.sqlite` file export for external backups or analysis in SQLite tools.
-- **1-Click Odoo Migration**: Seamlessly connects to a live Odoo 18 `moneta_finance` server, downloads all accounts and historical transactions, and populates local SQLite tables automatically.
+- **1-Click Moneta Cloud Migration**: Connects to a Moneta Cloud backend (Odoo 18 `moneta_finance`), downloads accounts and historical transactions, and populates the local database automatically.
 
 ### 7. 🎯 Zero-Based Envelope Budgets
 - **Category Envelopes**: Monthly income allocation across Needs, Wants and Savings with a live burn-pace indicator.
@@ -156,11 +156,11 @@ It operates completely **100% offline-first** using an embedded WebAssembly SQLi
 
 ## 📖 Documentation Index
 
-1. **[Getting Started & Installation](01_GETTING_STARTED.md)**: Setup, running desktop vs browser mode, connection configuration, and Odoo migration.
+1. **[Getting Started & Installation](01_GETTING_STARTED.md)**: Setup, running desktop vs browser mode, data source configuration, and Moneta Cloud migration.
 2. **[Banking & Checkbook Register](02_BANKING_AND_CHECKBOOK_REGISTER.md)**: Register mechanics, running balance tiebreakers, reconciliation states, and split transactions.
 3. **[Bank Statement Wizard & Rules Engine](03_BANK_STATEMENT_WIZARD_AND_RULES.md)**: Statement parsing, Singapore bank presets, duplicate detection, and categorization rules.
 4. **[Local SQLite & Offline Storage](04_LOCAL_SQLITE_AND_OFFLINE_STORAGE.md)**: WebAssembly SQLite, IndexedDB persistence, the full DDL schema, and `.sqlite` export.
-5. **[Odoo 18 Sync & API Integration](05_ODOO_SYNC_AND_API_INTEGRATION.md)**: Pluggable repository, `/api/v1/mobile/*` endpoints, Bearer PAT auth, and CORS handling.
+5. **[Moneta Cloud Sync & API Integration](05_ODOO_SYNC_AND_API_INTEGRATION.md)**: Pluggable repository, `/api/v1/mobile/*` endpoints, Bearer PAT auth, and CORS handling.
 6. **[Wealth Command Center & Analytics](06_COMMAND_CENTER_AND_FIRE_ANALYTICS.md)**: Net worth calculations, emergency runway, burn rates, and 4% FIRE tracking.
 7. **[Product Roadmap & Parity Plan](07_ROADMAP_AND_FEATURE_PARITY.md)**: Phase-by-phase parity audit against Odoo `moneta_finance`.
 8. **[Planning, Budgeting & Forecasting Hubs](08_PLANNING_AND_FORECASTING_HUBS.md)**: Envelope budgets, recurring bills, cash flow forecasting and financial goals.

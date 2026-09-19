@@ -8,7 +8,7 @@ This roadmap defines the multi-phase engineering plan to achieve full feature pa
 
 ```
 +-------------------------------------------------------------------------+
-|                  MONETA DESKTOP (Tauri v2 + Svelte 5)                   |
+|                  MONETA WEALTH (Tauri v2 + Svelte 5)                    |
 |                                                                         |
 |  [ Svelte 5 UI Layer ]                                                  |
 |  ├── Fast Checkbook Registers (TanStack Table virtualized 120 FPS)      |
@@ -16,9 +16,9 @@ This roadmap defines the multi-phase engineering plan to achieve full feature pa
 |  └── Responsive Multi-Window Desktop Shell (Tauri Cocoa / Win32)        |
 |                                                                         |
 |  [ Pluggable Data Repository (IMonetaRepository) ]                      |
-|  ├── Driver A: Standalone Local SQLite (100% Offline, Microsecond Speed)|
-|  ├── Driver B: Live Odoo 18 Server (/api/v1/mobile/* with Bearer PAT)   |
-|  └── Driver C: Supabase Cloud Sync (Pro Subscription Multi-Device Sync) |
+|  ├── Driver A: Local SQLite — The Ledger (100% Offline)                 |
+|  ├── Driver B: Moneta Cloud Adapter — Sync & Migration Only             |
+|  └── Driver C: Demo Sandbox — In-Memory, Never Syncs                    |
 |                                                                         |
 |  [ Native Financial Computation Core (Rust / TypeScript) ]              |
 |  ├── 1,000-Path Monte Carlo Wealth Simulator Worker                     |
@@ -34,11 +34,11 @@ This roadmap defines the multi-phase engineering plan to achieve full feature pa
 
 ### Phase 1: Foundation & Core Ledger (Shipped & Active)
 - [x] **Project Scaffolding:** Tauri v2 + Svelte 5 + Vite + TypeScript + Tailwind CSS v4.
-- [x] **Pluggable Data Adapter:** `IMonetaRepository` supporting Live Odoo 18, Local SQLite, and Demo Sandbox.
+- [x] **Pluggable Data Adapter:** `IMonetaRepository` with SQLite, Moneta Cloud and Demo Sandbox adapters.
 - [x] **Local SQLite Engine:** WebAssembly SQLite (`sql.js`) with persistent IndexedDB auto-save and `.sqlite` export/backup.
 - [x] **Wealth Command Center:** Total Net Worth, Liquid Cash, Investments, Liabilities, and 4% FIRE milestone target.
 - [x] **Interactive Checkbook Register:** 1-Click `Clr` reconciliation toggle (`unreconciled` → `cleared` → `reconciled`), status filter tabs, and running balances.
-- [x] **1-Click Odoo Migration:** One-click data migration from live Odoo server into local SQLite.
+- [x] **1-Click Moneta Cloud Migration:** One-click data migration from Moneta Cloud into local SQLite.
 
 ---
 
@@ -73,22 +73,22 @@ This roadmap defines the multi-phase engineering plan to achieve full feature pa
   - Real-time "Safe to Spend" and remaining allowance calculations.
   - Category breakdown by Needs, Wants, and Savings with visual burn pace indicator.
   - Interactive "Can I Spend?" Affordability Calculator modal with real-time envelope overdraft warning and donor reallocation suggestions.
-  - Pluggable across Live Odoo 18 Server (`/api/v1/mobile/budgets/list`) and Standalone SQLite with live transaction spending aggregation.
+  - Pluggable across the Moneta Cloud adapter (`/api/v1/mobile/budgets/list`) and Standalone SQLite with live transaction spending aggregation.
 - [x] **Recurring Bills & Subscription Detector:**
   - 14-Day & 30-Day recurring bill countdown calendar with visual status badges (`overdue`, `today`, `due_soon`, `upcoming`).
   - 1-Click "Mark as Paid" action creating checkbook ledger expense and advancing next due date.
   - Automated interval clustering detection of recurring charges from past 180 days (Netflix, Spotify, utilities, gym) with 1-click tracking.
-  - Pluggable across Live Odoo 18 Server (`/api/v1/mobile/bills/*`), Standalone SQLite WASM (`recurring_bills` table), and Mock Sandbox.
+  - Pluggable across the Moneta Cloud adapter (`/api/v1/mobile/bills/*`), Standalone SQLite WASM (`recurring_bills` table), and Mock Sandbox.
 - [x] **Cash Flow Forecaster & Sankey Diagram:**
   - 30/90/180/365-Day Quicken-style projected cash flow simulation and balance trajectory area chart.
   - Interactive personal finance Sankey diagram mapping Income Sources $\rightarrow$ Liquid Cash Hub $\rightarrow$ Expenses & Savings Envelopes.
   - Daily projected cash calendar ledger with running balances and overdraft risk warning.
-  - Pluggable across Live Odoo 18 Server (`/api/v1/mobile/cashflow/projection`), Standalone SQLite WASM, and Mock Sandbox.
+  - Pluggable across the Moneta Cloud adapter (`/api/v1/mobile/cashflow/projection`), Standalone SQLite WASM, and Mock Sandbox.
 - [x] **Financial Goals Tracker:**
   - Milestone goals (Emergency Fund, Down Payment, Vacation, Wedding) with progress bars and an overall funding summary.
   - Computed progress, remaining amount, months remaining, and the monthly contribution each goal needs to land on its target date — derived through one shared helper (`goalMath.ts`) so the SQLite and Mock adapters cannot drift from the Odoo server.
   - Dedicated-account linkage, emoji icons, notes, and a deposit/withdraw fund modal with a live resulting-balance preview.
-  - Pluggable across Live Odoo 18 Server (`/api/v1/mobile/goals/{list,create,update,delete,fund}`), Standalone SQLite WASM (`goals` table), and Mock Sandbox.
+  - Pluggable across the Moneta Cloud adapter (`/api/v1/mobile/goals/{list,create,update,delete,fund}`), Standalone SQLite WASM (`goals` table), and Mock Sandbox.
 
 ---
 
@@ -106,7 +106,7 @@ This roadmap defines the multi-phase engineering plan to achieve full feature pa
 - [x] **Portfolio Performance Metrics:**
   - Time-Weighted Return (TWR) via Modified Dietz and Money-Weighted Return (MWR) via XIRR bisection solver.
   - Derived through one shared helper (`portfolioMath.ts`) shared across all adapters (Rule 7: One Derivation, One Place).
-  - Pluggable data layer across Live Odoo 18 Server (`/api/v1/mobile/investments/*`), Standalone SQLite WASM (`securities`, `holdings`, `security_lots`, `lot_disposals`), and Mock Sandbox.
+  - Pluggable data layer across the Moneta Cloud adapter (`/api/v1/mobile/investments/*`), Standalone SQLite WASM (`securities`, `holdings`, `security_lots`, `lot_disposals`), and Mock Sandbox.
 
 ---
 
@@ -165,12 +165,31 @@ This roadmap defines the multi-phase engineering plan to achieve full feature pa
 
 ---
 
-### Phase 8: Cloud Sync, Multi-Device & Subscriptions — SUPERSEDED
-**See [ADR 0001](docs/adr/0001-subscription-tiers-and-cloud-sync.md).** The scope below was replaced on 2026-09-19: Supabase is dropped in favour of syncing to the existing Moneta Cloud (Odoo) backend, and E2EE is dropped deliberately because it is mutually exclusive with server-side feature enforcement.
+### Phase 8: Moneta Cloud Sync, Multi-Device & Subscriptions (In Progress)
+**See [ADR 0001](docs/adr/0001-subscription-tiers-and-cloud-sync.md) and [ADR 0006](docs/adr/0006-sync-conflict-policy.md).** The original scope below was replaced on 2026-09-19: Supabase is dropped in favour of syncing to the existing Moneta Cloud (Odoo) backend, and E2EE is dropped deliberately because it is mutually exclusive with server-side feature enforcement.
 
-- [ ] **Cloud Sync Engine (SQLite ↔ Moneta Cloud):** Bi-directional sync against `/api/v1/mobile/*` — conflict resolution and an offline mutation queue. This was Phase 8's hard part; it relocates rather than disappears.
-- [ ] **Subscription Tiers & Licence Tokens:** Entitlement gating with a server-signed token, locally verified, carrying a 30-day offline grace window. See ADR 0001 §3–4.
-- [ ] **Licence Billing:** Subscription purchase and renewal against Moneta Cloud.
-- [x] ~~Supabase Cloud Sync Engine~~ — dropped; the Odoo backend already models every synced entity.
-- [x] ~~End-to-End Encryption~~ — dropped; incompatible with the server running premium feature logic.
+**Sync platform — six stages, each independently useful and verifiable:**
+
+| Stage | Scope | Status |
+| :--: | :--- | :--- |
+| 1 | **Local-first refactor** — SQLite always the local store; Odoo a sync target, never a data source | ✅ Done |
+| 2 | **Change tracking** — trigger-written append-only log, with tombstones for deletes | ✅ Done |
+| 3 | **Conflict policy** — server-arrival last-write-wins; an unpushed local change always wins | ✅ Done |
+| 4 | **Server write endpoints** — accounts, budgets, rent, payee-create, **plus deletion tombstones** | ⬜ Required before sync |
+| 5 | **Sync engine** — mutation queue and pull cursor | ⬜ Blocked on Stage 4 |
+| 6 | **Licence token** — issuance, local verification, 30-day offline grace | ⬜ Needs infrastructure |
+
+**Stage 4 is the blocker.** Several entities are read-only over `/api/v1/mobile/*` and cannot be pushed from the client; and Odoo's `unlink` makes deletions invisible to a query, so a record deleted on one device is resurrected by the next pull from a device that still has it. See [ADR 0006 §4](docs/adr/0006-sync-conflict-policy.md).
+
+**Why this order.** Stages 1–3 are client-side, testable offline and cost nothing to run. They were built *before* any cloud infrastructure deliberately: the app could ship and be validated without hosting anything. Stage 4 is the first server work and a hard prerequisite for anything that actually syncs.
+
+**Deliberately dropped:**
+
+- [x] ~~Supabase Cloud Sync Engine~~ — the Odoo backend already models every synced entity; a second backend would duplicate the schema and add a third sync target.
+- [x] ~~End-to-End Encryption~~ — incompatible with the server running premium feature logic.
+
+**Also part of this phase:**
+
+- [ ] **Subscription Tiers & Licence Tokens:** entitlement gating with a server-signed token, locally verified, carrying a 30-day offline grace window. See [ADR 0001](docs/adr/0001-subscription-tiers-and-cloud-sync.md) §3–4 and [ADR 0003](docs/adr/0003-licence-and-billing-topology.md).
+- [ ] **Licence Billing:** subscription purchase and renewal against Moneta Cloud.
 - [ ] **Moneta Mobile:** the sync client that carries the multi-device story (separate initiative).

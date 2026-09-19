@@ -129,7 +129,7 @@ Clicking a register **row** opens a detail edit modal for that transaction.
 | Save edits | `/api/v1/mobile/transactions/update` | Partial — sends only changed fields |
 | Delete | `/api/v1/mobile/transactions/delete` | Irreversible; confirmed first |
 
-Both endpoints are implemented in all three adapters (`sqliteAdapter`, `mockAdapter`, `odooAdapter`), so the modal behaves identically offline, in the sandbox, and against Live Odoo.
+Both endpoints are implemented in all three adapters (`sqliteAdapter`, `mockAdapter`, `odooAdapter`), so the modal behaves identically offline, in the sandbox, and against Moneta Cloud.
 
 > **A note on deleting vs voiding.** The reconciliation model supports a `'void'` state (see §3), which preserves the row and excludes it from balances — the accounting-correct way to reverse a posted entry. Deletion removes the row entirely. If auditability ever matters for a given account, voiding is the safer operation; deletion is offered because a mis-keyed entry is better removed than left in the ledger as a permanent artefact.
 
