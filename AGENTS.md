@@ -1,6 +1,6 @@
 # AGENTS.md: Developer & AI Assistant Operating Guide
 
-This document defines the canonical architecture rules, coding standards, and operational workflows for AI coding assistants (Antigravity, Claude Code, Hermes, Cursor) working within the **`Moneta_Desktop`** repository at `/opt/moneta_desktop`.
+This document defines the canonical architecture rules, coding standards, and operational workflows for AI coding assistants (Antigravity, Claude Code, Hermes, Cursor) working within the **`Moneta Wealth`** repository at `/opt/moneta_wealth` (symlinked from `/opt/moneta_desktop`).
 
 ---
 
@@ -48,7 +48,7 @@ This document defines the canonical architecture rules, coding standards, and op
 ## 2. Directory Layout & Key Files
 
 ```
-/opt/moneta_desktop/
+/opt/moneta_wealth/ (or /opt/moneta_desktop/)
 ├── ARCHITECTURE.md                  # Detailed system architecture specification
 ├── AGENTS.md                        # This developer guide
 ├── README.md                        # Repository overview & quickstart

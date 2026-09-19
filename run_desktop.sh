@@ -11,10 +11,12 @@ if ! curl -s http://127.0.0.1:5173 > /dev/null; then
   sleep 2
 fi
 
-echo "Launching Moneta Desktop Application..."
+echo "Launching Moneta Wealth Application..."
 
 # Check if native Tauri binary exists
-if [ -f "src-tauri/target/release/moneta_desktop" ]; then
+if [ -f "src-tauri/target/release/moneta_wealth" ]; then
+  ./src-tauri/target/release/moneta_wealth
+elif [ -f "src-tauri/target/release/moneta_desktop" ]; then
   ./src-tauri/target/release/moneta_desktop
 elif [ -d "/Applications/Google Chrome.app" ]; then
   "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --app="http://localhost:5173" --window-size=1200,800 &
