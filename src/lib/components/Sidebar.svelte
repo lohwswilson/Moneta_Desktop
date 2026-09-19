@@ -28,11 +28,58 @@
   };
 
   let groupBy = $state<'type' | 'institution'>('type');
-  let collapsedGroups = $state<Record<string, boolean>>({});
+  let expandedGroups = $state<Record<string, boolean>>({});
 
   const toggleGroup = (key: string) => {
-    collapsedGroups[key] = !collapsedGroups[key];
+    expandedGroups[key] = !expandedGroups[key];
   };
+
+  let hasAnyExpanded = $derived(Object.values(expandedGroups).some(Boolean));
+
+  const toggleAllGroups = () => {
+    if (hasAnyExpanded) {
+      expandedGroups = {};
+    } else {
+      const all: Record<string, boolean> = {
+        banks: true,
+        investments: true,
+        assets: true,
+        credit: true,
+        loans: true,
+      };
+      for (const inst of institutionGroups) {
+        all[inst.name] = true;
+      }
+      expandedGroups = all;
+    }
+  };
+
+  // Auto-expand active account's group when viewing register
+  $effect(() => {
+    if (financeStore.activeView === 'register' && financeStore.selectedAccountId) {
+      const acc = financeStore.accounts.find((a) => a.id === financeStore.selectedAccountId);
+      if (acc) {
+        if (groupBy === 'type') {
+          if (
+            ['checking', 'chequing', 'savings', 'cash', 'cpf_oa', 'cpf_sa', 'cpf_ma', 'cpf_ra', 'srs', 'epf_akaun_persaraan', 'epf_akaun_sejahtera', 'epf_akaun_fleksibel'].includes(acc.account_type)
+          ) {
+            expandedGroups['banks'] = true;
+          } else if (['brokerage', 'retirement', 'crypto'].includes(acc.account_type)) {
+            expandedGroups['investments'] = true;
+          } else if (['asset', 'property', 'other'].includes(acc.account_type)) {
+            expandedGroups['assets'] = true;
+          } else if (['credit', 'credit_card', 'loc'].includes(acc.account_type)) {
+            expandedGroups['credit'] = true;
+          } else if (['loan', 'mortgage'].includes(acc.account_type)) {
+            expandedGroups['loans'] = true;
+          }
+        } else {
+          const inst = acc.institution_name?.trim() || 'Other';
+          expandedGroups[inst] = true;
+        }
+      }
+    }
+  });
 
   // Group accounts by Type
   let bankAccounts = $derived(
@@ -223,6 +270,14 @@
       <div class="flex items-center justify-between px-1">
         <div class="flex items-center gap-1.5">
           <span class="text-[11px] font-bold text-zinc-300 uppercase tracking-wider">Accounts</span>
+          <button
+            type="button"
+            onclick={toggleAllGroups}
+            title={hasAnyExpanded ? "Collapse all accounts" : "Expand all accounts"}
+            class="text-[10px] text-zinc-500 hover:text-zinc-300 px-1 py-0.5 rounded hover:bg-zinc-900 transition-colors cursor-pointer"
+          >
+            {hasAnyExpanded ? 'Collapse' : 'Expand'}
+          </button>
         </div>
 
         <div class="flex items-center gap-1">
@@ -259,7 +314,7 @@
       <div class="space-y-1">
         <button
           onclick={() => financeStore.navigateToOverview()}
-          class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold transition-colors cursor-pointer {financeStore.activeView === 'command_center' && financeStore.selectedAccountId === null ? 'bg-zinc-800 text-white shadow-sm border border-zinc-700/60' : 'text-zinc-300 hover:bg-zinc-900 hover:text-white border border-transparent'}"
+          class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold transition-colors cursor-pointer {financeStore.activeView === 'command_center' ? 'bg-zinc-800 text-white shadow-sm border border-zinc-700/60' : 'text-zinc-300 hover:bg-zinc-900 hover:text-white border border-transparent'}"
         >
           <span class="flex items-center gap-2">
             <LayoutDashboard class="w-4 h-4 text-emerald-400" />
@@ -301,10 +356,10 @@
             class="w-full flex items-center justify-between text-[11px] font-semibold text-zinc-400 uppercase tracking-wider px-2 py-1 rounded hover:bg-zinc-900/60 transition-colors cursor-pointer group"
           >
             <span class="flex items-center gap-1.5">
-              {#if collapsedGroups['banks']}
-                <ChevronRight class="w-3 h-3 text-zinc-500 group-hover:text-zinc-300 transition-transform" />
-              {:else}
+              {#if expandedGroups['banks']}
                 <ChevronDown class="w-3 h-3 text-zinc-500 group-hover:text-zinc-300 transition-transform" />
+              {:else}
+                <ChevronRight class="w-3 h-3 text-zinc-500 group-hover:text-zinc-300 transition-transform" />
               {/if}
               <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
               <span>Cash & Banks ({bankAccounts.length})</span>
@@ -314,12 +369,12 @@
             </span>
           </button>
 
-          {#if !collapsedGroups['banks']}
+          {#if expandedGroups['banks']}
             <div class="space-y-0.5 mt-1">
               {#each bankAccounts as acc}
                 <button
                   onclick={() => financeStore.selectAccount(acc.id)}
-                  class="w-full flex items-center justify-between px-2.5 py-2 rounded-md text-xs transition-all cursor-pointer {financeStore.selectedAccountId === acc.id ? 'bg-zinc-800 text-white font-medium shadow-sm' : 'text-zinc-400 hover:bg-zinc-900/80 hover:text-zinc-200'}"
+                  class="w-full flex items-center justify-between px-2.5 py-2 rounded-md text-xs transition-all cursor-pointer {financeStore.activeView === 'register' && financeStore.selectedAccountId === acc.id ? 'bg-zinc-800 text-white font-medium shadow-sm' : 'text-zinc-400 hover:bg-zinc-900/80 hover:text-zinc-200'}"
                 >
                   <div class="truncate text-left pr-2">
                     <div class="truncate">{acc.name}</div>
@@ -343,10 +398,10 @@
               class="w-full flex items-center justify-between text-[11px] font-semibold text-zinc-400 uppercase tracking-wider px-2 py-1 rounded hover:bg-zinc-900/60 transition-colors cursor-pointer group"
             >
               <span class="flex items-center gap-1.5">
-                {#if collapsedGroups['investments']}
-                  <ChevronRight class="w-3 h-3 text-zinc-500 group-hover:text-zinc-300 transition-transform" />
-                {:else}
+                {#if expandedGroups['investments']}
                   <ChevronDown class="w-3 h-3 text-zinc-500 group-hover:text-zinc-300 transition-transform" />
+                {:else}
+                  <ChevronRight class="w-3 h-3 text-zinc-500 group-hover:text-zinc-300 transition-transform" />
                 {/if}
                 <span class="w-2 h-2 rounded-full bg-sky-400"></span>
                 <span>Investments ({investmentAccounts.length})</span>
@@ -356,12 +411,12 @@
               </span>
             </button>
 
-            {#if !collapsedGroups['investments']}
+            {#if expandedGroups['investments']}
               <div class="space-y-0.5 mt-1">
                 {#each investmentAccounts as acc}
                   <button
                     onclick={() => financeStore.selectAccount(acc.id)}
-                    class="w-full flex items-center justify-between px-2.5 py-2 rounded-md text-xs transition-all cursor-pointer {financeStore.selectedAccountId === acc.id ? 'bg-zinc-800 text-white font-medium shadow-sm' : 'text-zinc-400 hover:bg-zinc-900/80 hover:text-zinc-200'}"
+                    class="w-full flex items-center justify-between px-2.5 py-2 rounded-md text-xs transition-all cursor-pointer {financeStore.activeView === 'register' && financeStore.selectedAccountId === acc.id ? 'bg-zinc-800 text-white font-medium shadow-sm' : 'text-zinc-400 hover:bg-zinc-900/80 hover:text-zinc-200'}"
                   >
                     <div class="truncate text-left pr-2">
                       <div class="truncate">{acc.name}</div>
@@ -386,10 +441,10 @@
               class="w-full flex items-center justify-between text-[11px] font-semibold text-zinc-400 uppercase tracking-wider px-2 py-1 rounded hover:bg-zinc-900/60 transition-colors cursor-pointer group"
             >
               <span class="flex items-center gap-1.5">
-                {#if collapsedGroups['assets']}
-                  <ChevronRight class="w-3 h-3 text-zinc-500 group-hover:text-zinc-300 transition-transform" />
-                {:else}
+                {#if expandedGroups['assets']}
                   <ChevronDown class="w-3 h-3 text-zinc-500 group-hover:text-zinc-300 transition-transform" />
+                {:else}
+                  <ChevronRight class="w-3 h-3 text-zinc-500 group-hover:text-zinc-300 transition-transform" />
                 {/if}
                 <span class="w-2 h-2 rounded-full bg-amber-400"></span>
                 <span>Properties ({assetAccounts.length})</span>
@@ -399,12 +454,12 @@
               </span>
             </button>
 
-            {#if !collapsedGroups['assets']}
+            {#if expandedGroups['assets']}
               <div class="space-y-0.5 mt-1">
                 {#each assetAccounts as acc}
                   <button
                     onclick={() => financeStore.selectAccount(acc.id)}
-                    class="w-full flex items-center justify-between px-2.5 py-2 rounded-md text-xs transition-all cursor-pointer {financeStore.selectedAccountId === acc.id ? 'bg-zinc-800 text-white font-medium shadow-sm' : 'text-zinc-400 hover:bg-zinc-900/80 hover:text-zinc-200'}"
+                    class="w-full flex items-center justify-between px-2.5 py-2 rounded-md text-xs transition-all cursor-pointer {financeStore.activeView === 'register' && financeStore.selectedAccountId === acc.id ? 'bg-zinc-800 text-white font-medium shadow-sm' : 'text-zinc-400 hover:bg-zinc-900/80 hover:text-zinc-200'}"
                   >
                     <div class="truncate text-left pr-2">
                       <div class="truncate">{acc.name}</div>
@@ -429,10 +484,10 @@
               class="w-full flex items-center justify-between text-[11px] font-semibold text-zinc-400 uppercase tracking-wider px-2 py-1 rounded hover:bg-zinc-900/60 transition-colors cursor-pointer group"
             >
               <span class="flex items-center gap-1.5">
-                {#if collapsedGroups['credit']}
-                  <ChevronRight class="w-3 h-3 text-zinc-500 group-hover:text-zinc-300 transition-transform" />
-                {:else}
+                {#if expandedGroups['credit']}
                   <ChevronDown class="w-3 h-3 text-zinc-500 group-hover:text-zinc-300 transition-transform" />
+                {:else}
+                  <ChevronRight class="w-3 h-3 text-zinc-500 group-hover:text-zinc-300 transition-transform" />
                 {/if}
                 <span class="w-2 h-2 rounded-full bg-purple-400"></span>
                 <span>Credit Cards ({creditAccounts.length})</span>
@@ -442,12 +497,12 @@
               </span>
             </button>
 
-            {#if !collapsedGroups['credit']}
+            {#if expandedGroups['credit']}
               <div class="space-y-0.5 mt-1">
                 {#each creditAccounts as acc}
                   <button
                     onclick={() => financeStore.selectAccount(acc.id)}
-                    class="w-full flex items-center justify-between px-2.5 py-2 rounded-md text-xs transition-all cursor-pointer {financeStore.selectedAccountId === acc.id ? 'bg-zinc-800 text-white font-medium shadow-sm' : 'text-zinc-400 hover:bg-zinc-900/80 hover:text-zinc-200'}"
+                    class="w-full flex items-center justify-between px-2.5 py-2 rounded-md text-xs transition-all cursor-pointer {financeStore.activeView === 'register' && financeStore.selectedAccountId === acc.id ? 'bg-zinc-800 text-white font-medium shadow-sm' : 'text-zinc-400 hover:bg-zinc-900/80 hover:text-zinc-200'}"
                   >
                     <div class="truncate text-left pr-2">
                       <div class="truncate">{acc.name}</div>
@@ -472,10 +527,10 @@
               class="w-full flex items-center justify-between text-[11px] font-semibold text-zinc-400 uppercase tracking-wider px-2 py-1 rounded hover:bg-zinc-900/60 transition-colors cursor-pointer group"
             >
               <span class="flex items-center gap-1.5">
-                {#if collapsedGroups['loans']}
-                  <ChevronRight class="w-3 h-3 text-zinc-500 group-hover:text-zinc-300 transition-transform" />
-                {:else}
+                {#if expandedGroups['loans']}
                   <ChevronDown class="w-3 h-3 text-zinc-500 group-hover:text-zinc-300 transition-transform" />
+                {:else}
+                  <ChevronRight class="w-3 h-3 text-zinc-500 group-hover:text-zinc-300 transition-transform" />
                 {/if}
                 <span class="w-2 h-2 rounded-full bg-rose-400"></span>
                 <span>Loans & Debt ({loanAccounts.length})</span>
@@ -485,12 +540,12 @@
               </span>
             </button>
 
-            {#if !collapsedGroups['loans']}
+            {#if expandedGroups['loans']}
               <div class="space-y-0.5 mt-1">
                 {#each loanAccounts as acc}
                   <button
                     onclick={() => financeStore.selectAccount(acc.id)}
-                    class="w-full flex items-center justify-between px-2.5 py-2 rounded-md text-xs transition-all cursor-pointer {financeStore.selectedAccountId === acc.id ? 'bg-zinc-800 text-white font-medium shadow-sm' : 'text-zinc-400 hover:bg-zinc-900/80 hover:text-zinc-200'}"
+                    class="w-full flex items-center justify-between px-2.5 py-2 rounded-md text-xs transition-all cursor-pointer {financeStore.activeView === 'register' && financeStore.selectedAccountId === acc.id ? 'bg-zinc-800 text-white font-medium shadow-sm' : 'text-zinc-400 hover:bg-zinc-900/80 hover:text-zinc-200'}"
                   >
                     <div class="truncate text-left pr-2">
                       <div class="truncate">{acc.name}</div>
@@ -516,10 +571,10 @@
                 class="w-full flex items-center justify-between text-[11px] font-semibold text-zinc-400 uppercase tracking-wider px-2 py-1 rounded hover:bg-zinc-900/60 transition-colors cursor-pointer group"
               >
                 <span class="flex items-center gap-1.5 truncate pr-2">
-                  {#if collapsedGroups[inst.name]}
-                    <ChevronRight class="w-3 h-3 text-zinc-500 group-hover:text-zinc-300 transition-transform shrink-0" />
-                  {:else}
+                  {#if expandedGroups[inst.name]}
                     <ChevronDown class="w-3 h-3 text-zinc-500 group-hover:text-zinc-300 transition-transform shrink-0" />
+                  {:else}
+                    <ChevronRight class="w-3 h-3 text-zinc-500 group-hover:text-zinc-300 transition-transform shrink-0" />
                   {/if}
                   <Building2 class="w-3 h-3 text-indigo-400 shrink-0" />
                   <span class="truncate">{inst.name} ({inst.accounts.length})</span>
@@ -529,12 +584,12 @@
                 </span>
               </button>
 
-              {#if !collapsedGroups[inst.name]}
+              {#if expandedGroups[inst.name]}
                 <div class="space-y-0.5 mt-1">
                   {#each inst.accounts as acc}
                     <button
                       onclick={() => financeStore.selectAccount(acc.id)}
-                      class="w-full flex items-center justify-between px-2.5 py-2 rounded-md text-xs transition-all cursor-pointer {financeStore.selectedAccountId === acc.id ? 'bg-zinc-800 text-white font-medium shadow-sm' : 'text-zinc-400 hover:bg-zinc-900/80 hover:text-zinc-200'}"
+                      class="w-full flex items-center justify-between px-2.5 py-2 rounded-md text-xs transition-all cursor-pointer {financeStore.activeView === 'register' && financeStore.selectedAccountId === acc.id ? 'bg-zinc-800 text-white font-medium shadow-sm' : 'text-zinc-400 hover:bg-zinc-900/80 hover:text-zinc-200'}"
                     >
                       <div class="truncate text-left pr-2">
                         <div class="truncate">{acc.name}</div>
