@@ -6,7 +6,7 @@ import type { FinancialGoal, GoalStatus } from '../types/moneta';
  * Both the SQLite and Mock adapters call this rather than recomputing the
  * numbers themselves: when two surfaces derive the same figure independently
  * they drift, and a goal then reads differently in two places. Odoo computes
- * these in `moneta_finance/models/goal.py::_compute_goal_progress` — keep the
+ * these in `moneta_core/models/goal.py::_compute_goal_progress` — keep the
  * two in step.
  */
 

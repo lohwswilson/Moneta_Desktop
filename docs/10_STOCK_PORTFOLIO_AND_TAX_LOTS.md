@@ -28,7 +28,7 @@ The consequence is specific rather than vague: unrealized gain, day change, port
 `executeInvestmentTrade` writes lots, holdings and disposals — and **no ledger transaction**. This is verified on *both* sides:
 
 - `sqliteAdapter.ts` — writes `security_lots`, `holdings`, `lot_disposals`; no `INSERT INTO transactions`
-- `moneta_finance/controllers/api_mobile.py` (`investments/trade`) — creates/updates `moneta.security` and holdings; no `moneta.transaction.create`
+- `moneta_core/controllers/api_mobile.py` (`investments/trade`) — creates/updates `moneta.security` and holdings; no `moneta.transaction.create`
 
 So a trade adjusts a position but leaves the funding account's cash balance untouched. Selling shares increases realized gain on paper while the cash that sale generated appears nowhere in the checkbook register. This is parity, not a Desktop defect — but it means the register and the portfolio are **two ledgers that do not yet reconcile against each other**. Closing that gap is the natural next Phase 4 increment.
 

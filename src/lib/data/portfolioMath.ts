@@ -4,7 +4,7 @@
  * Single-source-of-truth mathematical core for stock portfolio and tax-lot accounting.
  * Per AGENTS.md Rule 7 ("One Derivation, One Place"):
  * Both SQLite and Mock adapters delegate to this module to ensure perfect parity
- * with Odoo 18 moneta_finance (investment.py and tax_lot.py).
+ * with Odoo 18 moneta_core (investment.py and tax_lot.py).
  */
 
 import type {

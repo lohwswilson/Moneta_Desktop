@@ -16,8 +16,8 @@ import { addMonths, parseDateOnly, toDateOnlyString } from './loanMath.ts';
  * Single source of truth for property equity, rental performance and rent-roll
  * derivation.
  *
- * Mirrors `moneta_finance/models/property.py::_compute_equity` and the rental
- * extension in `moneta_finance_property/models/rental_property.py`
+ * Mirrors `moneta_core/models/property.py::_compute_equity` and the rental
+ * extension in `moneta_core/models/rental_property.py`
  * (`_compute_rental_metrics`, `_compute_lease_status`, `_compute_balance_due`).
  *
  * Both the SQLite and Mock adapters call this rather than recomputing, per

@@ -37,7 +37,7 @@ export const OdooApi = {
       if (data && data.status === 'ok') {
         return {
           success: true,
-          message: `Connected to Odoo 18 (${data.module || 'moneta_finance'})`,
+          message: `Connected to Odoo 18 (${data.module || 'moneta_core'})`,
           user: data.user_name,
         };
       }

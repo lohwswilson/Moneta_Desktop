@@ -3,7 +3,7 @@ import type { AmortizationLine, LoanRateChange } from '../types/moneta';
 /**
  * Single source of truth for loan and mortgage mathematics.
  *
- * Mirrors `moneta_finance/models/loan.py`. Both the SQLite and Mock adapters
+ * Mirrors `moneta_core/models/loan.py`. Both the SQLite and Mock adapters
  * call this rather than recomputing, per AGENTS.md Rule 7 (One Derivation, One
  * Place) — the same rule `goalMath.ts` and `portfolioMath.ts` follow.
  *

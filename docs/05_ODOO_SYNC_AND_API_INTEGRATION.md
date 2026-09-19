@@ -58,7 +58,7 @@ Full parity has been achieved for budgets (`createBudget`, `updateBudget`, `dele
 
 ## 3. Odoo 18 REST Controller Endpoints
 
-All 51 endpoints live in `moneta_finance/controllers/api_mobile.py`. The authoritative list of what the client calls is [`src/lib/api/odooApi.ts`](../src/lib/api/odooApi.ts) — **route parity between the two is a verification step** (`AGENTS.md` §5 step 4), because a client call with no server route fails only when connected to Moneta Cloud.
+All 51 endpoints live in `moneta_core/controllers/api_mobile.py`. The authoritative list of what the client calls is [`src/lib/api/odooApi.ts`](../src/lib/api/odooApi.ts) — **route parity between the two is a verification step** (`AGENTS.md` §5 step 4), because a client call with no server route fails only when connected to Moneta Cloud.
 
 ### Core
 

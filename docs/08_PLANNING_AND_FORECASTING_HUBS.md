@@ -197,7 +197,7 @@ The Desktop app therefore ships **no pause button**. A control that worked in SQ
 
 1. Add the domain type to `src/lib/types/moneta.ts`.
 2. Declare optional methods on `IMonetaRepository` in `src/lib/data/repository.ts`.
-3. Implement in **all three** adapters — `sqliteAdapter.ts`, `mockAdapter.ts`, `odooAdapter.ts` — plus the matching route in `moneta_finance/controllers/api_mobile.py`.
+3. Implement in **all three** adapters — `sqliteAdapter.ts`, `mockAdapter.ts`, `odooAdapter.ts` — plus the matching route in `moneta_core/controllers/api_mobile.py`.
 4. Add `$state` fields and `navigateTo*` / `load*` actions to `financeStore.svelte.ts`.
 5. Create the component, then add a branch in `App.svelte` and a button in `Sidebar.svelte`.
 6. If the hub derives any figure that Odoo also computes, put that derivation in **one** shared module rather than reimplementing it per adapter.

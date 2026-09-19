@@ -141,9 +141,9 @@ Invariant 9 requires every feature on both sides. Work the list top to bottom �
 
 | # | Step | Where |
 | :--: | :--- | :--- |
-| 1 | **Models** — fields, computed values, constraints | `moneta_finance/models/` |
-| 2 | **Endpoints + serializer** | `moneta_finance/controllers/api_mobile.py` |
-| 3 | **Views** — list/form, when subscriber-visible | `moneta_finance/views/` |
+| 1 | **Models** — fields, computed values, constraints | `moneta_core/models/` |
+| 2 | **Endpoints + serializer** | `moneta_core/controllers/api_mobile.py` |
+| 3 | **Views** — list/form, when subscriber-visible | `moneta_core/views/` |
 | 4 | **Types, repository methods, all three adapters** | `src/lib/types/`, `src/lib/data/` |
 | 5 | **Shared math module**, if anything is derived — Rule 7 | `src/lib/data/*Math.ts` |
 | 6 | **Store state, component, navigation** | `src/lib/stores/`, `src/lib/components/` |
@@ -182,7 +182,7 @@ node --experimental-strip-types scripts/verify_sync_conflict.ts
 
 # 4. Route parity — every client call must have a server route.
 #    Client calls:   src/lib/api/odooApi.ts
-#    Server routes:  moneta_finance/controllers/api_mobile.py
+#    Server routes:  moneta_core/controllers/api_mobile.py
 grep -o "mobile/[a-z_/]*" src/lib/api/odooApi.ts | sort -u
 
 # 5. Doc references — every component and endpoint must appear in docs/
