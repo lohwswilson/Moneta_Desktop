@@ -36,7 +36,7 @@ Moneta Desktop implements a true **offline-first storage model** using an embedd
 
 ## 2. Relational Database Schemas (DDL)
 
-Moneta Desktop executes automatic DDL migrations upon database initialization ([`src/lib/data/sqliteAdapter.ts`](file:///opt/moneta_desktop/src/lib/data/sqliteAdapter.ts)):
+Moneta Desktop executes automatic DDL migrations upon database initialization ([`src/lib/data/sqliteAdapter.ts`](file:///opt/moneta_wealth/src/lib/data/sqliteAdapter.ts)):
 
 ### Table: `accounts`
 Stores financial accounts, current balances, and institutional metadata:
@@ -180,7 +180,7 @@ CREATE TABLE IF NOT EXISTS payees (
 ```
 
 ### Table: `goals`
-Financial goals and sinking funds. Only the goal's **own** fields are stored — `status`, `progress_percent`, `remaining_amount`, `months_remaining` and `monthly_contribution_required` are derived on read by [`src/lib/data/goalMath.ts`](file:///opt/moneta_desktop/src/lib/data/goalMath.ts) so the SQLite, Mock and Odoo surfaces cannot diverge. See [`08_PLANNING_AND_FORECASTING_HUBS.md`](08_PLANNING_AND_FORECASTING_HUBS.md).
+Financial goals and sinking funds. Only the goal's **own** fields are stored — `status`, `progress_percent`, `remaining_amount`, `months_remaining` and `monthly_contribution_required` are derived on read by [`src/lib/data/goalMath.ts`](file:///opt/moneta_wealth/src/lib/data/goalMath.ts) so the SQLite, Mock and Odoo surfaces cannot diverge. See [`08_PLANNING_AND_FORECASTING_HUBS.md`](08_PLANNING_AND_FORECASTING_HUBS.md).
 
 ```sql
 CREATE TABLE IF NOT EXISTS goals (
@@ -206,7 +206,7 @@ CREATE TABLE IF NOT EXISTS goals (
 
 When extending the schema:
 
-1. Add table creation DDL to the `runMigrations()` method in [`src/lib/data/sqliteAdapter.ts`](file:///opt/moneta_desktop/src/lib/data/sqliteAdapter.ts).
+1. Add table creation DDL to the `runMigrations()` method in [`src/lib/data/sqliteAdapter.ts`](file:///opt/moneta_wealth/src/lib/data/sqliteAdapter.ts).
 2. Every table must use `CREATE TABLE IF NOT EXISTS`.
 3. Before seeding default rows, check the table's row count first.
 4. Call `await this.persist()` after any write transaction to flush the binary buffer into IndexedDB.

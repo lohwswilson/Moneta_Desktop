@@ -26,7 +26,7 @@ Clicking **Import Statement** in the Checkbook Register top toolbar opens the **
 
 ## 2. Supported File Formats & Bank Presets
 
-The parser ([`src/lib/data/importers/bankStatementParser.ts`](file:///opt/moneta_desktop/src/lib/data/importers/bankStatementParser.ts)) dynamically detects delimiters (`,`, `;`, `\t`) and normalizes date structures across major institutions:
+The parser ([`src/lib/data/importers/bankStatementParser.ts`](file:///opt/moneta_wealth/src/lib/data/importers/bankStatementParser.ts)) dynamically detects delimiters (`,`, `;`, `\t`) and normalizes date structures across major institutions:
 
 ### A. Singapore Bank Formats
 1. **DBS / POSB**:
@@ -66,7 +66,7 @@ Before presenting parsed rows for import, Moneta Desktop cross-references the in
 
 ## 4. Singapore Merchant Rules Engine
 
-The categorization engine ([`src/lib/data/rulesEngine.ts`](file:///opt/moneta_desktop/src/lib/data/rulesEngine.ts)) uses priority-ordered substring matching on payee names and memo descriptions.
+The categorization engine ([`src/lib/data/rulesEngine.ts`](file:///opt/moneta_wealth/src/lib/data/rulesEngine.ts)) uses priority-ordered substring matching on payee names and memo descriptions.
 
 ### Default Singapore Merchant Rules (33 Rules)
 

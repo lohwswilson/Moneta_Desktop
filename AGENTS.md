@@ -1,6 +1,6 @@
 # AGENTS.md: Developer & AI Assistant Operating Guide
 
-This document defines the canonical architecture rules, coding standards, and operational workflows for AI coding assistants (Antigravity, Claude Code, Hermes, Cursor) working within the **`Moneta Wealth`** repository at `/opt/moneta_wealth` (symlinked from `/opt/moneta_desktop`).
+This document defines the canonical architecture rules, coding standards, and operational workflows for AI coding assistants (Antigravity, Claude Code, Hermes, Cursor) working within the **`Moneta Wealth`** repository at `/opt/moneta_wealth`.
 
 ---
 
@@ -48,7 +48,7 @@ This document defines the canonical architecture rules, coding standards, and op
 ## 2. Directory Layout & Key Files
 
 ```
-/opt/moneta_wealth/ (or /opt/moneta_desktop/)
+/opt/moneta_wealth/
 ├── ARCHITECTURE.md                  # Detailed system architecture specification
 ├── AGENTS.md                        # This developer guide
 ├── README.md                        # Repository overview & quickstart
@@ -116,7 +116,7 @@ This document defines the canonical architecture rules, coding standards, and op
 ## 3. SQLite Schema Evolution Protocol
 
 When modifying or extending the SQLite database:
-1. Update table creation DDL in the `runMigrations()` method in [`src/lib/data/sqliteAdapter.ts`](file:///opt/moneta_desktop/src/lib/data/sqliteAdapter.ts).
+1. Update table creation DDL in the `runMigrations()` method in [`src/lib/data/sqliteAdapter.ts`](file:///opt/moneta_wealth/src/lib/data/sqliteAdapter.ts).
 2. Ensure new tables include `IF NOT EXISTS`.
 3. If seeding new default records, check table row counts first before inserting.
 4. Always invoke `await this.persist()` after executing write transactions to flush binary database buffers into IndexedDB.

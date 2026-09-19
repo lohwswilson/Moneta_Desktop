@@ -6,7 +6,7 @@ Moneta Desktop can operate completely standalone or connect directly to a live, 
 
 ## 1. Pluggable Repository Pattern
 
-All data access is mediated through the [`IMonetaRepository`](file:///opt/moneta_desktop/src/lib/data/repository.ts) interface:
+All data access is mediated through the [`IMonetaRepository`](file:///opt/moneta_wealth/src/lib/data/repository.ts) interface:
 
 ```typescript
 export interface IMonetaRepository {
@@ -120,7 +120,7 @@ Authentication uses Odoo's native **Personal Access Token (PAT)** system (`res.u
    Authorization: Bearer <API_KEY>
    ```
 2. **Scoping**: Odoo scopes every database query to `request.env.user` corresponding to the token owner, applying all multi-tenant security rules.
-3. **Prefix Normalization**: Moneta Desktop's API client ([`src/lib/api/client.ts`](file:///opt/moneta_desktop/src/lib/api/client.ts)) automatically strips redundant `"Bearer "` prefixes to prevent malformed auth headers.
+3. **Prefix Normalization**: Moneta Desktop's API client ([`src/lib/api/client.ts`](file:///opt/moneta_wealth/src/lib/api/client.ts)) automatically strips redundant `"Bearer "` prefixes to prevent malformed auth headers.
 
 ---
 
@@ -145,7 +145,7 @@ Connecting a desktop webview or browser app to an external Odoo server faces bro
 ```
 
 ### Vite Dev Proxy Configuration
-In [`vite.config.ts`](file:///opt/moneta_desktop/vite.config.ts):
+In [`vite.config.ts`](file:///opt/moneta_wealth/vite.config.ts):
 ```typescript
 server: {
   proxy: {
@@ -159,7 +159,7 @@ server: {
 ```
 
 ### Tauri Native Rust Adapter
-In [`src/lib/api/client.ts`](file:///opt/moneta_desktop/src/lib/api/client.ts):
+In [`src/lib/api/client.ts`](file:///opt/moneta_wealth/src/lib/api/client.ts):
 ```typescript
 if (typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window) {
   // Use Tauri's native Rust HTTP client to bypass browser CORS

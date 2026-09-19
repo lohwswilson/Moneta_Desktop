@@ -1,6 +1,6 @@
 # Wealth Command Center & FIRE Analytics
 
-The **Wealth Command Center** ([`src/lib/components/CommandCenter.svelte`](file:///opt/moneta_desktop/src/lib/components/CommandCenter.svelte)) is Moneta Desktop's executive overview screen, synthesizing balance sheets, cash flow ratios, and retirement progress into live financial metrics.
+The **Wealth Command Center** ([`src/lib/components/CommandCenter.svelte`](file:///opt/moneta_wealth/src/lib/components/CommandCenter.svelte)) is Moneta Desktop's executive overview screen, synthesizing balance sheets, cash flow ratios, and retirement progress into live financial metrics.
 
 ---
 

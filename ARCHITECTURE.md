@@ -38,7 +38,7 @@ This document defines the software engineering architecture, state management pa
 
 Moneta Desktop is built natively using **Svelte 5 Runes**, avoiding legacy Svelte 3/4 stores in favor of fine-grained reactive primitives:
 
-### Reactive State in `FinanceStore` ([`src/lib/stores/financeStore.svelte.ts`](file:///opt/moneta_desktop/src/lib/stores/financeStore.svelte.ts))
+### Reactive State in `FinanceStore` ([`src/lib/stores/financeStore.svelte.ts`](file:///opt/moneta_wealth/src/lib/stores/financeStore.svelte.ts))
 ```typescript
 class FinanceStore {
   // Reactive configuration and authentication
@@ -100,7 +100,7 @@ class FinanceStore {
 
 ## 4. Data Repository Layer (`IMonetaRepository`)
 
-All data operations are defined by a strict contract in [`src/lib/data/repository.ts`](file:///opt/moneta_desktop/src/lib/data/repository.ts):
+All data operations are defined by a strict contract in [`src/lib/data/repository.ts`](file:///opt/moneta_wealth/src/lib/data/repository.ts):
 
 ```
                        ┌─────────────────────────┐
@@ -144,10 +144,10 @@ The trade-off is that a **missing** implementation degrades silently to an empty
 
 Derived figures that Odoo also computes are implemented **once** in a shared module and called by every adapter, rather than reimplemented per adapter. Four modules follow this rule today:
 
-- [`src/lib/data/goalMath.ts`](file:///opt/moneta_desktop/src/lib/data/goalMath.ts) — mirrors `goal.py::_compute_goal_progress`
-- [`src/lib/data/portfolioMath.ts`](file:///opt/moneta_desktop/src/lib/data/portfolioMath.ts) — mirrors `investment.py` / `tax_lot.py` (`_modified_dietz`, `_xirr`)
-- [`src/lib/data/loanMath.ts`](file:///opt/moneta_desktop/src/lib/data/loanMath.ts) — mirrors `loan.py` (amortization, prepayment, rate inference)
-- [`src/lib/data/propertyMath.ts`](file:///opt/moneta_desktop/src/lib/data/propertyMath.ts) — mirrors `property.py` and `rental_property.py` (equity, rental metrics, rent roll)
+- [`src/lib/data/goalMath.ts`](file:///opt/moneta_wealth/src/lib/data/goalMath.ts) — mirrors `goal.py::_compute_goal_progress`
+- [`src/lib/data/portfolioMath.ts`](file:///opt/moneta_wealth/src/lib/data/portfolioMath.ts) — mirrors `investment.py` / `tax_lot.py` (`_modified_dietz`, `_xirr`)
+- [`src/lib/data/loanMath.ts`](file:///opt/moneta_wealth/src/lib/data/loanMath.ts) — mirrors `loan.py` (amortization, prepayment, rate inference)
+- [`src/lib/data/propertyMath.ts`](file:///opt/moneta_wealth/src/lib/data/propertyMath.ts) — mirrors `property.py` and `rental_property.py` (equity, rental metrics, rent roll)
 
 ```typescript
 // Both adapters do this — neither defines its own maths
