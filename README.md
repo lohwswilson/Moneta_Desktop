@@ -133,4 +133,13 @@ node --experimental-strip-types scripts/verify_property_math.ts
 ---
 
 ## 📄 License
-This project is licensed under the MIT License.
+
+Moneta Desktop is licensed under the **Apache License 2.0** — see [`LICENSE`](LICENSE).
+
+**The desktop application is free and open source, permanently.** Use it offline, unmodified and unrestricted: no account, no login, no subscription, no telemetry. Fork it, audit it, build on it.
+
+**Moneta Cloud is the paid tier** (S$9/month) and covers multi-device sync, Moneta Mobile, cloud backup and partner sharing. The subscription buys a **hosted service**, not the software — every feature runs in the free app; what you pay for is having your data on every device and backed up.
+
+The two are separable by design. See [ADR 0001](docs/adr/0001-subscription-tiers-and-cloud-sync.md) and [ADR 0004](docs/adr/0004-entitlement-matrix-and-lifecycle.md) for the reasoning.
+
+`moneta_finance`, the Odoo 18 backend module, is licensed separately under [LGPL-3.0](https://github.com/lohwswilson/moneta_finance).

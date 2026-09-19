@@ -150,7 +150,7 @@ It operates completely **100% offline-first** using an embedded WebAssembly SQLi
 | **Mortgage Amortization & Prepayment** | **✔ Native** | ✔ Native | ✖ No | Partial | ✔ Native |
 | **Landlord Rent Roll & Tenants** | **✔ Native** | ✖ No | ✖ No | ✖ No | ✔ Satellite |
 | **Direct Odoo 18 Server Sync** | **✔ Native (Bearer PAT)**| ✖ No | ✖ No | ✖ No | Host Backend |
-| **Zero Subscription Cost** | **✔ Free & Open-Source** | ✖ $70+/yr | ✖ $109/yr | ✖ $100/yr | ✔ Free Self-Hosted |
+| **Cost** | **✔ Free desktop app; Cloud S$9/mo** | ✖ $70+/yr | ✖ $109/yr | ✖ $100/yr | ✔ Free Self-Hosted |
 
 ---
 
@@ -176,3 +176,4 @@ It operates completely **100% offline-first** using an embedded WebAssembly SQLi
 | [0002](adr/0002-moneta-cloud-platform.md) | Moneta Cloud platform — stay on Odoo, narrowed to a sync store plus licensing and billing; shared instances, version pinning, LGPL position |
 | [0003](adr/0003-licence-and-billing-topology.md) | Licence and billing topology — one licence database, local token verification, enforcement via the sync service, ANSIS accounting linkage |
 | [0004](adr/0004-entitlement-matrix-and-lifecycle.md) | Entitlement matrix and customer lifecycle — what each tier can access, pricing, the upgrade path, and cancellation |
+| [0005](adr/0005-open-source-and-licence.md) | Open source and licence choice — Apache-2.0 for the desktop app, proprietary server, and the reasoning for each |
