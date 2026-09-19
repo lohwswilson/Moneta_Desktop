@@ -9,7 +9,7 @@
 
 ## Context
 
-Moneta Cloud is the hosted backend for Moneta Wealth and Moneta Mobile. ADR 0001 established that it is the existing Odoo 18 `moneta_wealth_odoo` deployment rather than a new service, and dropped Supabase.
+Moneta Cloud is the hosted backend for Moneta Wealth and Moneta Mobile. ADR 0001 established that it is the existing Odoo 18 `moneta_core` deployment rather than a new service, and dropped Supabase.
 
 This ADR records the platform decision and — importantly — the **narrowed role** Odoo plays in the product.
 
@@ -70,7 +70,7 @@ Odoo ships a major version annually. With N subscriber databases, every upgrade 
 
 ### 5. LGPL position
 
-Odoo Community is **LGPLv3**, which has **no network copyleft** — that is AGPL, which Odoo does not use. Running Odoo Community as a commercial service does **not** require publishing your work. `moneta_wealth_odoo` is ANSIS's own code and may be licensed as ANSIS chooses.
+Odoo Community is **LGPLv3**, which has **no network copyleft** — that is AGPL, which Odoo does not use. Running Odoo Community as a commercial service does **not** require publishing your work. `moneta_core` is ANSIS's own code and may be licensed as ANSIS chooses.
 
 The obligation attaches only if **Odoo core itself** is modified. Keep all customisation in addons, never in core — which the codebase already does.
 

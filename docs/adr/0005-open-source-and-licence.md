@@ -36,7 +36,7 @@ No account, no login, no subscription, no telemetry to use it. Every feature run
 
 ### 3. The server components remain proprietary
 
-The licence/billing service is server-side and never distributed, so it is inherently ANSIS's. `moneta_wealth_odoo` remains **LGPL-3.0**, which is Odoo convention and appropriate.
+The licence/billing service is server-side and never distributed, so it is inherently ANSIS's. `moneta_core` remains **LGPL-3.0**, which is Odoo convention and appropriate.
 
 This is an open-core split by nature rather than by contrivance: the desktop app is distributed (so it is open), the service is operated (so it is not).
 
@@ -115,4 +115,4 @@ It does not prevent someone forking the application and selling it. That is acce
 - [ADR 0003](0003-licence-and-billing-topology.md) — enforcement (why the client is not secret)
 - [ADR 0004](0004-entitlement-matrix-and-lifecycle.md) — entitlement matrix and pricing
 - [`CONTRIBUTING.md`](../../CONTRIBUTING.md) — contributor guide
-- [`moneta_wealth_odoo`](https://github.com/lohwswilson/moneta_wealth_odoo) — LGPL-3.0 Odoo module
+- [`moneta_core`](https://github.com/lohwswilson/moneta_core) — LGPL-3.0 Odoo module

@@ -11,7 +11,7 @@ Moneta Wealth is one half of a pair. **Every feature ships on both sides** — t
 | Repository | Role | Licence |
 | :--- | :--- | :--- |
 | [`Moneta_Wealth`](https://github.com/lohwswilson/Moneta_Wealth) | The application. All product features live here. | Apache-2.0 |
-| [`moneta_wealth_odoo`](https://github.com/lohwswilson/moneta_wealth_odoo) | Odoo 18 module. Sync store, licensing, and the same features for subscribers who use the web backend. | LGPL-3.0 |
+| [`moneta_core`](https://github.com/lohwswilson/moneta_core) | Odoo 18 module. Sync store, licensing, and the same features for subscribers who use the web backend. | LGPL-3.0 |
 
 A Desktop-only feature is **incomplete**. Subscribers log into the Odoo backend directly and must find a complete system there. Pull requests adding a feature to one side without the other will be asked to add the other half before merging.
 

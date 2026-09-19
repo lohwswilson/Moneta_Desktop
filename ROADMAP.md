@@ -1,6 +1,6 @@
 # Moneta Wealth: Product Roadmap & Feature Parity Plan
 
-This roadmap defines the multi-phase engineering plan to achieve full feature parity between the **Odoo `moneta_wealth_odoo` suite** and the standalone, portable **Moneta Wealth** application built with **Tauri v2 + Svelte 5 + SQLite**.
+This roadmap defines the multi-phase engineering plan to achieve full feature parity between the **Odoo `moneta_core` suite** and the standalone, portable **Moneta Wealth** application built with **Tauri v2 + Svelte 5 + SQLite**.
 
 ---
 

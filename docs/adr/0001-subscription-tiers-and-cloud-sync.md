@@ -9,9 +9,9 @@
 
 ## Context
 
-Moneta Wealth is an offline-first personal finance application with a pluggable repository: a local SQLite store (`SqliteAdapter`), a live Odoo adapter against `moneta_wealth_odoo` (`OdooAdapter`), and a demo sandbox (`MockAdapter`). Phases 1–5 are complete — ledger, banking, planning hubs, portfolio and property/rental.
+Moneta Wealth is an offline-first personal finance application with a pluggable repository: a local SQLite store (`SqliteAdapter`), a live Odoo adapter against `moneta_core` (`OdooAdapter`), and a demo sandbox (`MockAdapter`). Phases 1–5 are complete — ledger, banking, planning hubs, portfolio and property/rental.
 
-**Moneta Cloud** is the existing self-hosted Odoo 18 `moneta_wealth_odoo` backend. It is not a new service: it already models every entity the Desktop app does (accounts, transactions, budgets, bills, goals, securities, lots, properties, tenants, rent payments, loans) via `/api/v1/mobile/*`.
+**Moneta Cloud** is the existing self-hosted Odoo 18 `moneta_core` backend. It is not a new service: it already models every entity the Desktop app does (accounts, transactions, budgets, bills, goals, securities, lots, properties, tenants, rent payments, loans) via `/api/v1/mobile/*`.
 
 The product intent is a subscription model where Moneta Cloud provides the paid tier, **Moneta Mobile** provides the multi-device story, and each subscriber has their own database.
 
@@ -113,7 +113,7 @@ Moneta Mobile syncs through the same path (subscribers)
 
 **Subscriber Cloud Custody Invariant:**
 When a user subscribes to Moneta Cloud, the client automatically initiates full initial sync and continuous replication so that **all subscriber financial records are kept in Moneta Cloud (Odoo Backend)**. This ensures:
-1. **Zero Data Loss Guarantee:** Complete automated cloud disaster recovery if the local device is lost, formatted, or replaced.
+1. **Zero Data Loss Guarantee (while subscribed):** Complete automated cloud disaster recovery if the local device is lost, formatted, or replaced — **for as long as the subscription is active**. The guarantee does not extend past cancellation. Per [ADR 0004 §7](0004-entitlement-matrix-and-lifecycle.md) the cloud copy is deleted 30 days after cancellation; from that point the subscriber's only protection against device loss is their own local `.sqlite` export, which is free and permanent ([ADR 0004 §2](0004-entitlement-matrix-and-lifecycle.md)). Export availability inside the cancellation window is what makes this safe — it is not optional.
 2. **Multi-Device Availability:** Changes stream automatically to Moneta Mobile and secondary desktops.
 3. **Continuous Background Intelligence:** Moneta Cloud executes hourly stock quotes, automated bank feeds, and scheduled bill monitors in the background.
 
@@ -209,4 +209,4 @@ Subscriber features ship with a **14–30 day trial, no card required**. For a g
 - [`AGENTS.md`](../../AGENTS.md) §1.1 — offline-first invariant
 - [`ROADMAP.md`](../../ROADMAP.md) — Phase 8 (superseded by this ADR)
 - [`11_PROPERTY_MORTGAGES_AND_RENTAL.md`](../11_PROPERTY_MORTGAGES_AND_RENTAL.md) — the Landlord Hub this ADR gates
-- Odoo `moneta_wealth_odoo` — `/api/v1/mobile/*`, the existing cloud surface
+- Odoo `moneta_core` — `/api/v1/mobile/*`, the existing cloud surface

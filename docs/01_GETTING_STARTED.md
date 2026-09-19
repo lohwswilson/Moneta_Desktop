@@ -83,7 +83,7 @@ Moneta Wealth is **local-first**: your ledger lives in an embedded SQLite databa
 
 ## 🔄 1-Click Migration (Moneta Cloud $\rightarrow$ Local)
 
-If you already use the **Odoo 18 `moneta_wealth_odoo`** module, Moneta Wealth includes an automated migration that copies your records into the local database:
+If you already use the **Odoo 18 `moneta_core`** module, Moneta Wealth includes an automated migration that copies your records into the local database:
 
 1. Click the **Connection Status** badge in the bottom-left sidebar.
 2. Ensure the data source is **My Ledger**.
